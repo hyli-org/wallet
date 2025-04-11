@@ -1,0 +1,31 @@
+# Étape de build
+FROM oven/bun:latest AS build
+
+# Définir le répertoire de travail
+WORKDIR /app
+
+# Copier les fichiers de l'application
+COPY front/package.json front/bun.lockb ./
+
+# Installer les dépendances
+RUN bun install
+
+# Copier le reste des fichiers de l'application
+COPY front .
+COPY front/.env.production .env
+
+# Construire l'application
+RUN bun run build
+
+# Étape de production
+FROM nginx:1.21.5-alpine AS production
+
+# Copier les fichiers de build depuis l'étape de build
+COPY --from=build /app/dist /usr/share/nginx/html
+
+# Exposer le port 80
+EXPOSE 80
+
+# Démarrer Nginx
+CMD ["nginx", "-g", "daemon off;"]
+

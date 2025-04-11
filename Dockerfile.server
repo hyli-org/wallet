@@ -1,0 +1,31 @@
+FROM rust:latest AS builder
+
+RUN curl -L https://risczero.com/install | bash
+RUN /root/.risc0/bin/rzup install
+RUN apt-get update && apt-get install -y libdbus-1-dev
+
+WORKDIR /app
+COPY .cargo .cargo
+COPY ./contracts/ ./contracts
+COPY ./server ./server
+COPY Cargo.toml . 
+COPY Cargo.lock .
+
+RUN cargo build --bin server
+
+# RUNNER
+FROM rust:latest
+
+WORKDIR /app
+
+COPY --from=builder /app/target/debug/server ./
+
+RUN apt-get update && apt-get install -y libdbus-1-dev
+
+EXPOSE 4000
+
+ENV RISC0_EXECUTOR=local
+
+CMD ["./server"]
+
+
