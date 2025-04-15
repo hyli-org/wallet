@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["contracts", "contracts/contract1", "contracts/contract2", "server"]
+members = ["contracts", "contracts/wallet", "contracts/contract2", "server"]
 
 [workspace.dependencies]
 sdk = { package = "hyle-contract-sdk", version = "0.13.0-rc.4" }
@@ -8,7 +8,7 @@ client-sdk = { default-features = false, package = "hyle-client-sdk", version = 
 hyle = { version = "0.13.0-rc.4" }
 
 contracts = { path = "contracts", default-features = false, package = "contracts" }
-contract1 = { path = "contracts/contract1", package = "contract1" }
+wallet = { path = "contracts/wallet", package = "wallet" }
 contract2 = { path = "contracts/contract2", package = "contract2" }
 
 [workspace.package]

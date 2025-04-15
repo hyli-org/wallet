@@ -3,8 +3,6 @@ use app::{AppModule, AppModuleCtx};
 use axum::Router;
 use clap::Parser;
 use client_sdk::rest_client::{IndexerApiHttpClient, NodeApiHttpClient};
-use contract1::Contract1;
-use contract2::Contract2;
 use hyle::{
     bus::{metrics::BusMetrics, SharedMessageBus},
     indexer::{
@@ -23,6 +21,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 use tracing::error;
+use wallet::Wallet;
 
 mod app;
 mod init;
@@ -34,8 +33,8 @@ pub struct Args {
     #[arg(long, default_value = "config.toml")]
     pub config_file: Option<String>,
 
-    #[arg(long, default_value = "contract1")]
-    pub contract1_cn: String,
+    #[arg(long, default_value = "wallet")]
+    pub wallet_cn: String,
 
     #[arg(long, default_value = "contract2")]
     pub contract2_cn: String,
@@ -61,18 +60,11 @@ async fn main() -> Result<()> {
     let indexer_client =
         Arc::new(IndexerApiHttpClient::new(indexer_url).context("build indexer client")?);
 
-    let contracts = vec![
-        init::ContractInit {
-            name: args.contract1_cn.clone().into(),
-            program_id: contract1::client::tx_executor_handler::metadata::PROGRAM_ID,
-            initial_state: Contract1::default().commit(),
-        },
-        init::ContractInit {
-            name: args.contract2_cn.clone().into(),
-            program_id: contract2::client::tx_executor_handler::metadata::PROGRAM_ID,
-            initial_state: Contract2::default().commit(),
-        },
-    ];
+    let contracts = vec![init::ContractInit {
+        name: args.wallet_cn.clone().into(),
+        program_id: wallet::client::tx_executor_handler::metadata::PROGRAM_ID,
+        initial_state: Wallet::default().commit(),
+    }];
 
     match init::init_node(node_client.clone(), indexer_client.clone(), contracts).await {
         Ok(_) => {}
@@ -97,8 +89,7 @@ async fn main() -> Result<()> {
     let app_ctx = Arc::new(AppModuleCtx {
         common: ctx.clone(),
         node_client,
-        contract1_cn: args.contract1_cn.clone().into(),
-        contract2_cn: args.contract2_cn.clone().into(),
+        wallet_cn: args.wallet_cn.clone().into(),
     });
     let start_height = app_ctx.node_client.get_block_height().await?;
     let prover_ctx = Arc::new(ProverModuleCtx {
@@ -109,15 +100,8 @@ async fn main() -> Result<()> {
     handler.build_module::<AppModule>(app_ctx.clone()).await?;
 
     handler
-        .build_module::<ContractStateIndexer<Contract1>>(ContractStateIndexerCtx {
-            contract_name: args.contract1_cn.into(),
-            common: ctx.clone(),
-        })
-        .await?;
-
-    handler
-        .build_module::<ContractStateIndexer<Contract2>>(ContractStateIndexerCtx {
-            contract_name: args.contract2_cn.into(),
+        .build_module::<ContractStateIndexer<Wallet>>(ContractStateIndexerCtx {
+            contract_name: args.wallet_cn.into(),
             common: ctx.clone(),
         })
         .await?;

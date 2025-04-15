@@ -1,9 +1,9 @@
 use clap::{Parser, Subcommand};
-use contract1::client::tx_executor_handler::metadata::PROGRAM_ID;
-use contract1::Contract1;
-use contract1::Contract1Action;
 use sdk::api::APIRegisterContract;
 use sdk::{BlobTransaction, ZkContract};
+use wallet::client::tx_executor_handler::metadata::PROGRAM_ID;
+use wallet::Wallet;
+use wallet::WalletAction;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -18,10 +18,10 @@ struct Cli {
     #[arg(long, default_value = "http://localhost:4321")]
     pub host: String,
 
-    #[arg(long, default_value = "contract1")]
+    #[arg(long, default_value = "wallet")]
     pub contract_name: String,
 
-    #[arg(long, default_value = "bob.contract1")]
+    #[arg(long, default_value = "bob.wallet")]
     pub id: String,
 }
 
@@ -49,7 +49,7 @@ async fn main() {
     match cli.command {
         Commands::Register {} => {
             // Build initial state of contract
-            let initial_state: Contract1 = Contract1::default();
+            let initial_state: Wallet = Wallet::default();
             println!("Initial state: {:?}", initial_state);
 
             // Send the transaction to register the contract
@@ -68,7 +68,7 @@ async fn main() {
             // ----
             // Build the blob transaction
             // ----
-            let action = Contract1Action::Increment;
+            let action = WalletAction::Increment;
             let blobs = vec![sdk::Blob {
                 contract_name: contract_name.clone().into(),
                 data: sdk::BlobData(borsh::to_vec(&action).expect("failed to encode BlobData")),

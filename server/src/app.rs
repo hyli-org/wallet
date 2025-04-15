@@ -9,8 +9,6 @@ use axum::{
     Router,
 };
 use client_sdk::rest_client::NodeApiHttpClient;
-use contract1::Contract1Action;
-use contract2::Contract2Action;
 use hyle::{
     bus::{BusClientReceiver, BusMessage, SharedMessageBus},
     model::CommonRunContext,
@@ -18,6 +16,7 @@ use hyle::{
     rest::AppError,
     utils::modules::{module_bus_client, Module},
 };
+use wallet::WalletAction;
 
 use sdk::{BlobTransaction, ContractName, TxHash};
 use serde::Serialize;
@@ -31,8 +30,7 @@ pub struct AppModule {
 pub struct AppModuleCtx {
     pub common: Arc<CommonRunContext>,
     pub node_client: Arc<NodeApiHttpClient>,
-    pub contract1_cn: ContractName,
-    pub contract2_cn: ContractName,
+    pub wallet_cn: ContractName,
 }
 
 #[derive(Debug, Clone)]
@@ -54,8 +52,7 @@ impl Module for AppModule {
 
     async fn build(ctx: Self::Context) -> Result<Self> {
         let state = RouterCtx {
-            contract1_cn: ctx.contract1_cn.clone(),
-            contract2_cn: ctx.contract2_cn.clone(),
+            wallet_cn: ctx.wallet_cn.clone(),
             app: Arc::new(Mutex::new(HyleOofCtx {
                 bus: ctx.common.bus.new_handle(),
             })),
@@ -98,8 +95,7 @@ impl Module for AppModule {
 struct RouterCtx {
     pub app: Arc<Mutex<HyleOofCtx>>,
     pub client: Arc<NodeApiHttpClient>,
-    pub contract1_cn: ContractName,
-    pub contract2_cn: ContractName,
+    pub wallet_cn: ContractName,
 }
 
 pub struct HyleOofCtx {
@@ -184,7 +180,7 @@ async fn increment(
 
 async fn get_config(State(ctx): State<RouterCtx>) -> impl IntoResponse {
     Json(ConfigResponse {
-        contract_name: ctx.contract1_cn.0,
+        contract_name: ctx.wallet_cn.0,
     })
 }
 
@@ -193,13 +189,9 @@ async fn send(ctx: RouterCtx, auth: AuthHeaders) -> Result<impl IntoResponse, Ap
     let _header_signature = auth.signature.clone();
     let identity = auth.user.clone();
 
-    let action_contract1 = Contract1Action::Increment;
-    let action_contract2 = Contract2Action::Increment;
+    let action_wallet = WalletAction::Increment;
 
-    let blobs = vec![
-        action_contract1.as_blob(ctx.contract1_cn.clone()),
-        action_contract2.as_blob(ctx.contract2_cn.clone()),
-    ];
+    let blobs = vec![action_wallet.as_blob(ctx.wallet_cn.clone())];
 
     let res = ctx
         .client

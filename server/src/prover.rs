@@ -3,8 +3,6 @@ use std::sync::Arc;
 use crate::app::{AppEvent, AppModuleCtx};
 use anyhow::{anyhow, Result};
 use client_sdk::helpers::risc0::Risc0Prover;
-use contract1::Contract1;
-use contract2::Contract2;
 use hyle::{
     bus::BusClientSender,
     log_error, module_handle_messages,
@@ -16,13 +14,13 @@ use sdk::{
     TransactionData, TxHash, ZkContract, HYLE_TESTNET_CHAIN_ID,
 };
 use tracing::{error, info};
+use wallet::Wallet;
 
 pub struct ProverModule {
     bus: ProverModuleBusClient,
     ctx: Arc<ProverModuleCtx>,
     unsettled_txs: Vec<BlobTransaction>,
-    contract1: Contract1,
-    contract2: Contract2,
+    wallet: Wallet,
 }
 
 module_bus_client! {
@@ -45,8 +43,8 @@ impl Module for ProverModule {
 
         // TODO: correctly fetch contracts states
         // let client = ctx.indexer_client.clone();
-        // let contract1: Contract1 = client
-        //     .fetch_current_state(&ctx.app.contract1_cn)
+        // let wallet: wallet = client
+        //     .fetch_current_state(&ctx.app.wallet_cn)
         //     .await
         //     .unwrap();
         // let contract2: Contract2 = client
@@ -54,13 +52,11 @@ impl Module for ProverModule {
         //     .await
         //     .unwrap();
 
-        let contract1 = Contract1::default();
-        let contract2 = Contract2::default();
+        let wallet = Wallet::default();
 
         Ok(ProverModule {
             bus,
-            contract1,
-            contract2,
+            wallet,
             ctx,
             unsettled_txs: vec![],
         })
@@ -119,11 +115,8 @@ impl ProverModule {
 
     fn handle_blob(&mut self, tx: BlobTransaction, tx_ctx: sdk::TxContext) {
         for (index, blob) in tx.blobs.iter().enumerate() {
-            if blob.contract_name == self.ctx.app.contract1_cn {
-                self.prove_contract1_blob(&index.into(), &tx, &tx_ctx);
-            }
-            if blob.contract_name == self.ctx.app.contract2_cn {
-                self.prove_contract2_blob(&index.into(), &tx, &tx_ctx);
+            if blob.contract_name == self.ctx.app.wallet_cn {
+                self.prove_wallet_blob(&index.into(), &tx, &tx_ctx);
             }
         }
         self.unsettled_txs.push(tx);
@@ -139,7 +132,7 @@ impl ProverModule {
         }
     }
 
-    fn prove_contract1_blob(
+    fn prove_wallet_blob(
         &mut self,
         blob_index: &BlobIndex,
         tx: &BlobTransaction,
@@ -152,12 +145,11 @@ impl ProverModule {
         let blobs = tx.blobs.clone();
         let tx_hash = tx.hashed();
 
-        let prover =
-            Risc0Prover::new(contract1::client::tx_executor_handler::metadata::CONTRACT1_ELF);
+        let prover = Risc0Prover::new(wallet::client::tx_executor_handler::metadata::WALLET_ELF);
 
         info!("Proving tx: {}. Blob for {}", tx_hash, blob.contract_name);
 
-        let Ok(state) = self.contract1.as_bytes() else {
+        let Ok(state) = self.wallet.as_bytes() else {
             error!("Failed to serialize state on tx: {}", tx_hash);
             return;
         };
@@ -174,75 +166,7 @@ impl ProverModule {
             tx_blob_count: blobs.len(),
         };
 
-        if let Err(e) = self.contract1.execute(&calldata).map_err(|e| anyhow!(e)) {
-            error!("error while executing contract: {e}");
-            self.bus
-                .send(AppEvent::FailedTx(tx_hash.clone(), e.to_string()))
-                .unwrap();
-        }
-
-        self.bus
-            .send(AppEvent::SequencedTx(tx_hash.clone()))
-            .unwrap();
-
-        let node_client = self.ctx.app.node_client.clone();
-        let blob = blob.clone();
-        tokio::task::spawn(async move {
-            match prover.prove(commitment_metadata, calldata).await {
-                Ok(proof) => {
-                    info!("Proof generated for tx: {}", tx_hash);
-                    let tx = ProofTransaction {
-                        contract_name: blob.contract_name.clone(),
-                        proof,
-                    };
-                    let _ = log_error!(
-                        node_client.send_tx_proof(&tx).await,
-                        "failed to send proof to node"
-                    );
-                }
-                Err(e) => {
-                    error!("Error proving tx: {:?}", e);
-                }
-            };
-        });
-    }
-
-    fn prove_contract2_blob(
-        &mut self,
-        blob_index: &BlobIndex,
-        tx: &BlobTransaction,
-        tx_ctx: &sdk::TxContext,
-    ) {
-        if tx_ctx.block_height.0 < self.ctx.start_height.0 {
-            return;
-        }
-        let blob = tx.blobs.get(blob_index.0).unwrap();
-        let blobs = tx.blobs.clone();
-        let tx_hash = tx.hashed();
-
-        let prover =
-            Risc0Prover::new(contract2::client::tx_executor_handler::metadata::CONTRACT2_ELF);
-
-        info!("Proving tx: {}. Blob for {}", tx_hash, blob.contract_name);
-
-        let Ok(state) = self.contract2.as_bytes() else {
-            error!("Failed to serialize state on tx: {}", tx_hash);
-            return;
-        };
-
-        let commitment_metadata = state;
-
-        let calldata = Calldata {
-            identity: tx.identity.clone(),
-            tx_hash: tx_hash.clone(),
-            private_input: vec![],
-            blobs: blobs.clone().into(),
-            index: *blob_index,
-            tx_ctx: Some(tx_ctx.clone()),
-            tx_blob_count: blobs.len(),
-        };
-
-        if let Err(e) = self.contract2.execute(&calldata).map_err(|e| anyhow!(e)) {
+        if let Err(e) = self.wallet.execute(&calldata).map_err(|e| anyhow!(e)) {
             error!("error while executing contract: {e}");
             self.bus
                 .send(AppEvent::FailedTx(tx_hash.clone(), e.to_string()))

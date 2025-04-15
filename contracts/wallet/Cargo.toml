@@ -1,16 +1,16 @@
 [package]
-name = "contract1"
+name = "wallet"
 edition = { workspace = true }
 rust-version = "1.81"
 
 [[bin]]
-name = "contract1"
+name = "wallet"
 path = "src/main.rs"
 required-features = ["risc0"]
 test = false
 
 [[example]]
-name = "contract1-runner"
+name = "wallet-runner"
 path = "examples/host.rs"
 
 
@@ -34,7 +34,7 @@ client-sdk = { workspace = true, default-features = false, features = [
 
 [dev-dependencies]
 # Active client feature for tests
-contract1 = { path = ".", features = ["client"] }
+wallet = { path = ".", features = ["client"] }
 clap = { version = "4.5.23", features = ["derive"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tokio = { version = "1.44.2", features = ["full", "tracing"] }
