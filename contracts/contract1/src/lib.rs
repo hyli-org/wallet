@@ -24,7 +24,7 @@ impl sdk::ZkContract for Contract1 {
 
     /// In this example, we serialize the full state on-chain.
     fn commit(&self) -> sdk::StateCommitment {
-        sdk::StateCommitment(self.as_bytes().expect("Failed to encode Balances"))
+        sdk::StateCommitment(self.as_bytes().expect("Failed to encsode Balances"))
     }
 }
 

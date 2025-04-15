@@ -2141,6 +2141,8 @@ checksum = "df3b46402a9d5adb4c86a0cf463f42e19994e3ee891101b1841f30a545cb49a9"
 [[package]]
 name = "hyle"
 version = "0.13.0-rc.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cfd745d0bd45582beb469e92743fc0bee479854fd787dca92a035e9431173d01"
 dependencies = [
  "anyhow",
  "anymap",
@@ -2201,6 +2203,8 @@ dependencies = [
 [[package]]
 name = "hyle-amm"
 version = "0.13.0-rc.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0fed5d9fb541cc995f0e48f09ee36246ff1ce42ef200868151d8ae70beb49bec"
 dependencies = [
  "anyhow",
  "borsh",
@@ -2213,6 +2217,8 @@ dependencies = [
 [[package]]
 name = "hyle-bonsai-runner"
 version = "0.13.0-rc.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "39e08ae777d3c3d40287377eedc1aa4ac0e8ce026dc689bde780d9e1977d4c0f"
 dependencies = [
  "anyhow",
  "bincode",
@@ -2229,6 +2235,8 @@ dependencies = [
 [[package]]
 name = "hyle-client-sdk"
 version = "0.13.0-rc.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ec6635742f51d7c2077dfa614071591c5a58302f36ddd57ed36c4b1a93df5fd"
 dependencies = [
  "anyhow",
  "axum",
@@ -2248,6 +2256,8 @@ dependencies = [
 [[package]]
 name = "hyle-contract-sdk"
 version = "0.13.0-rc.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6b648b4a05ead818377d1fafd6d70d287c292853b690138e0e29b8600bd0e61f"
 dependencies = [
  "borsh",
  "hyle-model",
@@ -2261,6 +2271,8 @@ dependencies = [
 [[package]]
 name = "hyle-contracts"
 version = "0.13.0-rc.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a4444dead3202a5af94378aa626fb6ee3f5167c210f86e35bf60f6fd8a70791a"
 dependencies = [
  "hyle-amm",
  "hyle-contract-sdk",
@@ -2275,6 +2287,8 @@ dependencies = [
 [[package]]
 name = "hyle-hydentity"
 version = "0.13.0-rc.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8719730476cd7c0acb24253489a5630edd4b1bd91757c2a5b908e47a6c9a6961"
 dependencies = [
  "anyhow",
  "borsh",
@@ -2289,6 +2303,8 @@ dependencies = [
 [[package]]
 name = "hyle-hyllar"
 version = "0.13.0-rc.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba9e10a7e3e00094714cb452720527a5d70230aa1f4aa271977496037b6c81fd"
 dependencies = [
  "anyhow",
  "borsh",
@@ -2302,6 +2318,8 @@ dependencies = [
 [[package]]
 name = "hyle-model"
 version = "0.13.0-rc.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1bab1db26057746e9677419c73061a3678641b94db975aad1ba5f3c8c873506b"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -2323,6 +2341,8 @@ dependencies = [
 [[package]]
 name = "hyle-net"
 version = "0.13.0-rc.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac3e32a2208b8ff33adc4ee8380672e65f1706fc35fe6947f789145690774afc"
 dependencies = [
  "anyhow",
  "axum",
@@ -2344,6 +2364,8 @@ dependencies = [
 [[package]]
 name = "hyle-risc0-recursion"
 version = "0.13.0-rc.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb0544d82659f45d8e5ec1f9e1e7b51eb6c66d505eee447ac4543e7630757d05"
 dependencies = [
  "hyle-contract-sdk",
  "serde",
@@ -2352,6 +2374,8 @@ dependencies = [
 [[package]]
 name = "hyle-smt-token"
 version = "0.13.0-rc.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b8805419b1051cd1dfc56dac45a15eb8f61d63e015a1f2dc2984ff2830ded32"
 dependencies = [
  "anyhow",
  "borsh",
@@ -2365,6 +2389,8 @@ dependencies = [
 [[package]]
 name = "hyle-staking"
 version = "0.13.0-rc.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b80c4c2f6e81529da0b128f8370cc4496f8c872dbb86ec8b18d29b831d94925e"
 dependencies = [
  "anyhow",
  "borsh",
@@ -2378,6 +2404,8 @@ dependencies = [
 [[package]]
 name = "hyle-uuid-tld"
 version = "0.13.0-rc.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "909de5f6707e44cd6c4f98d582d7feb04c17f82abd9b142eb7327f1a4fd4afe7"
 dependencies = [
  "borsh",
  "hyle-client-sdk",
@@ -2390,13 +2418,15 @@ dependencies = [
 [[package]]
 name = "hyle-verifiers"
 version = "0.13.0-rc.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c77602318607b2101ceba2e9f32216d22c79ef471517e875a85d7b953bbf781d"
 dependencies = [
  "anyhow",
  "borsh",
- "hex",
  "hyle-model",
  "rand 0.9.0",
  "risc0-zkvm",
+ "serde_json",
  "tracing",
 ]
 
@@ -4816,6 +4846,7 @@ dependencies = [
  "clap",
  "contract1",
  "contract2",
+ "contracts",
  "hex",
  "hmac",
  "hyle",

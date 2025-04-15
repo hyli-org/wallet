@@ -22,7 +22,7 @@ use std::{
     env,
     sync::{Arc, Mutex},
 };
-use tracing::{error, warn};
+use tracing::error;
 
 mod app;
 mod init;
@@ -39,9 +39,6 @@ pub struct Args {
 
     #[arg(long, default_value = "contract2")]
     pub contract2_cn: String,
-
-    #[clap(long, action)]
-    pub pg: bool,
 }
 
 #[tokio::main]
@@ -191,11 +188,6 @@ async fn main() -> Result<()> {
             }
         }
         _ = handler.shutdown_modules().await;
-    }
-
-    if args.pg {
-        warn!("--pg option given. Postgres server will stop. Cleaning data dir");
-        std::fs::remove_dir_all(&config.data_directory).context("removing data directory")?;
     }
 
     Ok(())

@@ -22,7 +22,7 @@ RISC0_DEV_MODE=1 cargo run -- --pg
 ### 2. Server
 In this repository:
 ```bash
-RISC0_DEV_MODE=1 cargo run -p server -- --pg
+RISC0_DEV_MODE=1 cargo run -p server
 ```
 
 ### 3. Frontend
@@ -34,7 +34,9 @@ cd front && bun run dev
 ## Development
 
 ### Building Contracts
-After making any changes to the contracts, rebuild them with:
+When making changes to the contracts, their ELF are automatically rebuilt. 
+If you want to have reproducible builds with docker, remove the feature "nonreproducible" 
+from server's Cargo.toml and build the contracts using:
 ```bash
 cargo build -p contracts --features build --features all
 ```

@@ -49,8 +49,6 @@ fn main() {
     let env_wrapper = std::env::var("RUSTC_WORKSPACE_WRAPPER");
     std::env::set_var("RUSTC_WORKSPACE_WRAPPER", "");
 
-    println!("cargo:rerun-if-changed=build.rs");
-
     use risc0_build::{
         build_package, get_package, DockerOptionsBuilder, GuestListEntry, GuestOptionsBuilder,
     };
