@@ -122,13 +122,13 @@ impl Wallet {
     ) -> Result<String, String> {
         match self.identities.get_mut(&account) {
             Some(stored_info) => {
-                if nonce != stored_info.nonce {
+                if nonce <= stored_info.nonce {
                     return Err("Invalid nonce".to_string());
                 }
                 if hash != stored_info.hash {
                     return Err("Invalid hash (wrong secret check)".to_string());
                 }
-                stored_info.nonce += 1;
+                stored_info.nonce = nonce;
                 Ok("Identity verified".to_string())
             }
             None => Err("Identity not found".to_string()),

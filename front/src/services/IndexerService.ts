@@ -1,5 +1,10 @@
 import { IndexerApiHttpClient } from "hyle";
 
+interface BalanceResponse {
+  account: string;
+  balance: number;
+}
+
 class IndexerService {
   client: IndexerApiHttpClient;
 
@@ -9,10 +14,11 @@ class IndexerService {
 
   async getBalance(address: string): Promise<number> {
     try {
-      return await this.client.get<number>(
+      const response = await this.client.get<BalanceResponse>(
         `v1/indexer/contract/hyllar/balance/${address}`,
         "Fetching balance",
       );
+      return response.balance;
     } catch (error) {
       console.error("Erreur lors de la récupération du solde:", error);
       return 0;

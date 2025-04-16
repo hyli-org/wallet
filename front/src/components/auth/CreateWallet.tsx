@@ -133,6 +133,21 @@ export const CreateWallet = ({ onWalletCreated }: CreateWalletProps) => {
         >
           {isLoading ? 'Creating Wallet...' : 'Create Wallet'}
         </button>
+        <p>
+          The password is used to encrypt your wallet. Make sure to remember it, as it will be required for future logins. It isn't stored on any server, there is no recovery possible.
+        </p>
+        <p>
+          The wallet is created using zk proofs, ensuring that your credentials are never exposed. The password is hashed with your wallet id and stored securely on the blockchain.
+        </p>
+        <p>
+          Your username is unique and will be used to identify your wallet. Make sure to choose a name that you will remember.
+        </p>
+        <p>
+          After creating your wallet, you will be able to send and receive transactions using your unique wallet address.
+        </p>
+        <p>
+          If you have any questions or need assistance, please contact our support team.
+        </p>
       </div>
     </div>
   );

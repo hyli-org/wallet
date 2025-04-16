@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import './App.css';
 import { CreateWallet } from './components/auth/CreateWallet';
+import { LoginWallet } from './components/auth/LoginWallet';
 import { Balance } from './components/wallet/Balance';
 import { Send } from './components/wallet/Send';
 import { History } from './components/wallet/History';
@@ -14,6 +15,7 @@ function App() {
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [balance, setBalance] = useState<number>(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [showLogin, setShowLogin] = useState<boolean>(false);
   const { isLoading: isLoadingConfig, error: configError } = useConfig();
 
 
@@ -28,13 +30,18 @@ function App() {
   // Mettre à jour le solde toutes les 10 secondes
   useEffect(() => {
     fetchBalance();
-    const interval = setInterval(fetchBalance, 10000);
+    const interval = setInterval(fetchBalance, 1000);
     return () => clearInterval(interval);
   }, [wallet]);
 
   const handleWalletCreated = (newWallet: Wallet) => {
     setWallet(newWallet);
     localStorage.setItem('wallet', JSON.stringify(newWallet));
+  };
+
+  const handleWalletLoggedIn = (loggedInWallet: Wallet) => {
+    setWallet(loggedInWallet);
+    localStorage.setItem('wallet', JSON.stringify(loggedInWallet));
   };
 
   const handleSend = (transaction: Omit<Transaction, 'id' | 'timestamp'>) => {
@@ -67,7 +74,31 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={
-          wallet ? <Navigate to="/wallet/balance" replace /> : <CreateWallet onWalletCreated={handleWalletCreated} />
+          wallet ? <Navigate to="/wallet/balance" replace /> : (
+            <div className="auth-container">
+              {!showLogin ? (
+                <>
+                  <CreateWallet onWalletCreated={handleWalletCreated} />
+                  <button
+                    className="switch-auth-button"
+                    onClick={() => setShowLogin(true)}
+                  >
+                    Already have a wallet? Login here
+                  </button>
+                </>
+              ) : (
+                <>
+                  <LoginWallet onWalletLoggedIn={handleWalletLoggedIn} />
+                  <button
+                    className="switch-auth-button"
+                    onClick={() => setShowLogin(false)}
+                  >
+                    Need to create a wallet? Click here
+                  </button>
+                </>
+              )}
+            </div>
+          )
         } />
 
         {wallet && (

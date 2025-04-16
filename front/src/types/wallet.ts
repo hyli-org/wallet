@@ -53,7 +53,7 @@ export const register = (account: string, nonce: number): Blob => {
   return blob;
 };
 
-export const verifyIdentity = (nonce: number, account: string): Blob => {
+export const verifyIdentity = (account: string, nonce: number): Blob => {
   const action: IdentityAction = {
     VerifyIdentity: { nonce, account },
   };
