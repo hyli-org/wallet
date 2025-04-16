@@ -3,9 +3,10 @@ import { Wallet } from '../../types/wallet';
 
 interface WalletLayoutProps {
   wallet: Wallet;
+  onLogout: () => void;
 }
 
-export const WalletLayout = ({ wallet }: WalletLayoutProps) => {
+export const WalletLayout = ({ wallet, onLogout }: WalletLayoutProps) => {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -19,6 +20,12 @@ export const WalletLayout = ({ wallet }: WalletLayoutProps) => {
         <h1>Hyle Wallet</h1>
         <div className="wallet-info">
           <span>Welcome, {wallet.username}</span>
+          <button 
+            className="logout-button"
+            onClick={onLogout}
+          >
+            Logout
+          </button>
         </div>
       </header>
 

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
 
 use crate::app::{AppEvent, AppModuleCtx};
 use anyhow::{anyhow, Result};
@@ -13,13 +13,14 @@ use sdk::{
     BlobIndex, BlobTransaction, Block, BlockHeight, Calldata, Hashed, ProofTransaction,
     TransactionData, TxHash, ZkContract, HYLE_TESTNET_CHAIN_ID,
 };
-use tracing::{error, info};
+use tracing::{debug, error, info};
 use wallet::Wallet;
 
 pub struct ProverModule {
     bus: ProverModuleBusClient,
     ctx: Arc<ProverModuleCtx>,
-    unsettled_txs: Vec<BlobTransaction>,
+    unsettled_txs: Vec<(BlobTransaction, sdk::TxContext)>,
+    state_history: Vec<(TxHash, Wallet)>,
     wallet: Wallet,
 }
 
@@ -57,6 +58,7 @@ impl Module for ProverModule {
             wallet,
             ctx,
             unsettled_txs: vec![],
+            state_history: vec![],
         })
     }
 
@@ -96,16 +98,16 @@ impl ProverModule {
             }
         }
 
-        for s_tx in block.successful_txs {
-            self.settle_tx(s_tx)?;
+        for tx in block.successful_txs {
+            self.settle_tx_success(tx)?;
         }
 
-        for timedout in block.timed_out_txs {
-            self.settle_tx(timedout)?;
+        for tx in block.timed_out_txs {
+            self.settle_tx_failed(tx)?;
         }
 
-        for failed in block.failed_txs {
-            self.settle_tx(failed)?;
+        for tx in block.failed_txs {
+            self.settle_tx_failed(tx)?;
         }
 
         Ok(())
@@ -117,17 +119,72 @@ impl ProverModule {
                 self.prove_wallet_blob(&index.into(), &tx, &tx_ctx);
             }
         }
-        self.unsettled_txs.push(tx);
+        self.unsettled_txs.push((tx, tx_ctx));
     }
 
-    fn settle_tx(&mut self, tx: TxHash) -> Result<usize> {
-        let tx = self.unsettled_txs.iter().position(|t| t.hashed() == tx);
+    fn settle_tx_success(&mut self, tx: TxHash) -> Result<()> {
+        let pos = self.state_history.iter().position(|(h, _)| h == &tx);
+        if let Some(pos) = pos {
+            self.state_history = self.state_history.split_off(pos);
+        }
+        self.settle_tx(tx)?;
+        Ok(())
+    }
+
+    fn settle_tx_failed(&mut self, tx: TxHash) -> Result<()> {
+        self.handle_all_next_blobs(tx.clone())?;
+        self.state_history.retain(|(h, _)| h != &tx);
+        self.settle_tx(tx)
+    }
+
+    fn settle_tx(&mut self, tx: TxHash) -> Result<()> {
+        let tx = self
+            .unsettled_txs
+            .iter()
+            .position(|(t, _)| t.hashed() == tx);
         if let Some(pos) = tx {
             self.unsettled_txs.remove(pos);
-            Ok(pos)
-        } else {
-            Ok(0)
         }
+        Ok(())
+    }
+
+    fn handle_all_next_blobs(&mut self, failed_tx: TxHash) -> Result<()> {
+        let idx = self
+            .unsettled_txs
+            .iter()
+            .position(|(t, _)| t.hashed() == failed_tx);
+        let prev_state = self
+            .state_history
+            .iter()
+            .enumerate()
+            .find(|(_, (h, _))| h == &failed_tx)
+            .and_then(|(i, _)| {
+                if i > 0 {
+                    self.state_history.get(i - 1)
+                } else {
+                    None
+                }
+            });
+        if let Some((_, wallet)) = prev_state {
+            debug!("Reverting to previous state: {:?}", wallet);
+            self.wallet = wallet.clone();
+        } else {
+            self.wallet = Wallet::default();
+        }
+        for (tx, ctx) in self.unsettled_txs.clone().iter().skip(idx.unwrap_or(0) + 1) {
+            for (index, blob) in tx.blobs.iter().enumerate() {
+                if blob.contract_name == self.ctx.app.wallet_cn {
+                    debug!(
+                        "Re-execute blob for tx {} after a previous tx failure",
+                        tx.hashed()
+                    );
+                    self.state_history.retain(|(h, _)| h != &tx.hashed());
+                    self.prove_wallet_blob(&index.into(), tx, ctx);
+                }
+            }
+        }
+
+        Ok(())
     }
 
     fn prove_wallet_blob(
@@ -161,14 +218,24 @@ impl ProverModule {
             tx_blob_count: blobs.len(),
         };
 
-        if let Err(e) = self.wallet.execute(&calldata).map_err(|e| anyhow!(e)) {
-            info!("Error while executing contract: {e}");
-            if !old_tx {
-                self.bus
-                    .send(AppEvent::FailedTx(tx_hash.clone(), e.to_string()))
-                    .unwrap();
+        debug!("{} State before tx: {:?}", tx.hashed(), self.wallet);
+        match self.wallet.execute(&calldata).map_err(|e| anyhow!(e)) {
+            Err(e) => {
+                info!("{} Error while executing contract: {e}", tx.hashed());
+                if !old_tx {
+                    self.bus
+                        .send(AppEvent::FailedTx(tx_hash.clone(), e.to_string()))
+                        .unwrap();
+                }
+            }
+            Ok(msg) => {
+                debug!("{} Executed contract: {:?}", tx.hashed(), msg.0);
             }
         }
+        debug!("{} State after tx: {:?}", tx.hashed(), self.wallet);
+
+        self.state_history
+            .push((tx_hash.clone(), self.wallet.clone()));
 
         if old_tx {
             return;

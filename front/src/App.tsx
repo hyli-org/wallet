@@ -54,6 +54,11 @@ function App() {
     setBalance(prev => prev - transaction.amount);
   };
 
+  const handleLogout = () => {
+    setWallet(null);
+    localStorage.removeItem('wallet');
+  };
+
   // Check if wallet exists in localStorage on component mount
   useEffect(() => {
     const storedWallet = localStorage.getItem('wallet');
@@ -102,7 +107,7 @@ function App() {
         } />
 
         {wallet && (
-          <Route path="/wallet" element={<WalletLayout wallet={wallet} />}>
+          <Route path="/wallet" element={<WalletLayout wallet={wallet} onLogout={handleLogout} />}>
             <Route path="balance" element={<Balance wallet={wallet} balance={balance} />} />
             <Route path="send" element={<Send wallet={wallet} onSend={handleSend} />} />
             <Route path="history" element={<History transactions={transactions} />} />
