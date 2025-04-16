@@ -15,7 +15,7 @@ use hyle::{
 };
 use prometheus::Registry;
 use prover::{ProverModule, ProverModuleCtx};
-use sdk::{info, ZkContract};
+use sdk::{info, ContractName, ZkContract};
 use std::{
     env,
     sync::{Arc, Mutex},
@@ -35,9 +35,6 @@ pub struct Args {
 
     #[arg(long, default_value = "wallet")]
     pub wallet_cn: String,
-
-    #[arg(long, default_value = "contract2")]
-    pub contract2_cn: String,
 }
 
 #[tokio::main]
@@ -51,6 +48,13 @@ async fn main() -> Result<()> {
 
     let config = Arc::new(config);
 
+    let contract_name: ContractName = format!(
+        "{}-{}",
+        args.wallet_cn.clone(),
+        &hex::encode(contracts::WALLET_ID)[..5]
+    )
+    .into();
+
     info!("Starting app with config: {:?}", &config);
 
     let node_url = env::var("NODE_URL").unwrap_or_else(|_| "http://localhost:4321".to_string());
@@ -61,8 +65,8 @@ async fn main() -> Result<()> {
         Arc::new(IndexerApiHttpClient::new(indexer_url).context("build indexer client")?);
 
     let contracts = vec![init::ContractInit {
-        name: args.wallet_cn.clone().into(),
-        program_id: wallet::client::tx_executor_handler::metadata::PROGRAM_ID,
+        name: contract_name.clone(),
+        program_id: contracts::WALLET_ID,
         initial_state: Wallet::default().commit(),
     }];
 
@@ -89,7 +93,7 @@ async fn main() -> Result<()> {
     let app_ctx = Arc::new(AppModuleCtx {
         common: ctx.clone(),
         node_client,
-        wallet_cn: args.wallet_cn.clone().into(),
+        wallet_cn: contract_name,
     });
     let start_height = app_ctx.node_client.get_block_height().await?;
     let prover_ctx = Arc::new(ProverModuleCtx {

@@ -67,7 +67,6 @@ impl Module for AppModule {
 
         let api = Router::new()
             .route("/_health", get(health))
-            .route("/api/increment", post(increment))
             .route("/api/config", get(get_config))
             .with_state(state)
             .layer(cors); // Appliquer le middleware CORS
@@ -170,13 +169,13 @@ struct ConfigResponse {
 //     Routes
 // --------------------------------------------------------
 
-async fn increment(
-    State(ctx): State<RouterCtx>,
-    headers: HeaderMap,
-) -> Result<impl IntoResponse, AppError> {
-    let auth = AuthHeaders::from_headers(&headers)?;
-    send(ctx.clone(), auth).await
-}
+// async fn increment(
+//     State(ctx): State<RouterCtx>,
+//     headers: HeaderMap,
+// ) -> Result<impl IntoResponse, AppError> {
+//     let auth = AuthHeaders::from_headers(&headers)?;
+//     send(ctx.clone(), auth).await
+// }
 
 async fn get_config(State(ctx): State<RouterCtx>) -> impl IntoResponse {
     Json(ConfigResponse {
@@ -184,51 +183,51 @@ async fn get_config(State(ctx): State<RouterCtx>) -> impl IntoResponse {
     })
 }
 
-async fn send(ctx: RouterCtx, auth: AuthHeaders) -> Result<impl IntoResponse, AppError> {
-    let _header_session_key = auth.session_key.clone();
-    let _header_signature = auth.signature.clone();
-    let identity = auth.user.clone();
-
-    let action_wallet = WalletAction::Increment;
-
-    let blobs = vec![action_wallet.as_blob(ctx.wallet_cn.clone())];
-
-    let res = ctx
-        .client
-        .send_tx_blob(&BlobTransaction::new(identity.clone(), blobs))
-        .await;
-
-    if let Err(ref e) = res {
-        let root_cause = e.root_cause().to_string();
-        return Err(AppError(
-            StatusCode::BAD_REQUEST,
-            anyhow::anyhow!("{}", root_cause),
-        ));
-    }
-
-    let tx_hash = res.unwrap();
-
-    let mut bus = {
-        let app = ctx.app.lock().await;
-        AppModuleBusClient::new_from_bus(app.bus.new_handle()).await
-    };
-
-    tokio::time::timeout(Duration::from_secs(5), async {
-        loop {
-            let a = bus.recv().await?;
-            match a {
-                AppEvent::SequencedTx(sequenced_tx_hash) => {
-                    if sequenced_tx_hash == tx_hash {
-                        return Ok(Json(sequenced_tx_hash));
-                    }
-                }
-                AppEvent::FailedTx(sequenced_tx_hash, error) => {
-                    if sequenced_tx_hash == tx_hash {
-                        return Err(AppError(StatusCode::BAD_REQUEST, anyhow::anyhow!(error)));
-                    }
-                }
-            }
-        }
-    })
-    .await?
-}
+// async fn send(ctx: RouterCtx, auth: AuthHeaders) -> Result<impl IntoResponse, AppError> {
+//     let _header_session_key = auth.session_key.clone();
+//     let _header_signature = auth.signature.clone();
+//     let identity = auth.user.clone();
+//
+//     let action_wallet = WalletAction::Increment;
+//
+//     let blobs = vec![action_wallet.as_blob(ctx.wallet_cn.clone())];
+//
+//     let res = ctx
+//         .client
+//         .send_tx_blob(&BlobTransaction::new(identity.clone(), blobs))
+//         .await;
+//
+//     if let Err(ref e) = res {
+//         let root_cause = e.root_cause().to_string();
+//         return Err(AppError(
+//             StatusCode::BAD_REQUEST,
+//             anyhow::anyhow!("{}", root_cause),
+//         ));
+//     }
+//
+//     let tx_hash = res.unwrap();
+//
+//     let mut bus = {
+//         let app = ctx.app.lock().await;
+//         AppModuleBusClient::new_from_bus(app.bus.new_handle()).await
+//     };
+//
+//     tokio::time::timeout(Duration::from_secs(5), async {
+//         loop {
+//             let a = bus.recv().await?;
+//             match a {
+//                 AppEvent::SequencedTx(sequenced_tx_hash) => {
+//                     if sequenced_tx_hash == tx_hash {
+//                         return Ok(Json(sequenced_tx_hash));
+//                     }
+//                 }
+//                 AppEvent::FailedTx(sequenced_tx_hash, error) => {
+//                     if sequenced_tx_hash == tx_hash {
+//                         return Err(AppError(StatusCode::BAD_REQUEST, anyhow::anyhow!(error)));
+//                     }
+//                 }
+//             }
+//         }
+//     })
+//     .await?
+// }

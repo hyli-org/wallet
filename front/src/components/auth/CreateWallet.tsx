@@ -1,0 +1,139 @@
+import { useState } from 'react';
+import { register, Wallet } from '../../types/wallet';
+import { build_proof_transaction, build_blob as check_secret_blob, register_contract } from 'hyle-check-secret';
+import { BlobTransaction } from 'hyle';
+import { nodeService } from '../../services/NodeService';
+import { indexerService } from '../../services/IndexerService';
+
+interface CreateWalletProps {
+  onWalletCreated: (wallet: Wallet) => void;
+}
+
+export const CreateWallet = ({ onWalletCreated }: CreateWalletProps) => {
+  const [username, setUsername] = useState<string>('bob');
+  const [password, setPassword] = useState<string>('password123');
+  const [confirmPassword, setConfirmPassword] = useState<string>('password123');
+  const [error, setError] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [status, setStatus] = useState<string>('');
+
+  const handleCreateWallet = async () => {
+    setError('');
+    setIsLoading(true);
+    setStatus('Validating input...');
+
+    if (!username || !password || !confirmPassword) {
+      setError('Please fill in all fields');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters long');
+      return;
+    }
+
+    setStatus('Generating wallet credentials...');
+    const blob1 = register(username, Date.now());
+
+    const identity = `${username}.${blob1.contract_name}`;
+    console.log('Identity:', identity);
+    const blob0 = await check_secret_blob(identity, password);
+
+    const blobTx: BlobTransaction = {
+      identity,
+      blobs: [blob0, blob1],
+    }
+
+    try {
+      setStatus('Sending transaction...');
+      await register_contract(nodeService.client);
+      const tx_hash = await nodeService.client.sendBlobTx(blobTx);
+
+      setStatus('Building proof transaction (this may take a few moments)...');
+      const proofTx = await build_proof_transaction(
+        identity,
+        password,
+        tx_hash,
+        0,
+        blobTx.blobs.length,
+      );
+      setStatus('Sending proof transaction...');
+      await nodeService.client.sendProofTx(proofTx);
+      setStatus('Waiting for transaction confirmation...');
+
+      try {
+        await indexerService.waitForTxSettled(tx_hash);
+      } catch (error) {
+        setError('Transaction failed or timed out');
+        console.error('Transaction error:', error);
+        return;
+      }
+
+      setStatus('Wallet created successfully!');
+
+      const wallet: Wallet = {
+        username,
+        address: identity
+      };
+
+      onWalletCreated(wallet);
+    } catch (error) {
+      setError('Failed to create wallet. Please try again.');
+      console.error('Error creating wallet:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="wallet-creation-container">
+      <h1>Create Your Wallet</h1>
+      <div className="wallet-creation-form">
+        <div className="form-group">
+          <label htmlFor="username">Username</label>
+          <input
+            id="username"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Choose a username"
+          />
+        </div>
+        <div className="form-group">
+          <label htmlFor="password">Password</label>
+          <input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Create a password"
+          />
+        </div>
+        <div className="form-group">
+          <label htmlFor="confirmPassword">Confirm Password</label>
+          <input
+            id="confirmPassword"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Confirm your password"
+          />
+        </div>
+        {error && <div className="error-message">{error}</div>}
+        {status && <div className="status-message">{status}</div>}
+        <button
+          onClick={handleCreateWallet}
+          className="create-wallet-button"
+          disabled={isLoading}
+        >
+          {isLoading ? 'Creating Wallet...' : 'Create Wallet'}
+        </button>
+      </div>
+    </div>
+  );
+}; 

@@ -2,13 +2,14 @@
 #[cfg(any(clippy, not(feature = "build")))]
 fn main() {}
 
-#[cfg(all(feature = "build", not(any(feature = "wallet", feature = "contract2"))))]
+#[cfg(all(feature = "build", not(feature = "wallet")))]
 fn main() {
-    compile_error!("When the 'build' feature is enabled, at least one of the following features must also be enabled: all, wallet, contract2.");
+    compile_error!("When the 'build' feature is enabled, at least one of the following features must also be enabled: all, wallet.");
 }
 
 #[cfg(all(not(clippy), feature = "build", feature = "wallet"))]
 fn main() {
+    println!("cargo:rerun-if-changed=wallet/src");
     trait CodegenConsts {
         fn codegen_consts(&self) -> String;
     }
@@ -34,6 +35,15 @@ fn main() {
             writeln!(&mut str, "pub const {upper}_PATH: &str = {:?};", self.path).unwrap();
             writeln!(&mut str, "pub const {upper}_ID: [u32; 8] = {image_id:?};").unwrap();
 
+            let hex_image_id = image_id
+                .iter()
+                .map(|x| format!("{:08x}", x.to_be()))
+                .collect::<Vec<_>>()
+                .join("");
+
+            println!("cargo:warning=Image ID: {}", hex_image_id);
+            println!("cargo:warning=Elf path: {}", self.path);
+
             str
         }
     }
@@ -55,8 +65,6 @@ fn main() {
     let methods: Vec<GuestListEntry> = [
         #[cfg(feature = "wallet")]
         "wallet",
-        #[cfg(feature = "contract2")]
-        "contract2",
     ]
     .iter()
     .map(|name| {
@@ -97,21 +105,21 @@ fn main() {
             .unwrap();
     }
 
-    // if reproducible {
-    methods.iter().for_each(|data| {
-        std::fs::write(format!("{}/{}.img", data.name, data.name), &data.elf)
-            .expect("failed to write img");
-        // Convert u32 slice to hex
-        let hex_image_id = data
-            .image_id
-            .as_words()
-            .iter()
-            .map(|x| format!("{:08x}", x.to_be()))
-            .collect::<Vec<_>>()
-            .join("");
-        std::fs::write(format!("{}/{}.txt", data.name, data.name), &hex_image_id)
-            .expect("failed to write program ID");
-    });
-    // }
+    if reproducible {
+        methods.iter().for_each(|data| {
+            std::fs::write(format!("{}/{}.img", data.name, data.name), &data.elf)
+                .expect("failed to write img");
+            // Convert u32 slice to hex
+            let hex_image_id = data
+                .image_id
+                .as_words()
+                .iter()
+                .map(|x| format!("{:08x}", x.to_be()))
+                .collect::<Vec<_>>()
+                .join("");
+            std::fs::write(format!("{}/{}.txt", data.name, data.name), &hex_image_id)
+                .expect("failed to write program ID");
+        });
+    }
     std::env::set_var("RUSTC_WORKSPACE_WRAPPER", env_wrapper.unwrap_or_default());
 }

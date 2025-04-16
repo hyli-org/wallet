@@ -9,13 +9,12 @@ path = "metadata.rs"
 [dependencies]
 sdk = { workspace = true }
 wallet = { workspace = true, features = ["client"] }
-contract2 = { workspace = true, features = ["client"] }
 
 [build-dependencies]
 risc0-build = { version = "2.0.1", optional = true }
 
 [package.metadata.risc0]
-methods = ["wallet", "contract2"]
+methods = ["wallet"]
 
 [features]
 build = ["dep:risc0-build"]
@@ -24,4 +23,3 @@ nonreproducible = ["build", "all"]
 # Following features are used to choose which contracts should be rebuild with docker
 all = ["wallet"]
 wallet = []
-contract2 = []

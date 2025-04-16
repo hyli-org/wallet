@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::app::{AppEvent, AppModuleCtx};
 use anyhow::{anyhow, Result};
-use client_sdk::helpers::risc0::Risc0Prover;
+use client_sdk::{contract_indexer::ContractStateStore, helpers::risc0::Risc0Prover};
 use hyle::{
     bus::BusClientSender,
     log_error, module_handle_messages,
@@ -41,18 +41,16 @@ impl Module for ProverModule {
     async fn build(ctx: Self::Context) -> Result<Self> {
         let bus = ProverModuleBusClient::new_from_bus(ctx.app.common.bus.new_handle()).await;
 
-        // TODO: correctly fetch contracts states
-        // let client = ctx.indexer_client.clone();
-        // let wallet: wallet = client
-        //     .fetch_current_state(&ctx.app.wallet_cn)
-        //     .await
-        //     .unwrap();
-        // let contract2: Contract2 = client
-        //     .fetch_current_state(&ctx.app.contract2_cn)
-        //     .await
-        //     .unwrap();
+        let file = ctx
+            .app
+            .common
+            .config
+            .data_directory
+            .join(format!("state_indexer_{}.bin", ctx.app.wallet_cn).as_str());
 
-        let wallet = Wallet::default();
+        let store = Self::load_from_disk_or_default::<ContractStateStore<Wallet>>(file.as_path());
+
+        let wallet = store.state.unwrap_or_default();
 
         Ok(ProverModule {
             bus,
@@ -145,7 +143,7 @@ impl ProverModule {
         let blobs = tx.blobs.clone();
         let tx_hash = tx.hashed();
 
-        let prover = Risc0Prover::new(wallet::client::tx_executor_handler::metadata::WALLET_ELF);
+        let prover = Risc0Prover::new(contracts::WALLET_ELF);
 
         info!("Proving tx: {}. Blob for {}", tx_hash, blob.contract_name);
 

@@ -8,7 +8,7 @@ client-sdk = { workspace = true, features = ["risc0", "rest"] }
 hyle = { workspace = true }
 wallet = { workspace = true, features = ["client"] }
 # Remove features if you want reproducible builds with docker
-contracts = { workspace = true, features = ["nonreproducible"] }
+contracts = { workspace = true, features = ["nonreproducible", "all"] }
 
 axum = "0.8.3"
 tokio = { version = "1", features = ["full"] }
@@ -22,3 +22,4 @@ clap = "4.5.28"
 
 opentelemetry = { version = "0.28" }
 prometheus = { version = "0.13.4" }
+rand = "0.9.0"

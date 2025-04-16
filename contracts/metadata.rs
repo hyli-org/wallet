@@ -12,8 +12,8 @@ mod metadata {
 
 #[cfg(any(clippy, not(feature = "nonreproducible")))]
 mod metadata {
-    pub const WALLET_ELF: &[u8] = wallet::client::tx_executor_handler::metadata::WALLET_ELF;
-    pub const WALLET_ID: [u8; 32] = wallet::client::tx_executor_handler::metadata::PROGRAM_ID;
+    pub const WALLET_ELF: &[u8] = wallet::client::metadata::WALLET_ELF;
+    pub const WALLET_ID: [u8; 32] = wallet::client::metadata::PROGRAM_ID;
 }
 
 pub use metadata::*;
