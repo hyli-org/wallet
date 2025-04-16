@@ -1,8 +1,12 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::{fmt::Debug, sync::Arc};
 
 use crate::app::{AppEvent, AppModuleCtx};
 use anyhow::{anyhow, Result};
-use client_sdk::{contract_indexer::ContractStateStore, helpers::risc0::Risc0Prover};
+use borsh::BorshDeserialize;
+use client_sdk::{
+    contract_indexer::ContractStateStore, helpers::risc0::Risc0Prover,
+    transaction_builder::TxExecutorHandler,
+};
 use hyle::{
     bus::BusClientSender,
     log_error, module_handle_messages,
@@ -10,18 +14,17 @@ use hyle::{
     utils::modules::{module_bus_client, Module},
 };
 use sdk::{
-    BlobIndex, BlobTransaction, Block, BlockHeight, Calldata, Hashed, ProofTransaction,
-    TransactionData, TxHash, ZkContract, HYLE_TESTNET_CHAIN_ID,
+    BlobIndex, BlobTransaction, Block, BlockHeight, Calldata, ContractName, Hashed,
+    ProofTransaction, TransactionData, TxHash, HYLE_TESTNET_CHAIN_ID,
 };
 use tracing::{debug, error, info};
-use wallet::Wallet;
 
-pub struct ProverModule {
+pub struct ProverModule<Contract> {
     bus: ProverModuleBusClient,
     ctx: Arc<ProverModuleCtx>,
     unsettled_txs: Vec<(BlobTransaction, sdk::TxContext)>,
-    state_history: Vec<(TxHash, Wallet)>,
-    wallet: Wallet,
+    state_history: Vec<(TxHash, Contract)>,
+    contract: Contract,
 }
 
 module_bus_client! {
@@ -34,9 +37,14 @@ pub struct ProverModuleBusClient {
 pub struct ProverModuleCtx {
     pub app: Arc<AppModuleCtx>,
     pub start_height: BlockHeight,
+    pub elf: &'static [u8],
+    pub contract_name: ContractName,
 }
 
-impl Module for ProverModule {
+impl<Contract> Module for ProverModule<Contract>
+where
+    Contract: TxExecutorHandler + BorshDeserialize + Default + Debug + Send + Clone + 'static,
+{
     type Context = Arc<ProverModuleCtx>;
 
     async fn build(ctx: Self::Context) -> Result<Self> {
@@ -47,15 +55,15 @@ impl Module for ProverModule {
             .common
             .config
             .data_directory
-            .join(format!("state_indexer_{}.bin", ctx.app.wallet_cn).as_str());
+            .join(format!("state_indexer_{}.bin", ctx.contract_name).as_str());
 
-        let store = Self::load_from_disk_or_default::<ContractStateStore<Wallet>>(file.as_path());
+        let store = Self::load_from_disk_or_default::<ContractStateStore<Contract>>(file.as_path());
 
-        let wallet = store.state.unwrap_or_default();
+        let contract = store.state.unwrap_or_default();
 
         Ok(ProverModule {
             bus,
-            wallet,
+            contract,
             ctx,
             unsettled_txs: vec![],
             state_history: vec![],
@@ -75,7 +83,10 @@ impl Module for ProverModule {
     }
 }
 
-impl ProverModule {
+impl<Contract> ProverModule<Contract>
+where
+    Contract: TxExecutorHandler + Default + Debug + Clone,
+{
     async fn handle_node_state_event(&mut self, event: NodeStateEvent) -> Result<()> {
         let NodeStateEvent::NewBlock(block) = event;
         self.handle_processed_block(*block).await?;
@@ -115,8 +126,8 @@ impl ProverModule {
 
     fn handle_blob(&mut self, tx: BlobTransaction, tx_ctx: sdk::TxContext) {
         for (index, blob) in tx.blobs.iter().enumerate() {
-            if blob.contract_name == self.ctx.app.wallet_cn {
-                self.prove_wallet_blob(&index.into(), &tx, &tx_ctx);
+            if blob.contract_name == self.ctx.contract_name {
+                self.prove_supported_blob(&index.into(), &tx, &tx_ctx);
             }
         }
         self.unsettled_txs.push((tx, tx_ctx));
@@ -165,21 +176,21 @@ impl ProverModule {
                     None
                 }
             });
-        if let Some((_, wallet)) = prev_state {
-            debug!("Reverting to previous state: {:?}", wallet);
-            self.wallet = wallet.clone();
+        if let Some((_, contract)) = prev_state {
+            debug!("Reverting to previous state: {:?}", contract);
+            self.contract = contract.clone();
         } else {
-            self.wallet = Wallet::default();
+            self.contract = Contract::default();
         }
         for (tx, ctx) in self.unsettled_txs.clone().iter().skip(idx.unwrap_or(0) + 1) {
             for (index, blob) in tx.blobs.iter().enumerate() {
-                if blob.contract_name == self.ctx.app.wallet_cn {
+                if blob.contract_name == self.ctx.contract_name {
                     debug!(
                         "Re-execute blob for tx {} after a previous tx failure",
                         tx.hashed()
                     );
                     self.state_history.retain(|(h, _)| h != &tx.hashed());
-                    self.prove_wallet_blob(&index.into(), tx, ctx);
+                    self.prove_supported_blob(&index.into(), tx, ctx);
                 }
             }
         }
@@ -187,7 +198,7 @@ impl ProverModule {
         Ok(())
     }
 
-    fn prove_wallet_blob(
+    fn prove_supported_blob(
         &mut self,
         blob_index: &BlobIndex,
         tx: &BlobTransaction,
@@ -199,12 +210,9 @@ impl ProverModule {
         let blobs = tx.blobs.clone();
         let tx_hash = tx.hashed();
 
-        let prover = Risc0Prover::new(contracts::WALLET_ELF);
+        let prover = Risc0Prover::new(self.ctx.elf);
 
-        let Ok(state) = self.wallet.as_bytes() else {
-            error!("Failed to serialize state on tx: {}", tx_hash);
-            return;
-        };
+        let state = self.contract.build_commitment_metadata(blob).unwrap();
 
         let commitment_metadata = state;
 
@@ -218,8 +226,8 @@ impl ProverModule {
             tx_blob_count: blobs.len(),
         };
 
-        debug!("{} State before tx: {:?}", tx.hashed(), self.wallet);
-        match self.wallet.execute(&calldata).map_err(|e| anyhow!(e)) {
+        debug!("{} State before tx: {:?}", tx.hashed(), self.contract);
+        match self.contract.handle(&calldata).map_err(|e| anyhow!(e)) {
             Err(e) => {
                 info!("{} Error while executing contract: {e}", tx.hashed());
                 if !old_tx {
@@ -229,13 +237,17 @@ impl ProverModule {
                 }
             }
             Ok(msg) => {
-                debug!("{} Executed contract: {:?}", tx.hashed(), msg.0);
+                debug!(
+                    "{} Executed contract: {}",
+                    tx.hashed(),
+                    String::from_utf8_lossy(&msg.program_outputs)
+                );
             }
         }
-        debug!("{} State after tx: {:?}", tx.hashed(), self.wallet);
+        debug!("{} State after tx: {:?}", tx.hashed(), self.contract);
 
         self.state_history
-            .push((tx_hash.clone(), self.wallet.clone()));
+            .push((tx_hash.clone(), self.contract.clone()));
 
         if old_tx {
             return;

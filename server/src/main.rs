@@ -96,22 +96,31 @@ async fn main() -> Result<()> {
         wallet_cn: contract_name.clone(),
     });
     let start_height = app_ctx.node_client.get_block_height().await?;
-    let prover_ctx = Arc::new(ProverModuleCtx {
-        app: app_ctx.clone(),
-        start_height,
-    });
 
     handler.build_module::<AppModule>(app_ctx.clone()).await?;
 
     handler
         .build_module::<ContractStateIndexer<Wallet>>(ContractStateIndexerCtx {
-            contract_name,
+            contract_name: contract_name.clone(),
             common: ctx.clone(),
         })
         .await?;
 
     handler
-        .build_module::<ProverModule>(prover_ctx.clone())
+        .build_module::<ProverModule<Wallet>>(Arc::new(ProverModuleCtx {
+            app: app_ctx.clone(),
+            start_height,
+            elf: contracts::WALLET_ELF,
+            contract_name: contract_name.clone(),
+        }))
+        .await?;
+    handler
+        .build_module::<ProverModule<hyle_hyllar::Hyllar>>(Arc::new(ProverModuleCtx {
+            app: app_ctx.clone(),
+            start_height,
+            elf: hyle_hyllar::client::tx_executor_handler::metadata::HYLLAR_ELF,
+            contract_name: "hyllar".into(),
+        }))
         .await?;
 
     // This module connects to the da_address and receives all the blocks²
