@@ -93,7 +93,7 @@ async fn main() -> Result<()> {
     let app_ctx = Arc::new(AppModuleCtx {
         common: ctx.clone(),
         node_client,
-        wallet_cn: contract_name,
+        wallet_cn: contract_name.clone(),
     });
     let start_height = app_ctx.node_client.get_block_height().await?;
     let prover_ctx = Arc::new(ProverModuleCtx {
@@ -105,7 +105,7 @@ async fn main() -> Result<()> {
 
     handler
         .build_module::<ContractStateIndexer<Wallet>>(ContractStateIndexerCtx {
-            contract_name: args.wallet_cn.into(),
+            contract_name,
             common: ctx.clone(),
         })
         .await?;

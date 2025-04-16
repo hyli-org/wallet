@@ -15,6 +15,7 @@ export const LoginWallet = ({ onWalletLoggedIn }: LoginWalletProps) => {
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [status, setStatus] = useState<string>('');
+  const [transactionHash, setTransactionHash] = useState<string>('');
 
   const handleLogin = async () => {
     setError('');
@@ -39,6 +40,7 @@ export const LoginWallet = ({ onWalletLoggedIn }: LoginWalletProps) => {
     try {
       setStatus('Verifying identity...');
       const tx_hash = await nodeService.client.sendBlobTx(blobTx);
+      setTransactionHash(tx_hash);
       setStatus('Building proof transaction (this may take a few moments)...');
       const proofTx = await build_proof_transaction(
         identity,
@@ -107,6 +109,17 @@ export const LoginWallet = ({ onWalletLoggedIn }: LoginWalletProps) => {
         >
           {isLoading ? 'Logging in...' : 'Login'}
         </button>
+        {transactionHash && (
+          <div className="transaction-hash">
+            Transaction:&nbsp;
+            <code>
+              <a href={`${import.meta.env.VITE_TX_EXPLORER_URL}/tx/${transactionHash}`} target="_blank">
+                {`${transactionHash.slice(0, 10)}...${transactionHash.slice(-10)}`}
+              </a>
+            </code>
+          </div>
+        )}
+
       </div>
     </div>
   );

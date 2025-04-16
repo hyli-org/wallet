@@ -136,16 +136,13 @@ impl ProverModule {
         tx: &BlobTransaction,
         tx_ctx: &sdk::TxContext,
     ) {
-        if tx_ctx.block_height.0 < self.ctx.start_height.0 {
-            return;
-        }
+        let old_tx = tx_ctx.block_height.0 < self.ctx.start_height.0;
+
         let blob = tx.blobs.get(blob_index.0).unwrap();
         let blobs = tx.blobs.clone();
         let tx_hash = tx.hashed();
 
         let prover = Risc0Prover::new(contracts::WALLET_ELF);
-
-        info!("Proving tx: {}. Blob for {}", tx_hash, blob.contract_name);
 
         let Ok(state) = self.wallet.as_bytes() else {
             error!("Failed to serialize state on tx: {}", tx_hash);
@@ -165,15 +162,22 @@ impl ProverModule {
         };
 
         if let Err(e) = self.wallet.execute(&calldata).map_err(|e| anyhow!(e)) {
-            error!("error while executing contract: {e}");
-            self.bus
-                .send(AppEvent::FailedTx(tx_hash.clone(), e.to_string()))
-                .unwrap();
+            info!("Error while executing contract: {e}");
+            if !old_tx {
+                self.bus
+                    .send(AppEvent::FailedTx(tx_hash.clone(), e.to_string()))
+                    .unwrap();
+            }
+        }
+
+        if old_tx {
+            return;
         }
 
         self.bus
             .send(AppEvent::SequencedTx(tx_hash.clone()))
             .unwrap();
+        info!("Proving tx: {}. Blob for {}", tx_hash, blob.contract_name);
 
         let node_client = self.ctx.app.node_client.clone();
         let blob = blob.clone();

@@ -191,6 +191,11 @@
   font-size: 14px;
 }
 
+.transaction-hash {
+  color: #2196f3;
+  text-decoration: none;
+}
+
 .no-transactions {
   color: #666;
   text-align: center;

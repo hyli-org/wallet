@@ -16,6 +16,7 @@ export const CreateWallet = ({ onWalletCreated }: CreateWalletProps) => {
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [status, setStatus] = useState<string>('');
+  const [transactionHash, setTransactionHash] = useState<string>('');
 
   const handleCreateWallet = async () => {
     setError('');
@@ -53,6 +54,7 @@ export const CreateWallet = ({ onWalletCreated }: CreateWalletProps) => {
       setStatus('Sending transaction...');
       await register_contract(nodeService.client);
       const tx_hash = await nodeService.client.sendBlobTx(blobTx);
+      setTransactionHash(tx_hash);
 
       setStatus('Building proof transaction (this may take a few moments)...');
       const proofTx = await build_proof_transaction(
@@ -133,6 +135,16 @@ export const CreateWallet = ({ onWalletCreated }: CreateWalletProps) => {
         >
           {isLoading ? 'Creating Wallet...' : 'Create Wallet'}
         </button>
+        {transactionHash && (
+          <div className="transaction-hash">
+            Transaction:&nbsp;
+            <code>
+              <a href={`${import.meta.env.VITE_TX_EXPLORER_URL}/tx/${transactionHash}`} target="_blank">
+                {`${transactionHash.slice(0, 10)}...${transactionHash.slice(-10)}`}
+              </a>
+            </code>
+          </div>
+        )}
         <p>
           The password is used to encrypt your wallet. Make sure to remember it, as it will be required for future logins. It isn't stored on any server, there is no recovery possible.
         </p>

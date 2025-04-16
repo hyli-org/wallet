@@ -104,7 +104,7 @@ function App() {
         {wallet && (
           <Route path="/wallet" element={<WalletLayout wallet={wallet} />}>
             <Route path="balance" element={<Balance wallet={wallet} balance={balance} />} />
-            <Route path="send" element={<Send onSend={handleSend} />} />
+            <Route path="send" element={<Send wallet={wallet} onSend={handleSend} />} />
             <Route path="history" element={<History transactions={transactions} />} />
             <Route index element={<Navigate to="balance" replace />} />
           </Route>
