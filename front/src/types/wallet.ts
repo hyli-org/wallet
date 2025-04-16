@@ -3,7 +3,7 @@ export interface Transaction {
   type: string;
   amount: number;
   address: string;
-  timestamp: string;
+  timestamp: number;
 }
 
 export interface Wallet {

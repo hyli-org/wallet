@@ -30,7 +30,7 @@ struct TransactionDetails {
     r#type: String,
     amount: u128,
     address: Identity,
-    timestamp: String,
+    timestamp: u128,
 }
 
 #[derive(Debug, Clone, Default, Serialize, BorshDeserialize, BorshSerialize)]
@@ -47,21 +47,30 @@ impl HyllarHistory {
         action: &str,
         amount: u128,
         tx_hash: TxHash,
+        timestamp: u128,
     ) {
         let transaction = TransactionDetails {
             id: tx_hash.0,
             r#type: action.to_string(),
             amount,
             address,
-            timestamp: "2023-10-01T00:00:00Z".to_string(),
+            timestamp,
         };
-        self.history.entry(identity).or_default().push(transaction);
+        self.history
+            .entry(identity)
+            .or_default()
+            .insert(0, transaction);
     }
 }
 
 impl TxExecutorHandler for HyllarHistory {
     fn handle(&mut self, calldata: &sdk::Calldata) -> anyhow::Result<sdk::HyleOutput, String> {
         let (action, _) = parse_calldata::<HyllarAction>(calldata)?;
+        let timestamp = calldata
+            .tx_ctx
+            .as_ref()
+            .map(|ctx| ctx.timestamp.0)
+            .unwrap_or_default();
 
         match action {
             HyllarAction::Transfer { recipient, amount } => {
@@ -72,6 +81,7 @@ impl TxExecutorHandler for HyllarHistory {
                     "Send",
                     amount,
                     calldata.tx_hash.clone(),
+                    timestamp,
                 );
                 // Update history for the receiver
                 self.update_history(
@@ -80,6 +90,7 @@ impl TxExecutorHandler for HyllarHistory {
                     "Receive",
                     amount,
                     calldata.tx_hash.clone(),
+                    timestamp,
                 );
             }
             HyllarAction::Approve { spender, amount } => {
@@ -89,6 +100,7 @@ impl TxExecutorHandler for HyllarHistory {
                     "Approve",
                     amount,
                     calldata.tx_hash.clone(),
+                    timestamp,
                 );
             }
             HyllarAction::TransferFrom {
@@ -102,6 +114,7 @@ impl TxExecutorHandler for HyllarHistory {
                     "Receive TransferFrom",
                     amount,
                     calldata.tx_hash.clone(),
+                    timestamp,
                 );
                 self.update_history(
                     owner.into(),
@@ -109,6 +122,7 @@ impl TxExecutorHandler for HyllarHistory {
                     "Send TransferFrom",
                     amount,
                     calldata.tx_hash.clone(),
+                    timestamp,
                 );
             }
             _ => {}

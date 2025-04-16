@@ -18,6 +18,7 @@ export const History = ({ transactions }: HistoryProps) => {
             <div className="transaction-details">
               <p>Address: {tx.address}</p>
               <p>Date: {new Date(tx.timestamp).toLocaleString()}</p>
+              <p>Transaction: <a href={`${import.meta.env.VITE_TX_EXPLORER_URL}/tx/${tx.id}`} target="_blank">{`${tx.id.slice(0, 10)}...${tx.id.slice(-10)}`}</a></p>
             </div>
           </div>
         ))}
