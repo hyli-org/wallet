@@ -3,6 +3,7 @@ use app::{AppModule, AppModuleCtx};
 use axum::Router;
 use clap::Parser;
 use client_sdk::rest_client::{IndexerApiHttpClient, NodeApiHttpClient};
+use history::HyllarHistory;
 use hyle::{
     bus::{metrics::BusMetrics, SharedMessageBus},
     indexer::{
@@ -24,6 +25,7 @@ use tracing::error;
 use wallet::Wallet;
 
 mod app;
+mod history;
 mod init;
 mod prover;
 
@@ -102,6 +104,12 @@ async fn main() -> Result<()> {
     handler
         .build_module::<ContractStateIndexer<Wallet>>(ContractStateIndexerCtx {
             contract_name: contract_name.clone(),
+            common: ctx.clone(),
+        })
+        .await?;
+    handler
+        .build_module::<ContractStateIndexer<HyllarHistory>>(ContractStateIndexerCtx {
+            contract_name: "hyllar".into(),
             common: ctx.clone(),
         })
         .await?;

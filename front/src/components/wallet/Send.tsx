@@ -6,7 +6,7 @@ import { nodeService } from '../../services/NodeService';
 import { indexerService } from '../../services/IndexerService';
 
 interface SendProps {
-  onSend: (transaction: Omit<Transaction, 'id' | 'timestamp'>) => void;
+  onSend?: (transaction: Omit<Transaction, 'id' | 'timestamp'>) => void;
   wallet: Wallet
 }
 

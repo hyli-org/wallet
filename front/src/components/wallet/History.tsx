@@ -13,7 +13,7 @@ export const History = ({ transactions }: HistoryProps) => {
           <div key={tx.id} className={`transaction ${tx.type}`}>
             <div className="transaction-header">
               <span className="type">{tx.type.toUpperCase()}</span>
-              <span className="amount">{tx.amount} ETH</span>
+              <span className="amount">{tx.amount} HYLLAR</span>
             </div>
             <div className="transaction-details">
               <p>Address: {tx.address}</p>

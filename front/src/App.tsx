@@ -18,6 +18,24 @@ function App() {
   const [showLogin, setShowLogin] = useState<boolean>(false);
   const { isLoading: isLoadingConfig, error: configError } = useConfig();
 
+  // Fonction pour récupérer le solde et l'historique
+  const fetchWalletData = async () => {
+    if (wallet) {
+      const [balance, transactions] = await Promise.all([
+        indexerService.getBalance(wallet.address),
+        indexerService.getTransactionHistory(wallet.address)
+      ]);
+      setBalance(balance);
+      setTransactions(transactions);
+    }
+  };
+
+  // Mettre à jour le solde et l'historique toutes les secondes
+  useEffect(() => {
+    fetchWalletData();
+    const interval = setInterval(fetchWalletData, 1000);
+    return () => clearInterval(interval);
+  }, [wallet]);
 
   // Fonction pour récupérer le solde
   const fetchBalance = async () => {
@@ -42,16 +60,6 @@ function App() {
   const handleWalletLoggedIn = (loggedInWallet: Wallet) => {
     setWallet(loggedInWallet);
     localStorage.setItem('wallet', JSON.stringify(loggedInWallet));
-  };
-
-  const handleSend = (transaction: Omit<Transaction, 'id' | 'timestamp'>) => {
-    const newTransaction: Transaction = {
-      id: Math.random().toString(36).substr(2, 9),
-      ...transaction,
-      timestamp: new Date().toISOString()
-    };
-    setTransactions([newTransaction, ...transactions]);
-    setBalance(prev => prev - transaction.amount);
   };
 
   const handleLogout = () => {
@@ -109,7 +117,7 @@ function App() {
         {wallet && (
           <Route path="/wallet" element={<WalletLayout wallet={wallet} onLogout={handleLogout} />}>
             <Route path="balance" element={<Balance wallet={wallet} balance={balance} />} />
-            <Route path="send" element={<Send wallet={wallet} onSend={handleSend} />} />
+            <Route path="send" element={<Send wallet={wallet} />} />
             <Route path="history" element={<History transactions={transactions} />} />
             <Route index element={<Navigate to="balance" replace />} />
           </Route>

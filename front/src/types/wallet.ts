@@ -1,6 +1,6 @@
 export interface Transaction {
   id: string;
-  type: "send" | "receive";
+  type: string;
   amount: number;
   address: string;
   timestamp: string;
