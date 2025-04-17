@@ -2068,14 +2068,13 @@ checksum = "df3b46402a9d5adb4c86a0cf463f42e19994e3ee891101b1841f30a545cb49a9"
 [[package]]
 name = "hyle"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git#87d01cc6f6e2b336fc02531bf2bb7c156aa8a664"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=feat%2Fcsi_more_handlers#d1d145694ababcafc70a0a1d3734617e97a9587b"
 dependencies = [
  "anyhow",
  "anymap",
  "assertables",
  "axum",
  "axum-otel-metrics",
- "blst",
  "borsh",
  "bytes",
  "chrono",
@@ -2087,6 +2086,7 @@ dependencies = [
  "hyle-client-sdk",
  "hyle-contract-sdk",
  "hyle-contracts",
+ "hyle-crypto",
  "hyle-hydentity",
  "hyle-hyllar",
  "hyle-model",
@@ -2103,7 +2103,6 @@ dependencies = [
  "prometheus",
  "quote",
  "rand 0.8.5",
- "secp256k1",
  "seq-macro",
  "serde",
  "serde_json",
@@ -2122,14 +2121,13 @@ dependencies = [
  "utoipa",
  "utoipa-axum",
  "utoipa-swagger-ui",
- "whoami",
  "zip",
 ]
 
 [[package]]
 name = "hyle-amm"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git#87d01cc6f6e2b336fc02531bf2bb7c156aa8a664"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=feat%2Fcsi_more_handlers#d1d145694ababcafc70a0a1d3734617e97a9587b"
 dependencies = [
  "anyhow",
  "borsh",
@@ -2142,7 +2140,7 @@ dependencies = [
 [[package]]
 name = "hyle-bonsai-runner"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git#87d01cc6f6e2b336fc02531bf2bb7c156aa8a664"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=feat%2Fcsi_more_handlers#d1d145694ababcafc70a0a1d3734617e97a9587b"
 dependencies = [
  "anyhow",
  "bincode",
@@ -2159,7 +2157,7 @@ dependencies = [
 [[package]]
 name = "hyle-client-sdk"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git#87d01cc6f6e2b336fc02531bf2bb7c156aa8a664"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=feat%2Fcsi_more_handlers#d1d145694ababcafc70a0a1d3734617e97a9587b"
 dependencies = [
  "anyhow",
  "axum",
@@ -2179,7 +2177,7 @@ dependencies = [
 [[package]]
 name = "hyle-contract-sdk"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git#87d01cc6f6e2b336fc02531bf2bb7c156aa8a664"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=feat%2Fcsi_more_handlers#d1d145694ababcafc70a0a1d3734617e97a9587b"
 dependencies = [
  "borsh",
  "hyle-model",
@@ -2193,7 +2191,7 @@ dependencies = [
 [[package]]
 name = "hyle-contracts"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git#87d01cc6f6e2b336fc02531bf2bb7c156aa8a664"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=feat%2Fcsi_more_handlers#d1d145694ababcafc70a0a1d3734617e97a9587b"
 dependencies = [
  "hyle-amm",
  "hyle-contract-sdk",
@@ -2206,9 +2204,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyle-crypto"
+version = "0.13.0-rc.4"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=feat%2Fcsi_more_handlers#d1d145694ababcafc70a0a1d3734617e97a9587b"
+dependencies = [
+ "anyhow",
+ "blst",
+ "borsh",
+ "hex",
+ "hyle-model",
+ "rand 0.9.0",
+]
+
+[[package]]
 name = "hyle-hydentity"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git#87d01cc6f6e2b336fc02531bf2bb7c156aa8a664"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=feat%2Fcsi_more_handlers#d1d145694ababcafc70a0a1d3734617e97a9587b"
 dependencies = [
  "anyhow",
  "borsh",
@@ -2223,7 +2234,7 @@ dependencies = [
 [[package]]
 name = "hyle-hyllar"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git#87d01cc6f6e2b336fc02531bf2bb7c156aa8a664"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=feat%2Fcsi_more_handlers#d1d145694ababcafc70a0a1d3734617e97a9587b"
 dependencies = [
  "anyhow",
  "borsh",
@@ -2237,7 +2248,7 @@ dependencies = [
 [[package]]
 name = "hyle-model"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git#87d01cc6f6e2b336fc02531bf2bb7c156aa8a664"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=feat%2Fcsi_more_handlers#d1d145694ababcafc70a0a1d3734617e97a9587b"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -2259,7 +2270,7 @@ dependencies = [
 [[package]]
 name = "hyle-net"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git#87d01cc6f6e2b336fc02531bf2bb7c156aa8a664"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=feat%2Fcsi_more_handlers#d1d145694ababcafc70a0a1d3734617e97a9587b"
 dependencies = [
  "anyhow",
  "axum",
@@ -2281,7 +2292,7 @@ dependencies = [
 [[package]]
 name = "hyle-risc0-recursion"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git#87d01cc6f6e2b336fc02531bf2bb7c156aa8a664"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=feat%2Fcsi_more_handlers#d1d145694ababcafc70a0a1d3734617e97a9587b"
 dependencies = [
  "hyle-contract-sdk",
  "serde",
@@ -2290,7 +2301,7 @@ dependencies = [
 [[package]]
 name = "hyle-smt-token"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git#87d01cc6f6e2b336fc02531bf2bb7c156aa8a664"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=feat%2Fcsi_more_handlers#d1d145694ababcafc70a0a1d3734617e97a9587b"
 dependencies = [
  "anyhow",
  "borsh",
@@ -2304,7 +2315,7 @@ dependencies = [
 [[package]]
 name = "hyle-staking"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git#87d01cc6f6e2b336fc02531bf2bb7c156aa8a664"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=feat%2Fcsi_more_handlers#d1d145694ababcafc70a0a1d3734617e97a9587b"
 dependencies = [
  "anyhow",
  "borsh",
@@ -2318,7 +2329,7 @@ dependencies = [
 [[package]]
 name = "hyle-uuid-tld"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git#87d01cc6f6e2b336fc02531bf2bb7c156aa8a664"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=feat%2Fcsi_more_handlers#d1d145694ababcafc70a0a1d3734617e97a9587b"
 dependencies = [
  "borsh",
  "hyle-client-sdk",
@@ -2331,14 +2342,17 @@ dependencies = [
 [[package]]
 name = "hyle-verifiers"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git#87d01cc6f6e2b336fc02531bf2bb7c156aa8a664"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=feat%2Fcsi_more_handlers#d1d145694ababcafc70a0a1d3734617e97a9587b"
 dependencies = [
  "anyhow",
  "borsh",
  "hex",
+ "hyle-crypto",
  "hyle-model",
  "rand 0.9.0",
  "risc0-zkvm",
+ "secp256k1",
+ "sha3",
  "tracing",
 ]
 
@@ -6028,7 +6042,6 @@ checksum = "6994d13118ab492c3c80c1f81928718159254c53c472bf9ce36f8dae4add02a7"
 dependencies = [
  "redox_syscall 0.5.11",
  "wasite",
- "web-sys",
 ]
 
 [[package]]

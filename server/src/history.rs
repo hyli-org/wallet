@@ -1,6 +1,12 @@
 use anyhow::anyhow;
+use anyhow::Context;
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
+use sdk::info;
+use sdk::Blob;
+use sdk::BlobIndex;
+use sdk::Calldata;
+use sdk::Hashed;
 use std::collections::BTreeMap;
 
 use client_sdk::contract_indexer::axum;
@@ -28,6 +34,7 @@ use serde::Serialize;
 struct TransactionDetails {
     id: String,
     r#type: String,
+    status: String,
     amount: u128,
     address: Identity,
     timestamp: u128,
@@ -40,7 +47,7 @@ pub struct HyllarHistory {
 }
 
 impl HyllarHistory {
-    pub fn update_history(
+    pub fn add_to_history(
         &mut self,
         identity: Identity,
         address: Identity,
@@ -55,79 +62,32 @@ impl HyllarHistory {
             amount,
             address,
             timestamp,
+            status: "Sequenced".to_string(),
         };
         self.history
             .entry(identity)
             .or_default()
             .insert(0, transaction);
     }
+
+    fn get_action(tx: &sdk::BlobTransaction, index: BlobIndex) -> anyhow::Result<HyllarAction> {
+        let calldata = Calldata {
+            identity: tx.identity.clone(),
+            index,
+            blobs: tx.blobs.clone().into(),
+            tx_blob_count: tx.blobs.len(),
+            tx_hash: tx.hashed(),
+            tx_ctx: None,
+            private_input: vec![],
+        };
+        let (action, _) = parse_calldata::<HyllarAction>(&calldata)
+            .map_err(|e| anyhow!("Failed to parse calldata: {}", e))?;
+        Ok(action)
+    }
 }
 
 impl TxExecutorHandler for HyllarHistory {
     fn handle(&mut self, calldata: &sdk::Calldata) -> anyhow::Result<sdk::HyleOutput, String> {
-        let (action, _) = parse_calldata::<HyllarAction>(calldata)?;
-        let timestamp = calldata
-            .tx_ctx
-            .as_ref()
-            .map(|ctx| ctx.timestamp.0)
-            .unwrap_or_default();
-
-        match action {
-            HyllarAction::Transfer { recipient, amount } => {
-                // Update history for the sender
-                self.update_history(
-                    calldata.identity.clone(),
-                    recipient.clone().into(),
-                    "Send",
-                    amount,
-                    calldata.tx_hash.clone(),
-                    timestamp,
-                );
-                // Update history for the receiver
-                self.update_history(
-                    recipient.into(),
-                    calldata.identity.clone(),
-                    "Receive",
-                    amount,
-                    calldata.tx_hash.clone(),
-                    timestamp,
-                );
-            }
-            HyllarAction::Approve { spender, amount } => {
-                self.update_history(
-                    calldata.identity.clone(),
-                    spender.into(),
-                    "Approve",
-                    amount,
-                    calldata.tx_hash.clone(),
-                    timestamp,
-                );
-            }
-            HyllarAction::TransferFrom {
-                owner,
-                recipient,
-                amount,
-            } => {
-                self.update_history(
-                    recipient.clone().into(),
-                    owner.clone().into(),
-                    "Receive TransferFrom",
-                    amount,
-                    calldata.tx_hash.clone(),
-                    timestamp,
-                );
-                self.update_history(
-                    owner.into(),
-                    recipient.into(),
-                    "Send TransferFrom",
-                    amount,
-                    calldata.tx_hash.clone(),
-                    timestamp,
-                );
-            }
-            _ => {}
-        }
-
         self.hyllar.handle(calldata)
     }
 
@@ -143,6 +103,117 @@ impl ContractHandler for HyllarHistory {
             .split_for_parts();
 
         (router.with_state(store), api)
+    }
+
+    fn handle_transaction_success(
+        &mut self,
+        tx: &sdk::BlobTransaction,
+        _index: sdk::BlobIndex,
+        _tx_context: sdk::TxContext,
+    ) -> anyhow::Result<()> {
+        info!("Transaction successful: {:?}", tx);
+        self.history.values_mut().for_each(|history| {
+            if let Some(t) = history.iter_mut().find(|t| t.id == tx.hashed().0) {
+                t.status = "Success".to_string();
+            }
+        });
+        Ok(())
+    }
+
+    fn handle_transaction_failed(
+        &mut self,
+        tx: &sdk::BlobTransaction,
+        _index: sdk::BlobIndex,
+        _tx_context: sdk::TxContext,
+    ) -> anyhow::Result<()> {
+        self.history.values_mut().for_each(|history| {
+            if let Some(t) = history.iter_mut().find(|t| t.id == tx.hashed().0) {
+                t.status = "Failed".to_string();
+            }
+        });
+        Ok(())
+    }
+
+    fn handle_transaction_timeout(
+        &mut self,
+        tx: &sdk::BlobTransaction,
+        _index: sdk::BlobIndex,
+        _tx_context: sdk::TxContext,
+    ) -> anyhow::Result<()> {
+        self.history.values_mut().for_each(|history| {
+            if let Some(t) = history.iter_mut().find(|t| t.id == tx.hashed().0) {
+                t.status = "Timed Out".to_string();
+            }
+        });
+        Ok(())
+    }
+
+    fn handle_transaction_sequenced(
+        &mut self,
+        tx: &sdk::BlobTransaction,
+        index: sdk::BlobIndex,
+        tx_context: sdk::TxContext,
+    ) -> anyhow::Result<()> {
+        let action = Self::get_action(tx, index)
+            .with_context(|| format!("Failed to get action for transaction: {:?}", tx))?;
+        let timestamp = tx_context.timestamp.0;
+
+        match action {
+            HyllarAction::Transfer { recipient, amount } => {
+                // Update history for the sender
+                self.add_to_history(
+                    tx.identity.clone(),
+                    recipient.clone().into(),
+                    "Send",
+                    amount,
+                    tx.hashed(),
+                    timestamp,
+                );
+                // Update history for the receiver
+                self.add_to_history(
+                    recipient.into(),
+                    tx.identity.clone(),
+                    "Receive",
+                    amount,
+                    tx.hashed(),
+                    timestamp,
+                );
+            }
+            HyllarAction::Approve { spender, amount } => {
+                self.add_to_history(
+                    tx.identity.clone(),
+                    spender.into(),
+                    "Approve",
+                    amount,
+                    tx.hashed(),
+                    timestamp,
+                );
+            }
+            HyllarAction::TransferFrom {
+                owner,
+                recipient,
+                amount,
+            } => {
+                self.add_to_history(
+                    recipient.clone().into(),
+                    owner.clone().into(),
+                    "Receive TransferFrom",
+                    amount,
+                    tx.hashed(),
+                    timestamp,
+                );
+                self.add_to_history(
+                    owner.into(),
+                    recipient.into(),
+                    "Send TransferFrom",
+                    amount,
+                    tx.hashed(),
+                    timestamp,
+                );
+            }
+            _ => {}
+        }
+        Ok(())
     }
 }
 

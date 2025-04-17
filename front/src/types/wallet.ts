@@ -3,6 +3,7 @@ export interface Transaction {
   type: string;
   amount: number;
   address: string;
+  status: string;
   timestamp: number;
 }
 

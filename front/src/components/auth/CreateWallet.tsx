@@ -41,7 +41,7 @@ export const CreateWallet = ({ onWalletCreated }: CreateWalletProps) => {
     setStatus('Generating wallet credentials...');
     const blob1 = register(username, Date.now());
 
-    const identity = `${username}.${blob1.contract_name}`;
+    const identity = `${username}@${blob1.contract_name}`;
     console.log('Identity:', identity);
     const blob0 = await check_secret_blob(identity, password);
 

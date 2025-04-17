@@ -26,7 +26,7 @@ impl ContractHandler for Wallet {
         (router.with_state(store), api)
     }
 
-    fn handle_transaction(
+    fn handle_transaction_success(
         &mut self,
         tx: &sdk::BlobTransaction,
         index: sdk::BlobIndex,

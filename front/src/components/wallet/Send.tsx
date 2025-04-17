@@ -36,7 +36,7 @@ export const Send = ({ wallet, onSend }: SendProps) => {
     }
 
     const blob1 = verifyIdentity(wallet.username, Date.now());
-    const identity = `${wallet.username}.${blob1.contract_name}`;
+    const identity = `${wallet.username}@${blob1.contract_name}`;
     const blob0 = await check_secret_blob(identity, password);
 
     const blob2 = blob_builder.token.transfer(address, "hyllar", parsedAmount, null);

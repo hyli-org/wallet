@@ -29,7 +29,7 @@ export const LoginWallet = ({ onWalletLoggedIn }: LoginWalletProps) => {
     }
     const blob1 = verifyIdentity(username, Date.now());
 
-    const identity = `${username}.${blob1.contract_name}`;
+    const identity = `${username}@${blob1.contract_name}`;
     const blob0 = await check_secret_blob(identity, password);
 
     const blobTx: BlobTransaction = {
