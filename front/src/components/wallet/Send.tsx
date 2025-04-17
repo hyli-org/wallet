@@ -70,10 +70,11 @@ export const Send = ({ wallet, onSend }: SendProps) => {
         return;
       }
 
-      onSend({
+      onSend?.({
         type: 'send',
         amount: parsedAmount,
-        address
+        address,
+        status: 'completed'
       });
 
       setAmount('');

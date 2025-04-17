@@ -52,7 +52,7 @@ export const CreateWallet = ({ onWalletCreated }: CreateWalletProps) => {
 
     try {
       setStatus('Sending transaction...');
-      await register_contract(nodeService.client);
+      await register_contract(nodeService.client as any);
       const tx_hash = await nodeService.client.sendBlobTx(blobTx);
       setTransactionHash(tx_hash);
 

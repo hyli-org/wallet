@@ -1,4 +1,4 @@
-import { BlobTransaction, NodeApiHttpClient } from "hyle";
+import { NodeApiHttpClient } from "hyle";
 
 class NodeService {
   client: NodeApiHttpClient;
