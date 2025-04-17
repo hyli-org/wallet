@@ -3,7 +3,6 @@ use anyhow::Context;
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
 use sdk::info;
-use sdk::Blob;
 use sdk::BlobIndex;
 use sdk::Calldata;
 use sdk::Hashed;
