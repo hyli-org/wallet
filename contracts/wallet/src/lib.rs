@@ -11,11 +11,11 @@ pub mod client;
 
 impl sdk::ZkContract for Wallet {
     /// Entry point of the contract's logic
-    fn execute(&mut self, contract_input: &sdk::Calldata) -> RunResult {
+    fn execute(&mut self, calldata: &sdk::Calldata) -> RunResult {
         // Parse contract inputs
-        let (action, ctx) = sdk::utils::parse_raw_calldata::<WalletAction>(contract_input)?;
+        let (action, ctx) = sdk::utils::parse_raw_calldata::<WalletAction>(calldata)?;
 
-        let check_secret = contract_input
+        let check_secret = calldata
             .blobs
             .iter()
             .find(|(_, b)| b.contract_name.0 == "check_secret")

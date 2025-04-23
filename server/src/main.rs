@@ -11,11 +11,11 @@ use hyle::{
         da_listener::{DAListener, DAListenerCtx},
     },
     model::{api::NodeInfo, CommonRunContext},
+    modules::prover::{AutoProver, AutoProverCtx},
     rest::{RestApi, RestApiRunContext},
     utils::{conf, logger::setup_tracing, modules::ModulesHandler},
 };
 use prometheus::Registry;
-use prover::{ProverModule, ProverModuleCtx};
 use sdk::{info, ContractName, ZkContract};
 use std::{
     env,
@@ -27,7 +27,6 @@ use wallet::Wallet;
 mod app;
 mod history;
 mod init;
-mod prover;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -115,19 +114,21 @@ async fn main() -> Result<()> {
         .await?;
 
     handler
-        .build_module::<ProverModule<Wallet>>(Arc::new(ProverModuleCtx {
-            app: app_ctx.clone(),
+        .build_module::<AutoProver<Wallet>>(Arc::new(AutoProverCtx {
+            common: ctx.clone(),
             start_height,
             elf: contracts::WALLET_ELF,
             contract_name: contract_name.clone(),
+            node: app_ctx.node_client.clone(),
         }))
         .await?;
     handler
-        .build_module::<ProverModule<hyle_hyllar::Hyllar>>(Arc::new(ProverModuleCtx {
-            app: app_ctx.clone(),
+        .build_module::<AutoProver<hyle_hyllar::Hyllar>>(Arc::new(AutoProverCtx {
+            common: ctx.clone(),
             start_height,
             elf: hyle_hyllar::client::tx_executor_handler::metadata::HYLLAR_ELF,
             contract_name: "hyllar".into(),
+            node: app_ctx.node_client.clone(),
         }))
         .await?;
 
@@ -159,7 +160,7 @@ async fn main() -> Result<()> {
             openapi: Default::default(),
             info: NodeInfo {
                 id: ctx.config.id.clone(),
-                da_address: ctx.config.da_address.clone(),
+                da_address: ctx.config.da_read_from.clone(),
                 pubkey: None,
             },
         })
