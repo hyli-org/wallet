@@ -110,7 +110,6 @@ impl ContractHandler for HyllarHistory {
         _index: sdk::BlobIndex,
         _tx_context: sdk::TxContext,
     ) -> anyhow::Result<()> {
-        info!("Transaction successful: {:?}", tx);
         self.history.values_mut().for_each(|history| {
             if let Some(t) = history.iter_mut().find(|t| t.id == tx.hashed().0) {
                 t.status = "Success".to_string();
