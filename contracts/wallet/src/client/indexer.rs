@@ -23,16 +23,8 @@ pub struct WalletEvent {
     pub program_outputs: String,
 }
 
-impl ContractHandler<WalletEvent> for Wallet {
-    async fn api(store: ContractHandlerStore<Wallet>) -> (Router<()>, OpenApi) {
-        let (router, api) = OpenApiRouter::default()
-            .routes(routes!(get_state))
-            .split_for_parts();
-
-        (router.with_state(store), api)
-    }
-
-    fn handle_transaction_success(
+impl Wallet {
+    fn handle_transaction(
         &mut self,
         tx: &sdk::BlobTransaction,
         index: sdk::BlobIndex,
@@ -53,17 +45,71 @@ impl ContractHandler<WalletEvent> for Wallet {
             private_input: vec![],
         };
 
-        let hyle_output = self.handle(&calldata).map_err(|e| anyhow::anyhow!(e))?;
-        let program_outputs = str::from_utf8(&hyle_output.program_outputs).unwrap_or("no output");
+        let res = self.handle(&calldata);
+        let event = match res {
+            Ok(hyle_output) => {
+                let program_outputs =
+                    str::from_utf8(&hyle_output.program_outputs).unwrap_or("no output");
 
-        sdk::info!("🚀 Executed {contract_name}: {}", program_outputs);
-        sdk::tracing::debug!(
-            handler = %contract_name,
-            "hyle_output: {:?}", hyle_output
-        );
+                sdk::info!("🚀 Executed {contract_name}: {}", program_outputs);
+                sdk::tracing::debug!(
+                    handler = %contract_name,
+                    "hyle_output: {:?}", hyle_output
+                );
+                WalletEvent {
+                    account: tx.identity.clone(),
+                    program_outputs: program_outputs.to_string(),
+                }
+            }
+            Err(e) => {
+                sdk::info!("🚀 Executed {contract_name} with error: {}", e);
+                WalletEvent {
+                    account: tx.identity.clone(),
+                    program_outputs: format!("Error: {:?}", e),
+                }
+            }
+        };
+
+        Ok(Some(event))
+    }
+}
+
+impl ContractHandler<WalletEvent> for Wallet {
+    async fn api(store: ContractHandlerStore<Wallet>) -> (Router<()>, OpenApi) {
+        let (router, api) = OpenApiRouter::default()
+            .routes(routes!(get_state))
+            .split_for_parts();
+
+        (router.with_state(store), api)
+    }
+
+    fn handle_transaction_success(
+        &mut self,
+        tx: &sdk::BlobTransaction,
+        index: sdk::BlobIndex,
+        tx_context: sdk::TxContext,
+    ) -> Result<Option<WalletEvent>> {
+        self.handle_transaction(tx, index, tx_context)
+    }
+
+    fn handle_transaction_failed(
+        &mut self,
+        tx: &sdk::BlobTransaction,
+        index: sdk::BlobIndex,
+        tx_context: sdk::TxContext,
+    ) -> Result<Option<WalletEvent>> {
+        self.handle_transaction(tx, index, tx_context)
+    }
+
+    fn handle_transaction_timeout(
+        &mut self,
+        tx: &sdk::BlobTransaction,
+        _index: sdk::BlobIndex,
+        _tx_context: sdk::TxContext,
+    ) -> Result<Option<WalletEvent>> {
         Ok(Some(WalletEvent {
             account: tx.identity.clone(),
-            program_outputs: program_outputs.to_string(),
+            program_outputs: "Transaction timeout".to_string(),
         }))
     }
 }

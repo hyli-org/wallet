@@ -3,7 +3,7 @@ import { register, Wallet } from '../../types/wallet';
 import { build_proof_transaction, build_blob as check_secret_blob, register_contract } from 'hyle-check-secret';
 import { BlobTransaction } from 'hyle';
 import { nodeService } from '../../services/NodeService';
-import { indexerService } from '../../services/IndexerService';
+import { webSocketService } from '../../services/WebSocketService';
 
 interface CreateWalletProps {
   onWalletCreated: (wallet: Wallet) => void;
@@ -66,13 +66,35 @@ export const CreateWallet = ({ onWalletCreated }: CreateWalletProps) => {
       );
       setStatus('Sending proof transaction...');
       await nodeService.client.sendProofTx(proofTx);
-      setStatus('Waiting for transaction confirmation...');
+      setStatus('Waiting for wallet creation confirmation...');
 
       try {
-        await indexerService.waitForTxSettled(tx_hash);
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            unsubscribeWalletEvents();
+            reject(new Error('Wallet creation timed out'));
+          }, 30000);
+
+          webSocketService.connect(identity);
+          const unsubscribeWalletEvents = webSocketService.subscribeToWalletEvents((event) => {
+            console.log('Received wallet event:', event);
+            if (event.event.startsWith('Successfully registered identity for account')) {
+              clearTimeout(timeout);
+              unsubscribeWalletEvents();
+              webSocketService.disconnect();
+              resolve(event);
+            } else {
+              clearTimeout(timeout);
+              unsubscribeWalletEvents();
+              webSocketService.disconnect();
+              reject(new Error('Wallet creation failed: ' + event.event));
+            }
+          });
+        });
       } catch (error) {
-        setError('Transaction failed or timed out');
-        console.error('Transaction error:', error);
+        setError('' + error);
+        setStatus('');
+        console.error('Wallet creation error:', error);
         return;
       }
 

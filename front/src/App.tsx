@@ -10,6 +10,7 @@ import { WalletLayout } from './components/layout/WalletLayout';
 import { Wallet, Transaction } from './types/wallet';
 import { indexerService } from './services/IndexerService';
 import { useConfig } from './hooks/useConfig';
+import { AppEvent, webSocketService } from './services/WebSocketService';
 
 function App() {
   const [wallet, setWallet] = useState<Wallet | null>(null);
@@ -18,26 +19,7 @@ function App() {
   const [showLogin, setShowLogin] = useState<boolean>(false);
   const { isLoading: isLoadingConfig, error: configError } = useConfig();
 
-  // Fonction pour récupérer le solde et l'historique
-  const fetchWalletData = async () => {
-    if (wallet) {
-      const [balance, transactions] = await Promise.all([
-        indexerService.getBalance(wallet.address),
-        indexerService.getTransactionHistory(wallet.address)
-      ]);
-      setBalance(balance);
-      setTransactions(transactions);
-    }
-  };
-
-  // Mettre à jour le solde et l'historique toutes les secondes
-  useEffect(() => {
-    fetchWalletData();
-    const interval = setInterval(fetchWalletData, 1000);
-    return () => clearInterval(interval);
-  }, [wallet]);
-
-  // Fonction pour récupérer le solde
+  // Function to fetch balance
   const fetchBalance = async () => {
     if (wallet) {
       const balance = await indexerService.getBalance(wallet.address);
@@ -45,11 +27,56 @@ function App() {
     }
   };
 
-  // Mettre à jour le solde toutes les 10 secondes
+  // Function to fetch transaction history
+  const fetchTransactions = async () => {
+    if (wallet) {
+      const transactions = await indexerService.getTransactionHistory(wallet.address);
+      setTransactions(transactions);
+    }
+  };
+
+  // Initialize WebSocket connection when wallet is set
   useEffect(() => {
-    fetchBalance();
-    const interval = setInterval(fetchBalance, 1000);
-    return () => clearInterval(interval);
+    if (wallet) {
+      webSocketService.connect(wallet.address);
+      
+      const handleTxEvent = async (event: AppEvent['TxEvent']) => {
+        console.log('Received transaction event:', event);
+        if (event.tx.status === 'Success') {
+          // Update balance
+          await fetchBalance();
+        }
+          
+        // Update transactions
+        const newTransaction: Transaction = event.tx;
+
+        setTransactions(prevTransactions => {
+          const existingIndex = prevTransactions.findIndex(tx => tx.id === newTransaction.id);
+          if (existingIndex !== -1) {
+            console.log('Updating existing transaction');
+            // Update existing transaction in-place
+            const updatedTransactions = [...prevTransactions];
+            updatedTransactions[existingIndex] = newTransaction;
+            return updatedTransactions;
+          } else {
+            console.log('Adding new transaction');
+            // Add new transaction at the beginning of the list
+            return [newTransaction, ...prevTransactions];
+          }
+        });
+      };
+
+      const unsubscribeTxEvents = webSocketService.subscribeToTxEvents(handleTxEvent);
+
+      // Initial data fetch
+      fetchBalance();
+      fetchTransactions();
+
+      return () => {
+        unsubscribeTxEvents();
+        webSocketService.disconnect();
+      };
+    }
   }, [wallet]);
 
   const handleWalletCreated = (newWallet: Wallet) => {

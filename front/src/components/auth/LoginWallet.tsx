@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { verifyIdentity, Wallet } from '../../types/wallet';
 import { nodeService } from '../../services/NodeService';
-import { indexerService } from '../../services/IndexerService';
+import { webSocketService } from '../../services/WebSocketService';
 import { build_proof_transaction, build_blob as check_secret_blob } from 'hyle-check-secret';
 import { BlobTransaction } from 'hyle';
 
@@ -54,9 +54,26 @@ export const LoginWallet = ({ onWalletLoggedIn }: LoginWalletProps) => {
       setStatus('Waiting for transaction confirmation...');
 
       try {
-        await indexerService.waitForTxSettled(tx_hash);
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            webSocketService.unsubscribeFromWalletEvents();
+            reject(new Error('Identity verification timed out'));
+          }, 30000);
+
+          webSocketService.connect(identity);
+          const unsubscribeWalletEvents = webSocketService.subscribeToWalletEvents((event) => {
+            console.log('Received wallet event:', event);
+            if (event.event === 'Identity verified') {
+              clearTimeout(timeout);
+              unsubscribeWalletEvents();
+              webSocketService.disconnect();
+              resolve(event);
+            }
+          });
+        });
       } catch (error) {
-        setError('Transaction failed or timed out');
+        setError('' + error);
+        setStatus('');
         console.error('Transaction error:', error);
         return;
       }

@@ -121,7 +121,7 @@ impl ContractHandler<Vec<HistoryEvent>> for HyllarHistory {
     ) -> anyhow::Result<Option<Vec<HistoryEvent>>> {
         let mut events = vec![];
         self.history.iter_mut().for_each(|(account, history)| {
-            if let Some(t) = history.iter_mut().find(|t| t.id == tx.hashed().0) {
+            for t in history.iter_mut().filter(|t| t.id == tx.hashed().0) {
                 t.status = "Success".to_string();
                 events.push(HistoryEvent {
                     account: account.clone(),
@@ -144,7 +144,7 @@ impl ContractHandler<Vec<HistoryEvent>> for HyllarHistory {
     ) -> anyhow::Result<Option<Vec<HistoryEvent>>> {
         let mut events = vec![];
         self.history.values_mut().for_each(|history| {
-            if let Some(t) = history.iter_mut().find(|t| t.id == tx.hashed().0) {
+            for t in history.iter_mut().filter(|t| t.id == tx.hashed().0) {
                 t.status = "Failed".to_string();
                 events.push(HistoryEvent {
                     account: tx.identity.clone(),
@@ -167,7 +167,7 @@ impl ContractHandler<Vec<HistoryEvent>> for HyllarHistory {
     ) -> anyhow::Result<Option<Vec<HistoryEvent>>> {
         let mut events = vec![];
         self.history.values_mut().for_each(|history| {
-            if let Some(t) = history.iter_mut().find(|t| t.id == tx.hashed().0) {
+            for t in history.iter_mut().filter(|t| t.id == tx.hashed().0) {
                 t.status = "Timed Out".to_string();
                 events.push(HistoryEvent {
                     account: tx.identity.clone(),

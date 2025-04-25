@@ -49,26 +49,6 @@ class IndexerService {
       return [];
     }
   }
-
-  async waitForTxSettled(tx_hash: string) {
-    let settled = false;
-
-    while (!settled) {
-      const tx = await this.client.getTransaction(tx_hash);
-      if (tx.transaction_status === "Success") {
-        settled = true;
-        return tx;
-      } else if (
-        tx.transaction_status === "Failure" ||
-        tx.transaction_status === "TimedOut"
-      ) {
-        throw new Error(`Transaction ${tx_hash} failed or timed out`);
-      } else {
-        console.log("Transaction not settled yet:", tx);
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      }
-    }
-  }
 }
 
 export const indexerService = new IndexerService();

@@ -42,7 +42,7 @@ pub enum AppWsInMessage {}
 #[derive(Debug, Clone, Serialize)]
 pub enum AppOutWsEvent {
     TxEvent(HistoryEvent),
-    WalletEvent(String),
+    WalletEvent { account: String, event: String },
 }
 
 impl BusMessage for AppOutWsEvent {}
@@ -100,7 +100,10 @@ impl Module for AppModule {
             listen<CSIBusEvent<WalletEvent>> event => {
                 self.bus.send(WsTopicMessage::new(
                     event.event.account.0.clone(),
-                    AppOutWsEvent::WalletEvent(event.event.program_outputs),
+                    AppOutWsEvent::WalletEvent {
+                        account: event.event.account.0.clone(),
+                        event:event.event.program_outputs
+                    },
                 ))?;
             }
         };

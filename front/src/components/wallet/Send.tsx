@@ -3,7 +3,7 @@ import { Transaction, verifyIdentity, Wallet } from '../../types/wallet';
 import { blob_builder, BlobTransaction } from 'hyle'
 import { build_proof_transaction, build_blob as check_secret_blob } from 'hyle-check-secret';
 import { nodeService } from '../../services/NodeService';
-import { indexerService } from '../../services/IndexerService';
+import { webSocketService } from '../../services/WebSocketService';
 
 interface SendProps {
   onSend?: (transaction: Omit<Transaction, 'id' | 'timestamp'>) => void;
@@ -63,9 +63,32 @@ export const Send = ({ wallet, onSend }: SendProps) => {
       setStatus('Waiting for transaction confirmation...');
 
       try {
-        await indexerService.waitForTxSettled(tx_hash);
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            unsubscribeTxEvents();
+            reject(new Error('Transaction timed out'));
+          }, 30000);
+
+          webSocketService.connect(identity);
+          const unsubscribeTxEvents = webSocketService.subscribeToTxEvents((event) => {
+            console.log('Received tx event:', event);
+            if (event.tx.id === tx_hash && event.tx.status === 'Success') {
+              setStatus('Transaction completed');
+              clearTimeout(timeout);
+              unsubscribeTxEvents();
+              webSocketService.disconnect();
+              resolve(event);
+            } else if (event.tx.id === tx_hash && event.tx.status != 'Sequenced') {
+              clearTimeout(timeout);
+              unsubscribeTxEvents();
+              webSocketService.disconnect();
+              reject(new Error('Transaction failed: ' + event.tx.status));
+            }
+          });
+        });
       } catch (error) {
-        setError('Transaction failed or timed out');
+        setError('' + error);
+        setStatus('');
         console.error('Transaction error:', error);
         return;
       }
