@@ -1,9 +1,9 @@
 use anyhow::{Context, Result};
-use app::{AppModule, AppModuleCtx};
+use app::{AppModule, AppModuleCtx, AppOutWsEvent, AppWsInMessage};
 use axum::Router;
 use clap::Parser;
 use client_sdk::rest_client::{IndexerApiHttpClient, NodeApiHttpClient};
-use history::HyllarHistory;
+use history::{HistoryEvent, HyllarHistory};
 use hyle::{
     bus::{metrics::BusMetrics, SharedMessageBus},
     indexer::{
@@ -22,11 +22,13 @@ use std::{
     sync::{Arc, Mutex},
 };
 use tracing::error;
-use wallet::Wallet;
+use wallet::{client::indexer::WalletEvent, Wallet};
+use websocket::{WebSocketConfig, WebSocketModule, WebSocketModuleCtx};
 
 mod app;
 mod history;
 mod init;
+mod websocket;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -101,16 +103,18 @@ async fn main() -> Result<()> {
     handler.build_module::<AppModule>(app_ctx.clone()).await?;
 
     handler
-        .build_module::<ContractStateIndexer<Wallet>>(ContractStateIndexerCtx {
+        .build_module::<ContractStateIndexer<Wallet, WalletEvent>>(ContractStateIndexerCtx {
             contract_name: contract_name.clone(),
             common: ctx.clone(),
         })
         .await?;
     handler
-        .build_module::<ContractStateIndexer<HyllarHistory>>(ContractStateIndexerCtx {
-            contract_name: "hyllar".into(),
-            common: ctx.clone(),
-        })
+        .build_module::<ContractStateIndexer<HyllarHistory, Vec<HistoryEvent>>>(
+            ContractStateIndexerCtx {
+                contract_name: "hyllar".into(),
+                common: ctx.clone(),
+            },
+        )
         .await?;
 
     handler
@@ -130,6 +134,13 @@ async fn main() -> Result<()> {
             contract_name: "hyllar".into(),
             node: app_ctx.node_client.clone(),
         }))
+        .await?;
+
+    handler
+        .build_module::<WebSocketModule<AppWsInMessage, AppOutWsEvent>>(WebSocketModuleCtx {
+            bus: ctx.bus.new_handle(),
+            config: WebSocketConfig::default(),
+        })
         .await?;
 
     // This module connects to the da_address and receives all the blocks²

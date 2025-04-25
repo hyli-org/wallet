@@ -17,7 +17,13 @@ use crate::*;
 use client_sdk::contract_indexer::axum;
 use client_sdk::contract_indexer::utoipa;
 
-impl ContractHandler for Wallet {
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct WalletEvent {
+    pub account: sdk::Identity,
+    pub program_outputs: String,
+}
+
+impl ContractHandler<WalletEvent> for Wallet {
     async fn api(store: ContractHandlerStore<Wallet>) -> (Router<()>, OpenApi) {
         let (router, api) = OpenApiRouter::default()
             .routes(routes!(get_state))
@@ -31,7 +37,7 @@ impl ContractHandler for Wallet {
         tx: &sdk::BlobTransaction,
         index: sdk::BlobIndex,
         tx_context: sdk::TxContext,
-    ) -> Result<()> {
+    ) -> Result<Option<WalletEvent>> {
         let sdk::Blob {
             contract_name,
             data: _,
@@ -55,7 +61,10 @@ impl ContractHandler for Wallet {
             handler = %contract_name,
             "hyle_output: {:?}", hyle_output
         );
-        Ok(())
+        Ok(Some(WalletEvent {
+            account: tx.identity.clone(),
+            program_outputs: program_outputs.to_string(),
+        }))
     }
 }
 

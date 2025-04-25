@@ -1,27 +1,28 @@
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
 use anyhow::Result;
 use axum::{
     extract::{Json, State},
-    http::{HeaderMap, Method, StatusCode},
+    http::Method,
     response::IntoResponse,
-    routing::{get, post},
+    routing::get,
     Router,
 };
 use client_sdk::rest_client::NodeApiHttpClient;
 use hyle::{
-    bus::{BusClientReceiver, BusMessage, SharedMessageBus},
+    bus::{BusClientSender, BusMessage},
+    indexer::contract_state_indexer::CSIBusEvent,
     model::CommonRunContext,
     module_handle_messages,
-    rest::AppError,
     utils::modules::{module_bus_client, Module},
 };
-use wallet::WalletAction;
 
-use sdk::{BlobTransaction, ContractName, TxHash};
-use serde::Serialize;
-use tokio::sync::Mutex;
+use sdk::ContractName;
+use serde::{Deserialize, Serialize};
 use tower_http::cors::{Any, CorsLayer};
+use wallet::client::indexer::WalletEvent;
+
+use crate::{history::HistoryEvent, websocket::WsTopicMessage};
 
 pub struct AppModule {
     bus: AppModuleBusClient,
@@ -33,17 +34,25 @@ pub struct AppModuleCtx {
     pub wallet_cn: ContractName,
 }
 
-#[derive(Debug, Clone)]
-pub enum AppEvent {
-    SequencedTx(TxHash),
-    FailedTx(TxHash, String),
+/// Messages received from WebSocket clients that will be processed by the system
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum AppWsInMessage {}
+
+/// Messages sent to WebSocket clients from the system
+#[derive(Debug, Clone, Serialize)]
+pub enum AppOutWsEvent {
+    TxEvent(HistoryEvent),
+    WalletEvent(String),
 }
-impl BusMessage for AppEvent {}
+
+impl BusMessage for AppOutWsEvent {}
 
 module_bus_client! {
 #[derive(Debug)]
 pub struct AppModuleBusClient {
-    receiver(AppEvent),
+    sender(WsTopicMessage<AppOutWsEvent>),
+    receiver(CSIBusEvent<Vec<HistoryEvent>>),
+    receiver(CSIBusEvent<WalletEvent>),
 }
 }
 
@@ -53,10 +62,6 @@ impl Module for AppModule {
     async fn build(ctx: Self::Context) -> Result<Self> {
         let state = RouterCtx {
             wallet_cn: ctx.wallet_cn.clone(),
-            app: Arc::new(Mutex::new(HyleOofCtx {
-                bus: ctx.common.bus.new_handle(),
-            })),
-            client: ctx.node_client.clone(),
         };
 
         // Créer un middleware CORS
@@ -84,6 +89,20 @@ impl Module for AppModule {
     async fn run(&mut self) -> Result<()> {
         module_handle_messages! {
             on_bus self.bus,
+            listen <CSIBusEvent<Vec<HistoryEvent>>> event => {
+                for msg in event.event {
+                    self.bus.send(WsTopicMessage::new(
+                        msg.account.0.clone(),
+                        AppOutWsEvent::TxEvent(msg),
+                    ))?;
+                }
+            }
+            listen<CSIBusEvent<WalletEvent>> event => {
+                self.bus.send(WsTopicMessage::new(
+                    event.event.account.0.clone(),
+                    AppOutWsEvent::WalletEvent(event.event.program_outputs),
+                ))?;
+            }
         };
 
         Ok(())
@@ -92,72 +111,11 @@ impl Module for AppModule {
 
 #[derive(Clone)]
 struct RouterCtx {
-    pub app: Arc<Mutex<HyleOofCtx>>,
-    pub client: Arc<NodeApiHttpClient>,
     pub wallet_cn: ContractName,
-}
-
-pub struct HyleOofCtx {
-    pub bus: SharedMessageBus,
 }
 
 async fn health() -> impl IntoResponse {
     Json("OK")
-}
-
-// --------------------------------------------------------
-//     Headers
-// --------------------------------------------------------
-
-const USER_HEADER: &str = "x-user";
-const SESSION_KEY_HEADER: &str = "x-session-key";
-const SIGNATURE_HEADER: &str = "x-request-signature";
-
-#[derive(Debug)]
-struct AuthHeaders {
-    session_key: String,
-    signature: String,
-    user: String,
-}
-
-impl AuthHeaders {
-    fn from_headers(headers: &HeaderMap) -> Result<Self, AppError> {
-        let session_key = headers
-            .get(SESSION_KEY_HEADER)
-            .and_then(|v| v.to_str().ok())
-            .ok_or_else(|| {
-                AppError(
-                    StatusCode::UNAUTHORIZED,
-                    anyhow::anyhow!("Missing session key"),
-                )
-            })?;
-
-        let signature = headers
-            .get(SIGNATURE_HEADER)
-            .and_then(|v| v.to_str().ok())
-            .ok_or_else(|| {
-                AppError(
-                    StatusCode::UNAUTHORIZED,
-                    anyhow::anyhow!("Missing signature"),
-                )
-            })?;
-
-        let user = headers
-            .get(USER_HEADER)
-            .and_then(|v| v.to_str().ok())
-            .ok_or_else(|| {
-                AppError(
-                    StatusCode::UNAUTHORIZED,
-                    anyhow::anyhow!("Missing signature"),
-                )
-            })?;
-
-        Ok(AuthHeaders {
-            session_key: session_key.to_string(),
-            signature: signature.to_string(),
-            user: user.to_string(),
-        })
-    }
 }
 
 #[derive(Serialize)]

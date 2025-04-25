@@ -2,7 +2,6 @@ use anyhow::anyhow;
 use anyhow::Context;
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
-use sdk::info;
 use sdk::BlobIndex;
 use sdk::Calldata;
 use sdk::Hashed;
@@ -30,7 +29,7 @@ use sdk::TxHash;
 use serde::Serialize;
 
 #[derive(Debug, Clone, Default, Serialize, ToSchema, BorshDeserialize, BorshSerialize)]
-struct TransactionDetails {
+pub struct TransactionDetails {
     id: String,
     r#type: String,
     status: String,
@@ -45,6 +44,12 @@ pub struct HyllarHistory {
     history: BTreeMap<Identity, Vec<TransactionDetails>>,
 }
 
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct HistoryEvent {
+    pub account: Identity,
+    pub tx: TransactionDetails,
+}
+
 impl HyllarHistory {
     pub fn add_to_history(
         &mut self,
@@ -54,7 +59,7 @@ impl HyllarHistory {
         amount: u128,
         tx_hash: TxHash,
         timestamp: u128,
-    ) {
+    ) -> HistoryEvent {
         let transaction = TransactionDetails {
             id: tx_hash.0,
             r#type: action.to_string(),
@@ -64,9 +69,13 @@ impl HyllarHistory {
             status: "Sequenced".to_string(),
         };
         self.history
-            .entry(identity)
+            .entry(identity.clone())
             .or_default()
-            .insert(0, transaction);
+            .insert(0, transaction.clone());
+        HistoryEvent {
+            account: identity,
+            tx: transaction,
+        }
     }
 
     fn get_action(tx: &sdk::BlobTransaction, index: BlobIndex) -> anyhow::Result<HyllarAction> {
@@ -95,7 +104,7 @@ impl TxExecutorHandler for HyllarHistory {
     }
 }
 
-impl ContractHandler for HyllarHistory {
+impl ContractHandler<Vec<HistoryEvent>> for HyllarHistory {
     async fn api(store: ContractHandlerStore<HyllarHistory>) -> (Router<()>, OpenApi) {
         let (router, api) = OpenApiRouter::default()
             .routes(routes!(get_history))
@@ -109,13 +118,22 @@ impl ContractHandler for HyllarHistory {
         tx: &sdk::BlobTransaction,
         _index: sdk::BlobIndex,
         _tx_context: sdk::TxContext,
-    ) -> anyhow::Result<()> {
-        self.history.values_mut().for_each(|history| {
+    ) -> anyhow::Result<Option<Vec<HistoryEvent>>> {
+        let mut events = vec![];
+        self.history.iter_mut().for_each(|(account, history)| {
             if let Some(t) = history.iter_mut().find(|t| t.id == tx.hashed().0) {
                 t.status = "Success".to_string();
+                events.push(HistoryEvent {
+                    account: account.clone(),
+                    tx: t.clone(),
+                });
             }
         });
-        Ok(())
+        if !events.is_empty() {
+            Ok(Some(events))
+        } else {
+            Ok(None)
+        }
     }
 
     fn handle_transaction_failed(
@@ -123,13 +141,22 @@ impl ContractHandler for HyllarHistory {
         tx: &sdk::BlobTransaction,
         _index: sdk::BlobIndex,
         _tx_context: sdk::TxContext,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<Option<Vec<HistoryEvent>>> {
+        let mut events = vec![];
         self.history.values_mut().for_each(|history| {
             if let Some(t) = history.iter_mut().find(|t| t.id == tx.hashed().0) {
                 t.status = "Failed".to_string();
+                events.push(HistoryEvent {
+                    account: tx.identity.clone(),
+                    tx: t.clone(),
+                });
             }
         });
-        Ok(())
+        if !events.is_empty() {
+            Ok(Some(events))
+        } else {
+            Ok(None)
+        }
     }
 
     fn handle_transaction_timeout(
@@ -137,13 +164,22 @@ impl ContractHandler for HyllarHistory {
         tx: &sdk::BlobTransaction,
         _index: sdk::BlobIndex,
         _tx_context: sdk::TxContext,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<Option<Vec<HistoryEvent>>> {
+        let mut events = vec![];
         self.history.values_mut().for_each(|history| {
             if let Some(t) = history.iter_mut().find(|t| t.id == tx.hashed().0) {
                 t.status = "Timed Out".to_string();
+                events.push(HistoryEvent {
+                    account: tx.identity.clone(),
+                    tx: t.clone(),
+                });
             }
         });
-        Ok(())
+        if !events.is_empty() {
+            Ok(Some(events))
+        } else {
+            Ok(None)
+        }
     }
 
     fn handle_transaction_sequenced(
@@ -151,67 +187,72 @@ impl ContractHandler for HyllarHistory {
         tx: &sdk::BlobTransaction,
         index: sdk::BlobIndex,
         tx_context: sdk::TxContext,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<Option<Vec<HistoryEvent>>> {
         let action = Self::get_action(tx, index)
             .with_context(|| format!("Failed to get action for transaction: {:?}", tx))?;
         let timestamp = tx_context.timestamp.0;
+        let mut events = vec![];
 
         match action {
             HyllarAction::Transfer { recipient, amount } => {
                 // Update history for the sender
-                self.add_to_history(
+                events.push(self.add_to_history(
                     tx.identity.clone(),
                     recipient.clone().into(),
                     "Send",
                     amount,
                     tx.hashed(),
                     timestamp,
-                );
+                ));
                 // Update history for the receiver
-                self.add_to_history(
+                events.push(self.add_to_history(
                     recipient.into(),
                     tx.identity.clone(),
                     "Receive",
                     amount,
                     tx.hashed(),
                     timestamp,
-                );
+                ));
             }
             HyllarAction::Approve { spender, amount } => {
-                self.add_to_history(
+                events.push(self.add_to_history(
                     tx.identity.clone(),
                     spender.into(),
                     "Approve",
                     amount,
                     tx.hashed(),
                     timestamp,
-                );
+                ));
             }
             HyllarAction::TransferFrom {
                 owner,
                 recipient,
                 amount,
             } => {
-                self.add_to_history(
+                events.push(self.add_to_history(
                     recipient.clone().into(),
                     owner.clone().into(),
                     "Receive TransferFrom",
                     amount,
                     tx.hashed(),
                     timestamp,
-                );
-                self.add_to_history(
+                ));
+                events.push(self.add_to_history(
                     owner.into(),
                     recipient.into(),
                     "Send TransferFrom",
                     amount,
                     tx.hashed(),
                     timestamp,
-                );
+                ));
             }
             _ => {}
         }
-        Ok(())
+        if !events.is_empty() {
+            Ok(Some(events))
+        } else {
+            Ok(None)
+        }
     }
 }
 
