@@ -2,24 +2,26 @@ use anyhow::{Context, Result};
 use app::{AppModule, AppModuleCtx, AppOutWsEvent, AppWsInMessage};
 use axum::Router;
 use clap::Parser;
-use client_sdk::rest_client::{IndexerApiHttpClient, NodeApiHttpClient};
+use client_sdk::{
+    helpers::risc0::Risc0Prover,
+    rest_client::{IndexerApiHttpClient, NodeApiHttpClient},
+};
 use history::{HistoryEvent, HyllarHistory};
-use hyle::{
+use hyle_modules::{
     bus::{metrics::BusMetrics, SharedMessageBus},
-    indexer::{
+    modules::{
         contract_state_indexer::{ContractStateIndexer, ContractStateIndexerCtx},
         da_listener::{DAListener, DAListenerCtx},
-    },
-    model::{api::NodeInfo, CommonRunContext},
-    modules::{
         prover::{AutoProver, AutoProverCtx},
-        websocket::{WebSocketConfig, WebSocketModule, WebSocketModuleCtx},
+        rest::{RestApi, RestApiRunContext},
+        websocket::{WebSocketModule, WebSocketModuleCtx},
+        CommonRunContext, ModulesHandler,
     },
-    rest::{RestApi, RestApiRunContext},
-    utils::{conf, logger::setup_tracing, modules::ModulesHandler},
+    utils::{conf, logger::setup_tracing},
 };
+
 use prometheus::Registry;
-use sdk::{info, ContractName, ZkContract};
+use sdk::{api::NodeInfo, info, ContractName, ZkContract};
 use std::{
     env,
     sync::{Arc, Mutex},
@@ -47,8 +49,11 @@ async fn main() -> Result<()> {
     let config =
         conf::Conf::new(args.config_file, None, Some(true)).context("reading config file")?;
 
-    setup_tracing(&config, format!("{}(nopkey)", config.id.clone(),))
-        .context("setting up tracing")?;
+    setup_tracing(
+        &config.log_format,
+        format!("{}(nopkey)", config.id.clone(),),
+    )
+    .context("setting up tracing")?;
 
     let config = Arc::new(config);
 
@@ -120,18 +125,22 @@ async fn main() -> Result<()> {
 
     handler
         .build_module::<AutoProver<Wallet>>(Arc::new(AutoProverCtx {
-            common: ctx.clone(),
             start_height,
-            elf: contracts::WALLET_ELF,
+            bus: ctx.bus.new_handle(),
+            data_directory: config.data_directory.clone(),
+            prover: Arc::new(Risc0Prover::new(contracts::WALLET_ELF)),
             contract_name: contract_name.clone(),
             node: app_ctx.node_client.clone(),
         }))
         .await?;
     handler
         .build_module::<AutoProver<hyle_hyllar::Hyllar>>(Arc::new(AutoProverCtx {
-            common: ctx.clone(),
             start_height,
-            elf: hyle_hyllar::client::tx_executor_handler::metadata::HYLLAR_ELF,
+            bus: ctx.bus.new_handle(),
+            data_directory: config.data_directory.clone(),
+            prover: Arc::new(Risc0Prover::new(
+                hyle_hyllar::client::tx_executor_handler::metadata::HYLLAR_ELF,
+            )),
             contract_name: "hyllar".into(),
             node: app_ctx.node_client.clone(),
         }))
@@ -140,10 +149,7 @@ async fn main() -> Result<()> {
     handler
         .build_module::<WebSocketModule<AppWsInMessage, AppOutWsEvent>>(WebSocketModuleCtx {
             bus: ctx.bus.new_handle(),
-            config: WebSocketConfig {
-                port: config.websocket.server_port,
-                ..WebSocketConfig::default()
-            },
+            config: config.websocket.clone().into(),
         })
         .await?;
 

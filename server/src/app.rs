@@ -9,13 +9,12 @@ use axum::{
     Router,
 };
 use client_sdk::rest_client::NodeApiHttpClient;
-use hyle::{
-    bus::{BusClientSender, BusMessage},
-    indexer::contract_state_indexer::CSIBusEvent,
-    model::CommonRunContext,
-    module_handle_messages,
-    modules::websocket::WsTopicMessage,
-    utils::modules::{module_bus_client, Module},
+use hyle_modules::{
+    bus::BusClientSender,
+    module_bus_client, module_handle_messages,
+    modules::{
+        contract_state_indexer::CSIBusEvent, websocket::WsTopicMessage, CommonRunContext, Module,
+    },
 };
 
 use sdk::ContractName;
@@ -45,8 +44,6 @@ pub enum AppOutWsEvent {
     TxEvent(HistoryEvent),
     WalletEvent { account: String, event: String },
 }
-
-impl BusMessage for AppOutWsEvent {}
 
 module_bus_client! {
 #[derive(Debug)]

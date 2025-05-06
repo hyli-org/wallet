@@ -5,9 +5,9 @@ edition = "2021"
 [dependencies]
 sdk = { workspace = true, features = ["tracing"] }
 client-sdk = { workspace = true, features = ["risc0", "rest"] }
-hyle = { workspace = true }
 wallet = { workspace = true, features = ["client"] }
 hyle-hyllar = { workspace = true, features = ["client"] }
+hyle-modules = { workspace = true }
 # Remove features if you want reproducible builds with docker
 contracts = { workspace = true, features = ["nonreproducible", "all"] }
 
@@ -21,7 +21,7 @@ hex = "0.4.3"
 
 tracing = "0.1.41"
 tracing-subscriber = "0.3"
-clap = "4.5.28"
+clap = { version = "4.2", features = ["derive"] }
 
 opentelemetry = { version = "0.28" }
 prometheus = { version = "0.13.4" }

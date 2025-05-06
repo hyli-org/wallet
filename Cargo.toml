@@ -9,8 +9,8 @@ members = ["contracts", "contracts/wallet", "server"]
 
 sdk = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-contract-sdk", branch = "main" }
 client-sdk = { git = "https://github.com/Hyle-org/hyle.git", default-features = false, package = "hyle-client-sdk", branch = "main" }
-hyle = { git = "https://github.com/Hyle-org/hyle.git", branch = "main" }
 hyle-hyllar = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-hyllar", branch = "main" }
+hyle-modules = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-modules", branch = "main" }
 
 contracts = { path = "contracts", default-features = false, package = "contracts" }
 wallet = { path = "contracts/wallet", package = "wallet" }
