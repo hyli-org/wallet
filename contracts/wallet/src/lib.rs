@@ -108,10 +108,16 @@ impl Wallet {
     ) -> Result<String, String> {
         let account_info = AccountInfo { hash, nonce };
 
-        if self.identities.insert(account, account_info).is_some() {
+        if self
+            .identities
+            .insert(account.clone(), account_info)
+            .is_some()
+        {
             return Err("Identity already exists".to_string());
         }
-        Ok("Successfully registered identity for account: {}".to_string())
+        Ok(format!(
+            "Successfully registered identity for account: {account}"
+        ))
     }
 
     fn verify_identity(

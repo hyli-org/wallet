@@ -11,7 +11,10 @@ use hyle::{
         da_listener::{DAListener, DAListenerCtx},
     },
     model::{api::NodeInfo, CommonRunContext},
-    modules::prover::{AutoProver, AutoProverCtx},
+    modules::{
+        prover::{AutoProver, AutoProverCtx},
+        websocket::{WebSocketConfig, WebSocketModule, WebSocketModuleCtx},
+    },
     rest::{RestApi, RestApiRunContext},
     utils::{conf, logger::setup_tracing, modules::ModulesHandler},
 };
@@ -23,12 +26,10 @@ use std::{
 };
 use tracing::error;
 use wallet::{client::indexer::WalletEvent, Wallet};
-use websocket::{WebSocketConfig, WebSocketModule, WebSocketModuleCtx};
 
 mod app;
 mod history;
 mod init;
-mod websocket;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -139,7 +140,10 @@ async fn main() -> Result<()> {
     handler
         .build_module::<WebSocketModule<AppWsInMessage, AppOutWsEvent>>(WebSocketModuleCtx {
             bus: ctx.bus.new_handle(),
-            config: WebSocketConfig::default(),
+            config: WebSocketConfig {
+                port: config.websocket.server_port,
+                ..WebSocketConfig::default()
+            },
         })
         .await?;
 

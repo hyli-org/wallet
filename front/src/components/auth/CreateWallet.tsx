@@ -73,7 +73,7 @@ export const CreateWallet = ({ onWalletCreated }: CreateWalletProps) => {
           const timeout = setTimeout(() => {
             unsubscribeWalletEvents();
             reject(new Error('Wallet creation timed out'));
-          }, 30000);
+          }, 60000);
 
           webSocketService.connect(identity);
           const unsubscribeWalletEvents = webSocketService.subscribeToWalletEvents((event) => {

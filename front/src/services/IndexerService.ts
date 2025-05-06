@@ -32,7 +32,7 @@ class IndexerService {
       );
       return response.balance;
     } catch (error) {
-      console.error("Erreur lors de la récupération du solde:", error);
+      console.error("Error while fetching the balance:", error);
       return 0;
     }
   }
@@ -45,7 +45,7 @@ class IndexerService {
       );
       return response.history;
     } catch (error) {
-      console.error("Erreur lors de la récupération de l'historique:", error);
+      console.error("Error while fetching the transaction history:", error);
       return [];
     }
   }
