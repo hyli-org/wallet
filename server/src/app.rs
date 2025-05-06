@@ -14,6 +14,7 @@ use hyle::{
     indexer::contract_state_indexer::CSIBusEvent,
     model::CommonRunContext,
     module_handle_messages,
+    modules::websocket::WsTopicMessage,
     utils::modules::{module_bus_client, Module},
 };
 
@@ -22,7 +23,7 @@ use serde::{Deserialize, Serialize};
 use tower_http::cors::{Any, CorsLayer};
 use wallet::client::indexer::WalletEvent;
 
-use crate::{history::HistoryEvent, websocket::WsTopicMessage};
+use crate::history::HistoryEvent;
 
 pub struct AppModule {
     bus: AppModuleBusClient,

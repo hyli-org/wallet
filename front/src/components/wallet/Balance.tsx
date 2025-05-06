@@ -11,7 +11,7 @@ export const Balance = ({ wallet, balance }: BalanceProps) => {
       <h2>Your Balance</h2>
       <div className="balance-amount">{balance} HYLLAR</div>
       <div className="currency-note">
-        <small>HYLLAR (from "hyle" + "dollar") - The currency of the Hyle tesnet network</small>
+        <small>HYLLAR (from "hyle" + "dollar") - The currency of the Hyle testnet network</small>
       </div>
       <div className="receive-section">
         <h3>Receive Funds</h3>
