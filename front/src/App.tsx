@@ -6,6 +6,7 @@ import { LoginWallet } from './components/auth/LoginWallet';
 import { Balance } from './components/wallet/Balance';
 import { Send } from './components/wallet/Send';
 import { History } from './components/wallet/History';
+import { SessionKeys } from './components/wallet/SessionKeys';
 import { WalletLayout } from './components/layout/WalletLayout';
 import { Wallet, Transaction } from './types/wallet';
 import { indexerService } from './services/IndexerService';
@@ -146,6 +147,7 @@ function App() {
             <Route path="balance" element={<Balance wallet={wallet} balance={balance} />} />
             <Route path="send" element={<Send wallet={wallet} />} />
             <Route path="history" element={<History transactions={transactions} />} />
+            <Route path="session-keys" element={<SessionKeys wallet={wallet} />} />
             <Route index element={<Navigate to="balance" replace />} />
           </Route>
         )}

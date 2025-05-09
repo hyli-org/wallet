@@ -1,47 +1,13 @@
 use std::collections::BTreeMap;
 
 use borsh::{io::Error, BorshDeserialize, BorshSerialize};
-use serde::{Deserialize, Serialize};
-
+#[cfg(feature = "client")]
+use client_sdk::contract_indexer::utoipa;
 use sdk::{hyle_model_utils::TimestampMs, RunResult, TxContext};
+use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "client")]
 pub mod client;
-
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
-pub enum AuthMethod {
-    Password { hash: String },
-    // Other authentication methods can be added here
-}
-
-impl AuthMethod {
-    // Verifies the authentication method during use
-    fn verify(&self, calldata: &sdk::Calldata) -> Result<String, String> {
-        match self {
-            AuthMethod::Password { hash } => {
-                let check_secret = calldata
-                    .blobs
-                    .iter()
-                    .find(|(_, b)| b.contract_name.0 == "check_secret")
-                    .map(|(_, b)| b.data.clone())
-                    .ok_or("Missing check_secret blob")?;
-
-                let checked_hash = hex::encode(check_secret.0);
-                if checked_hash != *hash {
-                    return Err("Invalid authentication".to_string());
-                }
-                Ok("Authentication successful".to_string())
-            }
-        }
-    }
-}
-
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
-pub struct SessionKey {
-    pub key: String,
-    pub expiration_date: TimestampMs,
-    pub nonce: u128,
-}
 
 impl sdk::ZkContract for Wallet {
     fn execute(&mut self, calldata: &sdk::Calldata) -> RunResult {
@@ -76,10 +42,57 @@ pub struct Wallet {
 
 /// Struct to hold account's information
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[cfg_attr(
+    feature = "client",
+    derive(client_sdk::contract_indexer::utoipa::ToSchema)
+)]
 pub struct AccountInfo {
     pub auth_method: AuthMethod,
     pub session_keys: Vec<SessionKey>,
     pub nonce: u128,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[cfg_attr(
+    feature = "client",
+    derive(client_sdk::contract_indexer::utoipa::ToSchema)
+)]
+pub struct SessionKey {
+    pub key: String,
+    pub expiration_date: TimestampMs,
+    pub nonce: u128,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[cfg_attr(
+    feature = "client",
+    derive(client_sdk::contract_indexer::utoipa::ToSchema)
+)]
+pub enum AuthMethod {
+    Password { hash: String },
+    // Other authentication methods can be added here
+}
+
+impl AuthMethod {
+    // Verifies the authentication method during use
+    fn verify(&self, calldata: &sdk::Calldata) -> Result<String, String> {
+        match self {
+            AuthMethod::Password { hash } => {
+                let check_secret = calldata
+                    .blobs
+                    .iter()
+                    .find(|(_, b)| b.contract_name.0 == "check_secret")
+                    .map(|(_, b)| b.data.clone())
+                    .ok_or("Missing check_secret blob")?;
+
+                let checked_hash = hex::encode(check_secret.0);
+                if checked_hash != *hash {
+                    return Err("Invalid authentication".to_string());
+                }
+                Ok("Authentication successful".to_string())
+            }
+        }
+    }
 }
 
 /// Methods to handle the actions of the Wallet contract

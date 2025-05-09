@@ -1,0 +1,131 @@
+.session-keys-section {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 20px;
+}
+
+.add-key-section {
+  background-color: #f5f5f5;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+}
+
+.form-group {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.form-group input {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.form-group input[type="text"],
+.form-group input[type="password"],
+.form-group input[type="number"] {
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.form-group input[type="number"] {
+  width: 120px;
+}
+
+.add-key-button {
+  padding: 8px 16px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.add-key-button:hover {
+  background-color: #1976d2;
+}
+
+.add-key-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.session-keys-list {
+  margin-top: 2rem;
+}
+
+.session-keys-list ul {
+  list-style: none;
+  padding: 0;
+}
+
+.session-key-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  background-color: white;
+}
+
+.key-info {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.key-value {
+  font-family: monospace;
+  color: #333;
+}
+
+.key-expiration {
+  color: #666;
+}
+
+.key-nonce {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.remove-key-button {
+  padding: 4px 8px;
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.remove-key-button:hover {
+  background-color: #cc0000;
+}
+
+.remove-key-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.error-message {
+  color: #dc3545;
+  margin: 10px 0;
+}
+
+.status-message {
+  color: #28a745;
+  margin: 10px 0;
+}
+
+.transaction-hash {
+  margin: 10px 0;
+  font-family: monospace;
+}

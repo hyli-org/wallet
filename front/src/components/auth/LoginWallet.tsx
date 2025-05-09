@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { verifyIdentity, Wallet } from '../../types/wallet';
+import { verifyIdentity, Wallet, walletContractName } from '../../types/wallet';
 import { nodeService } from '../../services/NodeService';
 import { webSocketService } from '../../services/WebSocketService';
 import { build_proof_transaction, build_blob as check_secret_blob } from 'hyle-check-secret';
@@ -27,10 +27,9 @@ export const LoginWallet = ({ onWalletLoggedIn }: LoginWalletProps) => {
       setIsLoading(false);
       return;
     }
-    const blob1 = verifyIdentity(username, Date.now());
-
-    const identity = `${username}@${blob1.contract_name}`;
+    const identity = `${username}@${walletContractName}`;
     const blob0 = await check_secret_blob(identity, password);
+    const blob1 = verifyIdentity(username, Date.now());
 
     const blobTx: BlobTransaction = {
       identity,

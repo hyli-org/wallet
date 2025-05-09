@@ -3,8 +3,13 @@ use std::str;
 use anyhow::{anyhow, Context, Result};
 use client_sdk::{
     contract_indexer::{
-        axum::{extract::State, http::StatusCode, response::IntoResponse, Json, Router},
-        utoipa::openapi::OpenApi,
+        axum::{
+            extract::{Path, State},
+            http::StatusCode,
+            response::IntoResponse,
+            Json, Router,
+        },
+        utoipa::{openapi::OpenApi, ToSchema},
         utoipa_axum::{router::OpenApiRouter, routes},
         AppError, ContractHandler, ContractHandlerStore,
     },
@@ -78,6 +83,7 @@ impl ContractHandler<WalletEvent> for Wallet {
     async fn api(store: ContractHandlerStore<Wallet>) -> (Router<()>, OpenApi) {
         let (router, api) = OpenApiRouter::default()
             .routes(routes!(get_state))
+            .routes(routes!(get_account_info))
             .split_for_parts();
 
         (router.with_state(store), api)
@@ -130,4 +136,64 @@ pub async fn get_state<S: Serialize + Clone + 'static>(
         StatusCode::NOT_FOUND,
         anyhow!("No state found for contract '{}'", store.contract_name),
     ))
+}
+
+#[derive(Serialize, ToSchema)]
+struct SessionKey {
+    key: String,
+    expiration_date: u128,
+    nonce: u128,
+}
+
+#[derive(Serialize, ToSchema)]
+struct AccountInfo {
+    account: String,
+    auth_method: AuthMethod,
+    session_keys: Vec<SessionKey>,
+    nonce: u128,
+}
+
+#[utoipa::path(
+    get,
+    path = "/account/{account}",
+    tag = "Contract",
+    responses(
+        (status = OK, description = "Get account information", body = AccountInfo),
+        (status = NOT_FOUND, description = "Account not found")
+    ),
+    params(
+        ("account" = String, Path, description = "The account identity")
+    )
+)]
+pub async fn get_account_info(
+    Path(account): Path<String>,
+    State(state): State<ContractHandlerStore<Wallet>>,
+) -> Result<impl IntoResponse, AppError> {
+    let store = state.read().await;
+    let state = store.state.clone().ok_or(AppError(
+        StatusCode::NOT_FOUND,
+        anyhow!("Contract '{}' not found", store.contract_name),
+    ))?;
+
+    let account_info = state.identities.get(&account).ok_or(AppError(
+        StatusCode::NOT_FOUND,
+        anyhow!("Account '{}' not found", account),
+    ))?;
+
+    let session_keys = account_info
+        .session_keys
+        .iter()
+        .map(|sk| SessionKey {
+            key: sk.key.clone(),
+            expiration_date: sk.expiration_date.0,
+            nonce: sk.nonce,
+        })
+        .collect();
+
+    Ok(Json(AccountInfo {
+        account,
+        auth_method: account_info.auth_method.clone(),
+        session_keys,
+        nonce: account_info.nonce,
+    }))
 }

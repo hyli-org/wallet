@@ -49,6 +49,12 @@ export const WalletLayout = ({ wallet, onLogout }: WalletLayoutProps) => {
           >
             History
           </button>
+          <button 
+            className={isActive('/wallet/session-keys') ? 'active' : ''} 
+            onClick={() => navigate('/wallet/session-keys')}
+          >
+            Session Keys
+          </button>
         </div>
 
         <div className="content">
@@ -57,4 +63,4 @@ export const WalletLayout = ({ wallet, onLogout }: WalletLayoutProps) => {
       </div>
     </div>
   );
-}; 
+};
