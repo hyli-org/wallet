@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import './App.css';
-import { CreateWallet } from './components/auth/CreateWallet';
-import { LoginWallet } from './components/auth/LoginWallet';
 import { Balance } from './components/wallet/Balance';
 import { Send } from './components/wallet/Send';
 import { History } from './components/wallet/History';
@@ -12,12 +10,13 @@ import { Wallet, Transaction } from './types/wallet';
 import { indexerService } from './services/IndexerService';
 import { useConfig } from './hooks/useConfig';
 import { AppEvent, webSocketService } from './services/WebSocketService';
+import { ConnectWallet } from './components/connect/ConnectWallet';
+import { ConnectWalletExamples } from './components/connect/ConnectWalletExamples';
 
 function App() {
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [balance, setBalance] = useState<number>(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [showLogin, setShowLogin] = useState<boolean>(false);
   const { isLoading: isLoadingConfig, error: configError } = useConfig();
 
   // Function to fetch balance
@@ -80,11 +79,6 @@ function App() {
     }
   }, [wallet]);
 
-  const handleWalletCreated = (newWallet: Wallet) => {
-    setWallet(newWallet);
-    localStorage.setItem('wallet', JSON.stringify(newWallet));
-  };
-
   const handleWalletLoggedIn = (loggedInWallet: Wallet) => {
     setWallet(loggedInWallet);
     localStorage.setItem('wallet', JSON.stringify(loggedInWallet));
@@ -113,33 +107,19 @@ function App() {
 
   return (
     <BrowserRouter>
+      {/* Global connect wallet modal (renders its own button) */}
+      {!wallet && (
+        <div className="showcase-container">
+          <div className="showcase-header">
+            <h1>Wallet Integration</h1>
+            <p>Connect to your wallet using a fully customizable modal component.</p>
+          </div>
+          <ConnectWalletExamples onWalletConnected={handleWalletLoggedIn} />
+        </div>
+      )}
       <Routes>
         <Route path="/" element={
-          wallet ? <Navigate to="/wallet/balance" replace /> : (
-            <div className="auth-container">
-              {!showLogin ? (
-                <>
-                  <CreateWallet onWalletCreated={handleWalletCreated} />
-                  <button
-                    className="switch-auth-button"
-                    onClick={() => setShowLogin(true)}
-                  >
-                    Already have a wallet? Login here
-                  </button>
-                </>
-              ) : (
-                <>
-                  <LoginWallet onWalletLoggedIn={handleWalletLoggedIn} />
-                  <button
-                    className="switch-auth-button"
-                    onClick={() => setShowLogin(false)}
-                  >
-                    Need to create a wallet? Click here
-                  </button>
-                </>
-              )}
-            </div>
-          )
+          wallet ? <Navigate to="/wallet/balance" replace /> : <div />
         } />
 
         {wallet && (
