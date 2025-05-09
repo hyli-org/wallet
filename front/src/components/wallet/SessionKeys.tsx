@@ -176,21 +176,34 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
       <div className="add-key-section">
         <h3>Add New Session Key</h3>
         <div className="form-group">
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Enter your password"
-            disabled={isLoading}
-          />
-          <input
-            type="number"
-            value={expirationDays}
-            onChange={(e) => setExpirationDays(e.target.value)}
-            placeholder="Expiration (days)"
-            min="1"
-            disabled={isLoading}
-          />
+          <div className="input-group">
+            <label htmlFor="password">Wallet Password</label>
+            <div className="input-with-description">
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter your wallet password"
+              disabled={isLoading}
+              />
+            </div>
+          </div>
+          <div className="input-group">
+            <label htmlFor="expiration">Key Validity Period</label>
+            <div className="input-with-description">
+              <input
+                id="expiration"
+                type="number"
+                value={expirationDays}
+                onChange={(e) => setExpirationDays(e.target.value)}
+                placeholder="Number of days"
+                min="1"
+                disabled={isLoading}
+              />
+              <span className="input-hint">days</span>
+            </div>
+          </div>
           <button
             onClick={handleAddKey}
             disabled={isLoading}

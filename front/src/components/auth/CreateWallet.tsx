@@ -5,7 +5,6 @@ import { build_proof_transaction, build_blob as check_secret_blob, register_cont
 import { BlobTransaction } from 'hyle';
 import { nodeService } from '../../services/NodeService';
 import { webSocketService } from '../../services/WebSocketService';
-import { AuthMethodType } from './AuthMethodSelector';
 
 interface CreateWalletProps {
   onWalletCreated: (wallet: Wallet) => void;
