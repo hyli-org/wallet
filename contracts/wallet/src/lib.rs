@@ -34,16 +34,6 @@ impl AuthMethod {
             }
         }
     }
-
-    // Verifies prerequisites during registration
-    fn verify_registration(&self, _calldata: &sdk::Calldata) -> Result<String, String> {
-        match self {
-            AuthMethod::Password { .. } => {
-                // For Password, no verification needed
-                Ok("Password registration verification successful".to_string())
-            }
-        }
-    }
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -62,48 +52,11 @@ impl sdk::ZkContract for Wallet {
                 account,
                 nonce,
                 auth_method,
-            } => {
-                // First verify the prerequisites for the authentication method
-                auth_method.verify_registration(calldata)?;
-                self.register_identity(account, nonce, auth_method)?
+            } => self.handle_registration(account, nonce, auth_method, calldata)?,
+            WalletAction::UseSessionKey { account, key } => {
+                self.handle_session_key_usage(account, key, &calldata.tx_ctx)?
             }
-            _ => {
-                // For all other actions, verify identity first
-                match &action {
-                    WalletAction::UseSessionKey { account, key } => {
-                        // Session keys have their own verification logic
-                        self.use_session_key(account.clone(), key.clone(), &calldata.tx_ctx)?
-                    }
-                    _ => {
-                        let account = match &action {
-                            WalletAction::VerifyIdentity { account, .. } => account,
-                            WalletAction::AddSessionKey { account, .. } => account,
-                            WalletAction::RemoveSessionKey { account, .. } => account,
-                            _ => unreachable!(),
-                        };
-
-                        // Verify identity before executing the action
-                        let stored_info =
-                            self.identities.get(account).ok_or("Identity not found")?;
-                        stored_info.auth_method.verify(calldata)?;
-
-                        match action {
-                            WalletAction::VerifyIdentity { account, nonce } => {
-                                self.verify_identity(account, nonce)?
-                            }
-                            WalletAction::AddSessionKey {
-                                account,
-                                key,
-                                expiration_date,
-                            } => self.add_session_key(account, key, expiration_date)?,
-                            WalletAction::RemoveSessionKey { account, key } => {
-                                self.remove_session_key(account, key)?
-                            }
-                            _ => unreachable!(),
-                        }
-                    }
-                }
-            }
+            _ => self.handle_authenticated_action(action, calldata)?,
         };
 
         Ok((res, ctx, vec![]))
@@ -115,6 +68,12 @@ impl sdk::ZkContract for Wallet {
     }
 }
 
+/// The state of the contract, that is totally serialized on-chain
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug, Clone)]
+pub struct Wallet {
+    identities: BTreeMap<String, AccountInfo>,
+}
+
 /// Struct to hold account's information
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct AccountInfo {
@@ -123,57 +82,60 @@ pub struct AccountInfo {
     pub nonce: u128,
 }
 
-/// The state of the contract, that is totally serialized on-chain
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug, Clone)]
-pub struct Wallet {
-    identities: BTreeMap<String, AccountInfo>,
-}
-
-/// Enum representing the actions that can be performed by the IdentityVerification contract.
-#[derive(Serialize, Deserialize, BorshSerialize, BorshDeserialize, Debug, Clone)]
-pub enum WalletAction {
-    RegisterIdentity {
+/// Methods to handle the actions of the Wallet contract
+impl Wallet {
+    fn handle_registration(
+        &mut self,
         account: String,
         nonce: u128,
         auth_method: AuthMethod,
-    },
-    VerifyIdentity {
-        account: String,
-        nonce: u128,
-    },
-    AddSessionKey {
-        account: String,
-        key: String,
-        expiration_date: u128,
-    },
-    RemoveSessionKey {
-        account: String,
-        key: String,
-    },
-    UseSessionKey {
-        account: String,
-        key: String,
-    },
-}
+        calldata: &sdk::Calldata,
+    ) -> Result<String, String> {
+        auth_method.verify(calldata)?;
+        self.register_identity(account, nonce, auth_method)
+    }
 
-/// Some helper methods for the state
-impl Wallet {
-    pub fn new() -> Self {
-        Wallet {
-            identities: BTreeMap::new(),
+    fn handle_session_key_usage(
+        &mut self,
+        account: String,
+        key: String,
+        tx_ctx: &Option<TxContext>,
+    ) -> Result<String, String> {
+        self.use_session_key(account, key, tx_ctx)
+    }
+
+    fn handle_authenticated_action(
+        &mut self,
+        action: WalletAction,
+        calldata: &sdk::Calldata,
+    ) -> Result<String, String> {
+        let account = match &action {
+            WalletAction::VerifyIdentity { account, .. }
+            | WalletAction::AddSessionKey { account, .. }
+            | WalletAction::RemoveSessionKey { account, .. } => account,
+            _ => return Err("Invalid action".to_string()),
+        };
+
+        // Verify identity before executing the action
+        let stored_info = self.identities.get(account).ok_or("Identity not found")?;
+        stored_info.auth_method.verify(calldata)?;
+
+        match action {
+            WalletAction::VerifyIdentity { account, nonce } => self.verify_identity(account, nonce),
+            WalletAction::AddSessionKey {
+                account,
+                key,
+                expiration_date,
+            } => self.add_session_key(account, key, expiration_date),
+            WalletAction::RemoveSessionKey { account, key } => {
+                self.remove_session_key(account, key)
+            }
+            _ => unreachable!(),
         }
     }
-
-    pub fn get_nonce(&self, username: &str) -> Result<u128, &'static str> {
-        let info = self.identities.get(username).ok_or("Identity not found")?;
-        Ok(info.nonce)
-    }
-
-    pub fn as_bytes(&self) -> Result<Vec<u8>, Error> {
-        borsh::to_vec(self)
-    }
 }
 
+/// State management methods for the Wallet contract
 impl Wallet {
     fn register_identity(
         &mut self,
@@ -281,6 +243,51 @@ impl Wallet {
             None => Err("Identity not found".to_string()),
         }
     }
+}
+
+/// Some helper methods for the state
+impl Wallet {
+    pub fn new() -> Self {
+        Wallet {
+            identities: BTreeMap::new(),
+        }
+    }
+
+    pub fn get_nonce(&self, username: &str) -> Result<u128, &'static str> {
+        let info = self.identities.get(username).ok_or("Identity not found")?;
+        Ok(info.nonce)
+    }
+
+    pub fn as_bytes(&self) -> Result<Vec<u8>, Error> {
+        borsh::to_vec(self)
+    }
+}
+
+/// Enum representing the actions that can be performed by the IdentityVerification contract.
+#[derive(Serialize, Deserialize, BorshSerialize, BorshDeserialize, Debug, Clone)]
+pub enum WalletAction {
+    RegisterIdentity {
+        account: String,
+        nonce: u128,
+        auth_method: AuthMethod,
+    },
+    VerifyIdentity {
+        account: String,
+        nonce: u128,
+    },
+    AddSessionKey {
+        account: String,
+        key: String,
+        expiration_date: u128,
+    },
+    RemoveSessionKey {
+        account: String,
+        key: String,
+    },
+    UseSessionKey {
+        account: String,
+        key: String,
+    },
 }
 
 impl Default for Wallet {

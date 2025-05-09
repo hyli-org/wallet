@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { register, Wallet } from '../../types/wallet';
+import { Buffer } from 'buffer';
+import { register, Wallet, walletContractName } from '../../types/wallet';
 import { build_proof_transaction, build_blob as check_secret_blob, register_contract } from 'hyle-check-secret';
 import { BlobTransaction } from 'hyle';
 import { nodeService } from '../../services/NodeService';
@@ -39,11 +40,11 @@ export const CreateWallet = ({ onWalletCreated }: CreateWalletProps) => {
     }
 
     setStatus('Generating wallet credentials...');
-    const blob1 = register(username, Date.now());
-
-    const identity = `${username}@${blob1.contract_name}`;
+    const identity = `${username}@${walletContractName}`;
     console.log('Identity:', identity);
     const blob0 = await check_secret_blob(identity, password);
+    const hash = Buffer.from(blob0.data).toString('hex');
+    const blob1 = register(username, Date.now(), hash);
 
     const blobTx: BlobTransaction = {
       identity,
@@ -185,4 +186,4 @@ export const CreateWallet = ({ onWalletCreated }: CreateWalletProps) => {
       </div>
     </div>
   );
-}; 
+};
