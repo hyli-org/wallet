@@ -61,7 +61,6 @@ export const LoginWallet = ({ onWalletLoggedIn }: LoginWalletProps) => {
 
           webSocketService.connect(identity);
           const unsubscribeWalletEvents = webSocketService.subscribeToWalletEvents((event) => {
-            console.log('Received wallet event:', event);
             if (event.event === 'Identity verified') {
               clearTimeout(timeout);
               unsubscribeWalletEvents();

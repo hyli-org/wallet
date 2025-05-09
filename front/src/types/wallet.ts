@@ -1,3 +1,5 @@
+import { Buffer } from 'buffer';
+
 export interface Transaction {
   id: string;
   type: string;
@@ -24,6 +26,13 @@ export const setWalletContractName = (name: string) => {
 //
 // Types
 //
+ 
+export type Secp256k1Blob = {
+  identity: String;
+  data: Uint8Array;
+  public_key: Uint8Array;
+  signature: Uint8Array;
+};
 
 export type AuthMethod = {
   Password: {
@@ -31,7 +40,7 @@ export type AuthMethod = {
   };
 };
 
-export type IdentityAction =
+export type WalletAction =
   | {
       RegisterIdentity: {
         account: string;
@@ -57,11 +66,19 @@ export type IdentityAction =
         account: string;
         key: string;
       };
+}
+| {
+      UseSessionKey: {
+        account: string;
+        key: string;
+        message: string;
+      };
     }
   | {
       UseSessionKey: {
         account: string;
         key: string;
+        message: string;
       };
     };
 
@@ -70,7 +87,7 @@ export type IdentityAction =
 //
 
 export const register = (account: string, nonce: number, hash: string): Blob => {
-  const action: IdentityAction = {
+  const action: WalletAction = {
     RegisterIdentity: { 
       account, 
       nonce,
@@ -85,7 +102,7 @@ export const register = (account: string, nonce: number, hash: string): Blob => 
 };
 
 export const verifyIdentity = (account: string, nonce: number): Blob => {
-  const action: IdentityAction = {
+  const action: WalletAction = {
     VerifyIdentity: { nonce, account },
   };
 
@@ -97,7 +114,7 @@ export const verifyIdentity = (account: string, nonce: number): Blob => {
 };
 
 export const addSessionKey = (account: string, key: string, expiration: number): Blob => {
-  const action: IdentityAction = {
+  const action: WalletAction = {
     AddSessionKey: { account, key, expiration }
   };
   const blob: Blob = {
@@ -108,7 +125,7 @@ export const addSessionKey = (account: string, key: string, expiration: number):
 };
 
 export const removeSessionKey = (account: string, key: string): Blob => {
-  const action: IdentityAction = {
+  const action: WalletAction = {
     RemoveSessionKey: { account, key }
   };
   const blob: Blob = {
@@ -118,27 +135,30 @@ export const removeSessionKey = (account: string, key: string): Blob => {
   return blob;
 };
 
-export const useSessionKey = (account: string, key: string): Blob => {
-  const action: IdentityAction = {
-    UseSessionKey: { account, key }
-  };
-  const blob: Blob = {
-    contract_name: walletContractName,
-    data: serializeIdentityAction(action),
-  };
-  return blob;
-};
+// Removed the `useSessionKey` function as it has been moved to `SessionKeyService`.
 
 //
 // Serialisation
 //
 
-const serializeIdentityAction = (action: IdentityAction): number[] => {
+export const serializeSecp256k1Blob = (blob: Secp256k1Blob): number[] => {
+
+  return Array.from(borshSerialize(secp256k1BlobSchema, blob));
+};
+
+export const serializeIdentityAction = (action: WalletAction): number[] => {
   return Array.from(borshSerialize(schema, action));
 };
-export const deserializeIdentityAction = (data: number[]): IdentityAction => {
+export const deserializeIdentityAction = (data: number[]): WalletAction => {
   return borshDeserialize(schema, Buffer.from(data));
 };
+
+const secp256k1BlobSchema = BorshSchema.Struct({
+  identity: BorshSchema.String,
+  data: BorshSchema.Array(BorshSchema.u8, 32),
+  public_key: BorshSchema.Array(BorshSchema.u8, 33),
+  signature: BorshSchema.Array(BorshSchema.u8, 64),
+});
 
 const schema = BorshSchema.Enum({
   RegisterIdentity: BorshSchema.Struct({
@@ -163,8 +183,8 @@ const schema = BorshSchema.Enum({
     account: BorshSchema.String,
     key: BorshSchema.String,
   }),
-  UseSessionKey: BorshSchema.Struct({
+UseSessionKey: BorshSchema.Struct({
     account: BorshSchema.String,
-    key: BorshSchema.String,
+    message: BorshSchema.String,
   }),
 });

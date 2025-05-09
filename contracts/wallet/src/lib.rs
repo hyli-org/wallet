@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use borsh::{io::Error, BorshDeserialize, BorshSerialize};
 #[cfg(feature = "client")]
 use client_sdk::contract_indexer::utoipa;
-use sdk::{hyle_model_utils::TimestampMs, RunResult, TxContext};
+use sdk::{hyle_model_utils::TimestampMs, secp256k1::CheckSecp256k1, RunResult, TxContext};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "client")]
@@ -19,8 +19,8 @@ impl sdk::ZkContract for Wallet {
                 nonce,
                 auth_method,
             } => self.handle_registration(account, nonce, auth_method, calldata)?,
-            WalletAction::UseSessionKey { account, key } => {
-                self.handle_session_key_usage(account, key, &calldata.tx_ctx)?
+            WalletAction::UseSessionKey { account, message } => {
+                self.handle_session_key_usage(account, message, calldata)?
             }
             _ => self.handle_authenticated_action(action, calldata)?,
         };
@@ -58,7 +58,7 @@ pub struct AccountInfo {
     derive(client_sdk::contract_indexer::utoipa::ToSchema)
 )]
 pub struct SessionKey {
-    pub key: String,
+    pub public_key: String,
     pub expiration_date: TimestampMs,
     pub nonce: u128,
 }
@@ -111,10 +111,12 @@ impl Wallet {
     fn handle_session_key_usage(
         &mut self,
         account: String,
-        key: String,
-        tx_ctx: &Option<TxContext>,
+        message: String,
+        calldata: &sdk::Calldata,
     ) -> Result<String, String> {
-        self.use_session_key(account, key, tx_ctx)
+        let secp256k1blob = CheckSecp256k1::new(calldata, message.as_bytes()).expect()?;
+        let public_key = hex::encode(secp256k1blob.public_key);
+        self.use_session_key(account, public_key, &calldata.tx_ctx)
     }
 
     fn handle_authenticated_action(
@@ -199,12 +201,16 @@ impl Wallet {
             .get_mut(&account)
             .ok_or("Identity not found")?;
 
-        if stored_info.session_keys.iter().any(|sk| sk.key == key) {
+        if stored_info
+            .session_keys
+            .iter()
+            .any(|sk| sk.public_key == key)
+        {
             return Err("Session key already exists".to_string());
         }
 
         stored_info.session_keys.push(SessionKey {
-            key,
+            public_key: key,
             expiration_date: TimestampMs(expiration_date),
             nonce: 0, // Initialize nonce to 0
         });
@@ -219,7 +225,7 @@ impl Wallet {
             .ok_or("Identity not found")?;
 
         let initial_len = stored_info.session_keys.len();
-        stored_info.session_keys.retain(|sk| sk.key != key);
+        stored_info.session_keys.retain(|sk| sk.public_key != key);
 
         if stored_info.session_keys.len() == initial_len {
             return Err("Session key not found".to_string());
@@ -232,7 +238,7 @@ impl Wallet {
     fn use_session_key(
         &mut self,
         account: String,
-        key: String,
+        public_key: String,
         tx_ctx: &Option<TxContext>,
     ) -> Result<String, String> {
         let Some(tx_ctx) = tx_ctx else {
@@ -240,10 +246,12 @@ impl Wallet {
         };
         match self.identities.get_mut(&account) {
             Some(stored_info) => {
-                if let Some(session_key) =
-                    stored_info.session_keys.iter_mut().find(|sk| sk.key == key)
+                if let Some(session_key) = stored_info
+                    .session_keys
+                    .iter_mut()
+                    .find(|sk| sk.public_key == public_key)
                 {
-                    if session_key.expiration_date < tx_ctx.timestamp {
+                    if session_key.expiration_date > tx_ctx.timestamp {
                         // Increment nonce during use
                         session_key.nonce += 1;
                         return Ok("Session key is valid".to_string());
@@ -299,7 +307,7 @@ pub enum WalletAction {
     },
     UseSessionKey {
         account: String,
-        key: String,
+        message: String,
     },
 }
 

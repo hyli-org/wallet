@@ -63,9 +63,9 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
     setStatus('Generating new session key...');
     setTransactionHash('');
 
+    // Génère une nouvelle paire de clés
+    const publicKey = sessionKeyService.generateSessionKey();
     try {
-      // Génère une nouvelle paire de clés
-      const publicKey = sessionKeyService.generateSessionKey();
 
       const identity = `${wallet.username}@${walletContractName}`;
       const blob0 = await check_secret_blob(identity, password);
@@ -116,7 +116,7 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
       await fetchSessionKeys();
     } catch (error) {
       setError('Failed to add session key: ' + error);
-      sessionKeyService.clear(); // Nettoie la clé en cas d'erreur
+      sessionKeyService.clear(publicKey); // Remove key from local storage if it fails
     } finally {
       setIsLoading(false);
     }
@@ -164,6 +164,52 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
       await fetchSessionKeys();
     } catch (error) {
       setError('Failed to remove session key: ' + error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSendTransactionWithSessionKey = async (key: string) => {
+    setIsLoading(true);
+    setError('');
+    setStatus('Sending transaction...');
+    setTransactionHash('');
+
+    try {
+      const identity = `${wallet.username}@${walletContractName}`;
+      const [blob0, blob1] = sessionKeyService.useSessionKey(wallet.username, key, "Hello world!");
+
+      const blobTx: BlobTransaction = {
+        identity,
+        blobs: [blob0, blob1],
+      };
+
+      const tx_hash = await nodeService.client.sendBlobTx(blobTx);
+      setTransactionHash(tx_hash);
+
+      setStatus('Waiting for transaction confirmation...');
+
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          webSocketService.unsubscribeFromWalletEvents();
+          reject(new Error('Transaction timed out'));
+        }, 30000);
+
+        webSocketService.connect(wallet.address);
+        const unsubscribe = webSocketService.subscribeToWalletEvents((event) => {
+          // TODO: Handle events in a more generic way
+          if (event.event === 'Session key is valid') {
+            clearTimeout(timeout);
+            unsubscribe();
+            webSocketService.disconnect();
+            resolve(event);
+          }
+        });
+      });
+
+      setStatus('Transaction completed successfully');
+    } catch (error) {
+      setError('Failed to send transaction: ' + error);
     } finally {
       setIsLoading(false);
     }
@@ -244,6 +290,13 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
                     Uses: {key.nonce}
                   </span>
                 </div>
+                <button
+                  onClick={() => handleSendTransactionWithSessionKey(key.key)}
+                  disabled={isLoading}
+                  className="send-transaction-button"
+                >
+                  Send Transaction
+                </button>
                 <button
                   onClick={() => handleRemoveKey(key.key)}
                   disabled={isLoading}

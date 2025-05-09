@@ -101,10 +101,13 @@ impl ContractHandler<WalletEvent> for Wallet {
     fn handle_transaction_failed(
         &mut self,
         tx: &sdk::BlobTransaction,
-        index: sdk::BlobIndex,
-        tx_context: sdk::TxContext,
+        _index: sdk::BlobIndex,
+        _tx_context: sdk::TxContext,
     ) -> Result<Option<WalletEvent>> {
-        self.handle_transaction(tx, index, tx_context)
+        Ok(Some(WalletEvent {
+            account: tx.identity.clone(),
+            program_outputs: "Transaction failed".to_string(),
+        }))
     }
 
     fn handle_transaction_timeout(
@@ -184,7 +187,7 @@ pub async fn get_account_info(
         .session_keys
         .iter()
         .map(|sk| SessionKey {
-            key: sk.key.clone(),
+            key: sk.public_key.clone(),
             expiration_date: sk.expiration_date.0,
             nonce: sk.nonce,
         })

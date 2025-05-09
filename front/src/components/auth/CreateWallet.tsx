@@ -78,7 +78,6 @@ export const CreateWallet = ({ onWalletCreated }: CreateWalletProps) => {
 
           webSocketService.connect(identity);
           const unsubscribeWalletEvents = webSocketService.subscribeToWalletEvents((event) => {
-            console.log('Received wallet event:', event);
             if (event.event.startsWith('Successfully registered identity for account')) {
               clearTimeout(timeout);
               unsubscribeWalletEvents();
