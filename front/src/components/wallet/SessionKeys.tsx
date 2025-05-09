@@ -3,6 +3,7 @@ import { Wallet, addSessionKey, removeSessionKey, walletContractName } from '../
 import { nodeService } from '../../services/NodeService';
 import { indexerService } from '../../services/IndexerService';
 import { webSocketService } from '../../services/WebSocketService';
+import { sessionKeyService } from '../../services/SessionKeyService';
 import { build_proof_transaction, build_blob as check_secret_blob } from 'hyle-check-secret';
 import { BlobTransaction } from 'hyle';
 import './SessionKeys.css';
@@ -17,9 +18,13 @@ interface SessionKey {
   nonce: number;
 }
 
+const truncateKey = (key: string) => {
+    if (key.length <= 6) return key;
+    return `${key.slice(0, 3)}[...]${key.slice(-3)}`;
+  };
+
 export const SessionKeys = ({ wallet }: SessionKeysProps) => {
   const [sessionKeys, setSessionKeys] = useState<SessionKey[]>([]);
-  const [newKey, setNewKey] = useState('');
   const [password, setPassword] = useState('password123');
   const [expirationDays, setExpirationDays] = useState('7');
   const [error, setError] = useState('');
@@ -42,11 +47,6 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
   }, [wallet.address, wallet.username]);
 
   const handleAddKey = async () => {
-    if (!newKey) {
-      setError('Please enter a key');
-      return;
-    }
-
     if (!password) {
       setError('Please enter your password');
       return;
@@ -60,14 +60,17 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
 
     setIsLoading(true);
     setError('');
-    setStatus('Preparing transaction...');
+    setStatus('Generating new session key...');
     setTransactionHash('');
 
     try {
+      // Génère une nouvelle paire de clés
+      const publicKey = sessionKeyService.generateSessionKey();
+
       const identity = `${wallet.username}@${walletContractName}`;
       const blob0 = await check_secret_blob(identity, password);
       const expiration = Date.now() + (days * 24 * 60 * 60 * 1000);
-      const blob1 = addSessionKey(wallet.username, newKey, expiration);
+      const blob1 = addSessionKey(wallet.username, publicKey, expiration);
 
       const blobTx: BlobTransaction = {
         identity,
@@ -109,11 +112,11 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
       });
 
       setStatus('Session key added successfully');
-      setNewKey('');
       setPassword('password123');
       await fetchSessionKeys();
     } catch (error) {
       setError('Failed to add session key: ' + error);
+      sessionKeyService.clear(); // Nettoie la clé en cas d'erreur
     } finally {
       setIsLoading(false);
     }
@@ -126,52 +129,39 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
     setTransactionHash('');
 
     try {
-        const identity = `${wallet.username}@${walletContractName}`;
-        const blob0 = await check_secret_blob(identity, password);
-        const blob1 = removeSessionKey(wallet.username, key);
-  
-        const blobTx: BlobTransaction = {
-          identity,
-          blobs: [blob0, blob1],
-        };
+      const identity = `${wallet.username}@${walletContractName}`;
+      const blob0 = await check_secret_blob(identity, password);
+      const blob1 = removeSessionKey(wallet.username, key);
 
-        setStatus('Verifying identity...');
-        const tx_hash = await nodeService.client.sendBlobTx(blobTx);
-        setTransactionHash(tx_hash);
-  
-        setStatus('Building proof transaction (this may take a few moments)...');
-        const proofTx = await build_proof_transaction(
-          identity,
-          password,
-          tx_hash,
-          0,
-          blobTx.blobs.length,
-        );
-  
-        setStatus('Sending proof transaction...');
-        await nodeService.client.sendProofTx(proofTx);
-        setStatus('Waiting for confirmation...');
-        ////////////
+      const blobTx: BlobTransaction = {
+        identity,
+        blobs: [blob0, blob1],
+      };
 
-        await new Promise((resolve, reject) => {
+      const tx_hash = await nodeService.client.sendBlobTx(blobTx);
+      setTransactionHash(tx_hash);
+
+      setStatus('Waiting for confirmation...');
+      
+      await new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
-            webSocketService.unsubscribeFromWalletEvents();
-            reject(new Error('Operation timed out'));
+          webSocketService.unsubscribeFromWalletEvents();
+          reject(new Error('Operation timed out'));
         }, 30000);
 
-        webSocketService.connect(identity);
+        webSocketService.connect(wallet.address);
         const unsubscribe = webSocketService.subscribeToWalletEvents((event) => {
-            if (event.event === 'Session key removed') {
+          if (event.event === 'Session key removed') {
             clearTimeout(timeout);
             unsubscribe();
             webSocketService.disconnect();
             resolve(event);
-            }
+          }
         });
-        });
+      });
 
-        setStatus('Session key removed successfully');
-        await fetchSessionKeys();
+      setStatus('Session key removed successfully');
+      await fetchSessionKeys();
     } catch (error) {
       setError('Failed to remove session key: ' + error);
     } finally {
@@ -186,13 +176,6 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
       <div className="add-key-section">
         <h3>Add New Session Key</h3>
         <div className="form-group">
-          <input
-            type="text"
-            value={newKey}
-            onChange={(e) => setNewKey(e.target.value)}
-            placeholder="Enter session key"
-            disabled={isLoading}
-          />
           <input
             type="password"
             value={password}
@@ -213,7 +196,7 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
             disabled={isLoading}
             className="add-key-button"
           >
-            {isLoading ? 'Adding...' : 'Add Key'}
+            {isLoading ? 'Adding...' : 'Generate New Key'}
           </button>
         </div>
       </div>
@@ -240,7 +223,7 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
             {sessionKeys.map((key) => (
               <li key={key.key} className="session-key-item">
                 <div className="key-info">
-                  <span className="key-value">{key.key}</span>
+                  <span className="key-value">{truncateKey(key.key)}</span>
                   <span className="key-expiration">
                     Expires: {new Date(key.expiration_date).toLocaleDateString()}
                   </span>
