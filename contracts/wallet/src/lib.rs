@@ -3,34 +3,106 @@ use std::collections::BTreeMap;
 use borsh::{io::Error, BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
-use sdk::RunResult;
-use sha2::{Digest, Sha256};
+use sdk::{hyle_model_utils::TimestampMs, RunResult, TxContext};
 
 #[cfg(feature = "client")]
 pub mod client;
 
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+pub enum AuthMethod {
+    Password { hash: String },
+    // Other authentication methods can be added here
+}
+
+impl AuthMethod {
+    // Verifies the authentication method during use
+    fn verify(&self, calldata: &sdk::Calldata) -> Result<String, String> {
+        match self {
+            AuthMethod::Password { hash } => {
+                let check_secret = calldata
+                    .blobs
+                    .iter()
+                    .find(|(_, b)| b.contract_name.0 == "check_secret")
+                    .map(|(_, b)| b.data.clone())
+                    .ok_or("Missing check_secret blob")?;
+
+                let checked_hash = hex::encode(check_secret.0);
+                if checked_hash != *hash {
+                    return Err("Invalid authentication".to_string());
+                }
+                Ok("Authentication successful".to_string())
+            }
+        }
+    }
+
+    // Verifies prerequisites during registration
+    fn verify_registration(&self, _calldata: &sdk::Calldata) -> Result<String, String> {
+        match self {
+            AuthMethod::Password { .. } => {
+                // For Password, no verification needed
+                Ok("Password registration verification successful".to_string())
+            }
+        }
+    }
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+pub struct SessionKey {
+    pub key: String,
+    pub expiration_date: TimestampMs,
+    pub nonce: u128,
+}
+
 impl sdk::ZkContract for Wallet {
-    /// Entry point of the contract's logic
     fn execute(&mut self, calldata: &sdk::Calldata) -> RunResult {
-        // Parse contract inputs
         let (action, ctx) = sdk::utils::parse_raw_calldata::<WalletAction>(calldata)?;
 
-        let check_secret = calldata
-            .blobs
-            .iter()
-            .find(|(_, b)| b.contract_name.0 == "check_secret")
-            .map(|(_, b)| b.data.clone())
-            .expect("Missing check_secret blob");
-
-        let checked_hash = hex::encode(check_secret.0);
-
-        // Execute the given action
         let res = match action {
-            WalletAction::RegisterIdentity { account, nonce } => {
-                self.register_identity(account, nonce, checked_hash)?
+            WalletAction::RegisterIdentity {
+                account,
+                nonce,
+                auth_method,
+            } => {
+                // First verify the prerequisites for the authentication method
+                auth_method.verify_registration(calldata)?;
+                self.register_identity(account, nonce, auth_method)?
             }
-            WalletAction::VerifyIdentity { account, nonce } => {
-                self.verify_identity(account, nonce, checked_hash)?
+            _ => {
+                // For all other actions, verify identity first
+                match &action {
+                    WalletAction::UseSessionKey { account, key } => {
+                        // Session keys have their own verification logic
+                        self.use_session_key(account.clone(), key.clone(), &calldata.tx_ctx)?
+                    }
+                    _ => {
+                        let account = match &action {
+                            WalletAction::VerifyIdentity { account, .. } => account,
+                            WalletAction::AddSessionKey { account, .. } => account,
+                            WalletAction::RemoveSessionKey { account, .. } => account,
+                            _ => unreachable!(),
+                        };
+
+                        // Verify identity before executing the action
+                        let stored_info =
+                            self.identities.get(account).ok_or("Identity not found")?;
+                        stored_info.auth_method.verify(calldata)?;
+
+                        match action {
+                            WalletAction::VerifyIdentity { account, nonce } => {
+                                self.verify_identity(account, nonce)?
+                            }
+                            WalletAction::AddSessionKey {
+                                account,
+                                key,
+                                expiration_date,
+                            } => self.add_session_key(account, key, expiration_date)?,
+                            WalletAction::RemoveSessionKey { account, key } => {
+                                self.remove_session_key(account, key)?
+                            }
+                            _ => unreachable!(),
+                        }
+                    }
+                }
             }
         };
 
@@ -46,7 +118,8 @@ impl sdk::ZkContract for Wallet {
 /// Struct to hold account's information
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct AccountInfo {
-    pub hash: String,
+    pub auth_method: AuthMethod,
+    pub session_keys: Vec<SessionKey>,
     pub nonce: u128,
 }
 
@@ -59,8 +132,28 @@ pub struct Wallet {
 /// Enum representing the actions that can be performed by the IdentityVerification contract.
 #[derive(Serialize, Deserialize, BorshSerialize, BorshDeserialize, Debug, Clone)]
 pub enum WalletAction {
-    RegisterIdentity { account: String, nonce: u128 },
-    VerifyIdentity { account: String, nonce: u128 },
+    RegisterIdentity {
+        account: String,
+        nonce: u128,
+        auth_method: AuthMethod,
+    },
+    VerifyIdentity {
+        account: String,
+        nonce: u128,
+    },
+    AddSessionKey {
+        account: String,
+        key: String,
+        expiration_date: u128,
+    },
+    RemoveSessionKey {
+        account: String,
+        key: String,
+    },
+    UseSessionKey {
+        account: String,
+        key: String,
+    },
 }
 
 /// Some helper methods for the state
@@ -82,31 +175,17 @@ impl Wallet {
 }
 
 impl Wallet {
-    pub fn build_identity_id(account: &str, password: &str) -> Vec<u8> {
-        // hash password
-        let mut hasher = Sha256::new();
-        hasher.update(password.as_bytes());
-        let hashed_password = hasher.finalize();
-        let hashed_password = hashed_password.as_slice();
-
-        let id = format!("{:0<64}:", account);
-        let mut id = id.as_bytes().to_vec();
-        id.extend_from_slice(hashed_password);
-
-        let mut hasher = Sha256::new();
-        hasher.update(id);
-        let hash_bytes = hasher.finalize();
-
-        hash_bytes.to_vec()
-    }
-
     fn register_identity(
         &mut self,
         account: String,
         nonce: u128,
-        hash: String,
+        auth_method: AuthMethod,
     ) -> Result<String, String> {
-        let account_info = AccountInfo { hash, nonce };
+        let account_info = AccountInfo {
+            auth_method,
+            session_keys: Vec::new(),
+            nonce,
+        };
 
         if self
             .identities
@@ -120,22 +199,84 @@ impl Wallet {
         ))
     }
 
-    fn verify_identity(
+    fn verify_identity(&mut self, account: String, nonce: u128) -> Result<String, String> {
+        let stored_info = self
+            .identities
+            .get_mut(&account)
+            .ok_or("Identity not found")?;
+
+        if nonce <= stored_info.nonce {
+            return Err("Invalid nonce".to_string());
+        }
+
+        stored_info.nonce = nonce;
+        Ok("Identity verified".to_string())
+    }
+
+    fn add_session_key(
         &mut self,
         account: String,
-        nonce: u128,
-        hash: String,
+        key: String,
+        expiration_date: u128,
     ) -> Result<String, String> {
+        let stored_info = self
+            .identities
+            .get_mut(&account)
+            .ok_or("Identity not found")?;
+
+        if stored_info.session_keys.iter().any(|sk| sk.key == key) {
+            return Err("Session key already exists".to_string());
+        }
+
+        stored_info.session_keys.push(SessionKey {
+            key,
+            expiration_date: TimestampMs(expiration_date),
+            nonce: 0, // Initialize nonce to 0
+        });
+        stored_info.nonce += 1;
+        Ok("Session key added".to_string())
+    }
+
+    fn remove_session_key(&mut self, account: String, key: String) -> Result<String, String> {
+        let stored_info = self
+            .identities
+            .get_mut(&account)
+            .ok_or("Identity not found")?;
+
+        let initial_len = stored_info.session_keys.len();
+        stored_info.session_keys.retain(|sk| sk.key != key);
+
+        if stored_info.session_keys.len() == initial_len {
+            return Err("Session key not found".to_string());
+        }
+
+        stored_info.nonce += 1;
+        Ok("Session key removed".to_string())
+    }
+
+    fn use_session_key(
+        &mut self,
+        account: String,
+        key: String,
+        tx_ctx: &Option<TxContext>,
+    ) -> Result<String, String> {
+        let Some(tx_ctx) = tx_ctx else {
+            return Err("tx_ctx is missing".to_string());
+        };
         match self.identities.get_mut(&account) {
             Some(stored_info) => {
-                if nonce <= stored_info.nonce {
-                    return Err("Invalid nonce".to_string());
+                if let Some(session_key) =
+                    stored_info.session_keys.iter_mut().find(|sk| sk.key == key)
+                {
+                    if session_key.expiration_date < tx_ctx.timestamp {
+                        // Increment nonce during use
+                        session_key.nonce += 1;
+                        return Ok("Session key is valid".to_string());
+                    } else {
+                        return Err("Session key expired".to_string());
+                    }
                 }
-                if hash != stored_info.hash {
-                    return Err("Invalid hash (wrong secret check)".to_string());
-                }
-                stored_info.nonce = nonce;
-                Ok("Identity verified".to_string())
+                Err("Session key not found".to_string())
             }
             None => Err("Identity not found".to_string()),
         }

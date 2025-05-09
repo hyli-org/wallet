@@ -175,7 +175,6 @@ async fn main() -> Result<()> {
             port: ctx.config.rest_server_port,
             max_body_size: ctx.config.rest_server_max_body_size,
             bus: ctx.bus.new_handle(),
-            metrics_layer: None,
             registry: Registry::new(),
             router: router.clone(),
             openapi: Default::default(),
