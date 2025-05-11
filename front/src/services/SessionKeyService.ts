@@ -46,16 +46,14 @@ class SessionKeyService {
     const keyPair = this.ec.keyFromPrivate(privateKey);
     const signature = keyPair.sign(hash.toString());
 
-    
-    const r = signature.r.toArray('be', 32);
-    const s = signature.s.toArray('be', 32);
-    const signatureBytes = new Uint8Array([...r, ...s]);
-    
-    const signatureHex = signature.toDER('hex');
-    console.log("message:", hash.toString());
-    console.log("signature:", signatureHex);
-    console.log("publicKey:", publicKey);
-    console.log("verification " + keyPair.verify(hash.toString(), signatureHex));
+    // Normaliser s en utilisant min(s, n-s)
+    const n = this.ec.curve.n;
+    var s = signature.s;
+    if (s.gt(n.shrn(1))) {
+      signature.s = n.sub(s);
+    }
+
+    const signatureBytes = new Uint8Array([...signature.r.toArray('be', 32), ...signature.s.toArray('be', 32)]);
     
     const secp256k1Blob: Secp256k1Blob = {
       identity: identity,
