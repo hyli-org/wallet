@@ -10,10 +10,11 @@ use axum::{
 };
 use client_sdk::rest_client::NodeApiHttpClient;
 use hyle_modules::{
-    bus::BusClientSender,
+    bus::{BusClientSender, SharedMessageBus},
     module_bus_client, module_handle_messages,
     modules::{
-        contract_state_indexer::CSIBusEvent, websocket::WsTopicMessage, CommonRunContext, Module,
+        contract_state_indexer::CSIBusEvent, websocket::WsTopicMessage, BuildApiContextInner,
+        Module,
     },
 };
 
@@ -29,9 +30,9 @@ pub struct AppModule {
 }
 
 pub struct AppModuleCtx {
-    pub common: Arc<CommonRunContext>,
     pub node_client: Arc<NodeApiHttpClient>,
     pub wallet_cn: ContractName,
+    pub api: Arc<BuildApiContextInner>,
 }
 
 /// Messages received from WebSocket clients that will be processed by the system
@@ -57,7 +58,7 @@ pub struct AppModuleBusClient {
 impl Module for AppModule {
     type Context = Arc<AppModuleCtx>;
 
-    async fn build(ctx: Self::Context) -> Result<Self> {
+    async fn build(bus: SharedMessageBus, ctx: Self::Context) -> Result<Self> {
         let state = RouterCtx {
             wallet_cn: ctx.wallet_cn.clone(),
         };
@@ -74,12 +75,12 @@ impl Module for AppModule {
             .with_state(state)
             .layer(cors); // Apply the CORS middleware
 
-        if let Ok(mut guard) = ctx.common.router.lock() {
+        if let Ok(mut guard) = ctx.api.router.lock() {
             if let Some(router) = guard.take() {
                 guard.replace(router.merge(api));
             }
         }
-        let bus = AppModuleBusClient::new_from_bus(ctx.common.bus.new_handle()).await;
+        let bus = AppModuleBusClient::new_from_bus(bus.new_handle()).await;
 
         Ok(AppModule { bus })
     }

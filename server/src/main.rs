@@ -11,21 +11,18 @@ use hyle_modules::{
     bus::{metrics::BusMetrics, SharedMessageBus},
     modules::{
         contract_state_indexer::{ContractStateIndexer, ContractStateIndexerCtx},
-        da_listener::{DAListener, DAListenerCtx},
+        da_listener::{DAListener, DAListenerConf},
         prover::{AutoProver, AutoProverCtx},
         rest::{RestApi, RestApiRunContext},
-        websocket::{WebSocketModule, WebSocketModuleCtx},
-        CommonRunContext, ModulesHandler,
+        websocket::WebSocketModule,
+        BuildApiContextInner, ModulesHandler,
     },
     utils::{conf, logger::setup_tracing},
 };
 
 use prometheus::Registry;
 use sdk::{api::NodeInfo, info, ContractName, ZkContract};
-use std::{
-    env,
-    sync::{Arc, Mutex},
-};
+use std::{env, sync::Arc};
 use tracing::error;
 use wallet::{client::indexer::WalletEvent, Wallet};
 
@@ -92,17 +89,15 @@ async fn main() -> Result<()> {
 
     let mut handler = ModulesHandler::new(&bus).await;
 
-    let ctx = Arc::new(CommonRunContext {
-        bus: bus.new_handle(),
-        config: config.clone(),
-        router: Mutex::new(Some(Router::new())),
-        openapi: Default::default(),
+    let build_api_ctx = Arc::new(BuildApiContextInner {
+        router: std::sync::Mutex::new(Some(Router::new())),
+        openapi: std::sync::Mutex::new(Default::default()),
     });
 
     let app_ctx = Arc::new(AppModuleCtx {
-        common: ctx.clone(),
         node_client,
         wallet_cn: contract_name.clone(),
+        api: build_api_ctx.clone(),
     });
     let start_height = app_ctx.node_client.get_block_height().await?;
 
@@ -111,14 +106,16 @@ async fn main() -> Result<()> {
     handler
         .build_module::<ContractStateIndexer<Wallet, WalletEvent>>(ContractStateIndexerCtx {
             contract_name: contract_name.clone(),
-            common: ctx.clone(),
+            data_directory: config.data_directory.clone(),
+            api: build_api_ctx.clone(),
         })
         .await?;
     handler
         .build_module::<ContractStateIndexer<HyllarHistory, Vec<HistoryEvent>>>(
             ContractStateIndexerCtx {
                 contract_name: "hyllar".into(),
-                common: ctx.clone(),
+                data_directory: config.data_directory.clone(),
+                api: build_api_ctx.clone(),
             },
         )
         .await?;
@@ -126,7 +123,6 @@ async fn main() -> Result<()> {
     handler
         .build_module::<AutoProver<Wallet>>(Arc::new(AutoProverCtx {
             start_height,
-            bus: ctx.bus.new_handle(),
             data_directory: config.data_directory.clone(),
             prover: Arc::new(Risc0Prover::new(contracts::WALLET_ELF)),
             contract_name: contract_name.clone(),
@@ -136,7 +132,6 @@ async fn main() -> Result<()> {
     handler
         .build_module::<AutoProver<hyle_hyllar::Hyllar>>(Arc::new(AutoProverCtx {
             start_height,
-            bus: ctx.bus.new_handle(),
             data_directory: config.data_directory.clone(),
             prover: Arc::new(Risc0Prover::new(
                 hyle_hyllar::client::tx_executor_handler::metadata::HYLLAR_ELF,
@@ -147,40 +142,45 @@ async fn main() -> Result<()> {
         .await?;
 
     handler
-        .build_module::<WebSocketModule<AppWsInMessage, AppOutWsEvent>>(WebSocketModuleCtx {
-            bus: ctx.bus.new_handle(),
-            config: config.websocket.clone().into(),
-        })
+        .build_module::<WebSocketModule<AppWsInMessage, AppOutWsEvent>>(
+            config.websocket.clone().into(),
+        )
         .await?;
 
     // This module connects to the da_address and receives all the blocks²
     handler
-        .build_module::<DAListener>(DAListenerCtx {
-            common: ctx.clone(),
+        .build_module::<DAListener>(DAListenerConf {
+            data_directory: config.data_directory.clone(),
+            da_read_from: config.da_read_from.clone(),
             start_block: None,
         })
         .await?;
 
     // Should come last so the other modules have nested their own routes.
     #[allow(clippy::expect_used, reason = "Fail on misconfiguration")]
-    let router = ctx
+    let router = build_api_ctx
         .router
         .lock()
-        .expect("Context router should be available")
+        .expect("Context router should be available.")
         .take()
-        .expect("Context router should be available");
+        .expect("Context router should be available.");
+    #[allow(clippy::expect_used, reason = "Fail on misconfiguration")]
+    let openapi = build_api_ctx
+        .openapi
+        .lock()
+        .expect("OpenAPI should be available")
+        .clone();
 
     handler
         .build_module::<RestApi>(RestApiRunContext {
-            port: ctx.config.rest_server_port,
-            max_body_size: ctx.config.rest_server_max_body_size,
-            bus: ctx.bus.new_handle(),
+            port: config.rest_server_port,
+            max_body_size: config.rest_server_max_body_size,
             registry: Registry::new(),
-            router: router.clone(),
-            openapi: Default::default(),
+            router,
+            openapi,
             info: NodeInfo {
-                id: ctx.config.id.clone(),
-                da_address: ctx.config.da_read_from.clone(),
+                id: config.id.clone(),
+                da_address: config.da_read_from.clone(),
                 pubkey: None,
             },
         })
