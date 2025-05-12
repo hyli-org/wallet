@@ -22,3 +22,4 @@ edition = "2021"
 
 [patch.crates-io]
 sha2 = { git = "https://github.com/risc0/RustCrypto-hashes", tag = "sha2-v0.10.8-risczero.0" }
+# boundless-market = { git = "https://github.com/Hyle-org/boundless.git" }
