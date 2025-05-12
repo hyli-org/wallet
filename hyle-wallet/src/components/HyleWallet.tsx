@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Wallet } from '../types/wallet';
 import { authProviderManager } from '../providers/AuthProviderManager';
 import { AuthForm } from './auth/AuthForm';
 import './HyleWallet.css';

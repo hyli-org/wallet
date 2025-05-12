@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AuthCredentials, AuthProvider, AuthResult } from '../../providers/BaseAuthProvider';
+import { AuthCredentials, AuthProvider } from '../../providers/BaseAuthProvider';
 import { useWallet, ProviderOption } from '../../hooks/useWallet';
 import { AuthStage } from '../../types/login';
 import './AuthForm.css';

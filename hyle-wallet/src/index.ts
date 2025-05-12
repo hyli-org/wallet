@@ -1,6 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { HyleWallet, ProviderOption } from './components/HyleWallet';
+import { HyleWallet } from './components/HyleWallet';
+import { ProviderOption } from './hooks/useWallet';
 
 // Export the React component directly
 export { HyleWallet } from './components/HyleWallet';
