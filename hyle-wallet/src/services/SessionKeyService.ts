@@ -1,0 +1,92 @@
+import EC from 'elliptic';
+import { SHA256 } from 'crypto-js';
+import { Secp256k1Blob, serializeIdentityAction, serializeSecp256k1Blob, WalletAction, walletContractName } from '../types/wallet';
+import { Buffer } from 'buffer';
+import { Blob } from "hyle";
+
+class SessionKeyService {
+  private ec: EC.ec;
+
+  constructor() {
+    this.ec = new EC.ec('secp256k1');
+  }
+
+
+  generateSessionKey(): string {
+    // Génère une paire de clés ECDSA
+    const keyPair = this.ec.genKeyPair();
+    
+    const privateKey = keyPair.getPrivate('hex');
+    if (!privateKey) {
+      throw new Error('Failed to generate private key');
+    }
+
+    const publicKey = keyPair.getPublic(true, 'hex');
+    if (!publicKey) {
+      throw new Error('Failed to generate public key');
+    }
+
+    localStorage.setItem(publicKey, privateKey);
+    
+    return publicKey;
+  }
+
+  getSignedBlob(identity: string, message: string, publicKey: string): Secp256k1Blob {
+    const privateKey = localStorage.getItem(publicKey);
+    if (!privateKey) {
+      throw new Error('No session key or provided private key available');
+    }
+    const hash = SHA256(message);
+    const hashBytes = Buffer.from(hash.toString(), 'hex');
+
+    if (hashBytes.length !== 32) {
+      throw new Error('Hash length is not 32 bytes');
+    }
+    
+    const keyPair = this.ec.keyFromPrivate(privateKey);
+    const signature = keyPair.sign(hash.toString());
+
+    // Normaliser s en utilisant min(s, n-s)
+    const n = this.ec.curve.n;
+    var s = signature.s;
+    if (s.gt(n.shrn(1))) {
+      signature.s = n.sub(s);
+    }
+
+    const signatureBytes = new Uint8Array([...signature.r.toArray('be', 32), ...signature.s.toArray('be', 32)]);
+    
+    const secp256k1Blob: Secp256k1Blob = {
+      identity: identity,
+      data: hashBytes,
+      public_key: new Uint8Array(Buffer.from(publicKey, 'hex')),
+      signature: signatureBytes,
+    };
+    console.log('secp256k1Blob', secp256k1Blob);
+    return secp256k1Blob;
+  }
+
+  useSessionKey(account: string, key: string, message: string): [Blob, Blob] {
+    const action: WalletAction = {
+      UseSessionKey: { account, key, message }
+    };
+
+    const identity = `${account}@${walletContractName}`;
+    const secp256k1Blob: Secp256k1Blob = this.getSignedBlob(identity, message, key);
+    const blob0: Blob = {
+      contract_name: "secp256k1",
+      data: serializeSecp256k1Blob(secp256k1Blob),
+    };
+
+    const blob1: Blob = {
+      contract_name: walletContractName,
+      data: serializeIdentityAction(action),
+    };
+    return [blob0, blob1];
+  }
+
+  clear(publicKey: string): void {
+    localStorage.removeItem(publicKey);
+  }
+}
+
+export const sessionKeyService = new SessionKeyService();
