@@ -4,7 +4,7 @@ class NodeService {
   client: NodeApiHttpClient;
 
   constructor() {
-    this.client = new NodeApiHttpClient("http://localhost:4321");
+    this.client = new NodeApiHttpClient(import.meta.env.VITE_NODE_BASE_URL);
   }
 }
 
