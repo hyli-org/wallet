@@ -3,7 +3,7 @@ import { Wallet, addSessionKey, removeSessionKey, walletContractName } from '../
 import { nodeService } from '../../services/NodeService';
 import { indexerService } from '../../services/IndexerService';
 import { webSocketService } from '../../services/WebSocketService';
-import { sessionKeyService } from '../../services/SessionKeyService';
+import { useSessionKey } from 'hyle-wallet/src/hooks/useSessionKey';
 import { build_proof_transaction, build_blob as check_secret_blob } from 'hyle-check-secret';
 import { BlobTransaction } from 'hyle';
 import './SessionKeys.css';
@@ -31,6 +31,8 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
   const [status, setStatus] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [transactionHash, setTransactionHash] = useState('');
+
+  const { generateSessionKey, clearSessionKey, createSignedBlobs } = useSessionKey();
 
   const fetchSessionKeys = async () => {
     try {
@@ -64,7 +66,7 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
     setTransactionHash('');
 
     // Génère une nouvelle paire de clés
-    const publicKey = sessionKeyService.generateSessionKey();
+    const publicKey = generateSessionKey();
     try {
 
       const identity = `${wallet.username}@${walletContractName}`;
@@ -116,7 +118,7 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
       await fetchSessionKeys();
     } catch (error) {
       setError('Failed to add session key: ' + error);
-      sessionKeyService.clear(publicKey); // Remove key from local storage if it fails
+      clearSessionKey(publicKey); // Remove key from local storage if it fails
     } finally {
       setIsLoading(false);
     }
@@ -177,7 +179,7 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
 
     try {
       const identity = `${wallet.username}@${walletContractName}`;
-      const [blob0, blob1] = sessionKeyService.useSessionKey(wallet.username, key, "Hello world!");
+      const [blob0, blob1] = createSignedBlobs(wallet.username, key, "Hello world!");
 
       const blobTx: BlobTransaction = {
         identity,

@@ -11,7 +11,6 @@ class SessionKeyService {
     this.ec = new EC.ec('secp256k1');
   }
 
-
   generateSessionKey(): string {
     // Génère une paire de clés ECDSA
     const keyPair = this.ec.genKeyPair();

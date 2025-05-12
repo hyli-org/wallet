@@ -1,14 +1,14 @@
-import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useNavigate, useRoutes } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import './App.css';
-import { LoadingErrorState } from './components/common/LoadingErrorState';
 import { WalletShowcase } from './components/WalletShowcase';
-import { useConfig } from './hooks/useConfig';
 import { useWalletBalance } from './hooks/useWalletBalance';
 import { useWalletTransactions } from './hooks/useWalletTransactions';
 import { useWebSocketConnection } from './hooks/useWebSocketConnection';
 import { getPublicRoutes, getProtectedRoutes, ROUTES } from './routes/routes';
 import { WalletProvider, useWallet } from '../../hyle-wallet/src';
+import { useConfig } from 'hyle-wallet/src/hooks/useConfig';
+import { LoadingErrorState } from './components/common/LoadingErrorState';
 
 function AppContent() {
   const { isLoading: isLoadingConfig, error: configError } = useConfig();
