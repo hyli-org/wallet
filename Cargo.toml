@@ -7,10 +7,10 @@ members = ["contracts", "contracts/wallet", "server"]
 # client-sdk = { default-features = false, package = "hyle-client-sdk", version = "0.13.0-rc.4" }
 # hyle = { version = "0.13.0-rc.4" }
 
-sdk = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-contract-sdk", branch = "main" }
-client-sdk = { git = "https://github.com/Hyle-org/hyle.git", default-features = false, package = "hyle-client-sdk", branch = "main" }
-hyle-hyllar = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-hyllar", branch = "main" }
-hyle-modules = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-modules", branch = "main" }
+sdk = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-contract-sdk", branch = "feat/prover_networks" }
+client-sdk = { git = "https://github.com/Hyle-org/hyle.git", default-features = false, package = "hyle-client-sdk", branch = "feat/prover_networks" }
+hyle-hyllar = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-hyllar", branch = "feat/prover_networks" }
+hyle-modules = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-modules", branch = "feat/prover_networks" }
 
 contracts = { path = "contracts", default-features = false, package = "contracts" }
 wallet = { path = "contracts/wallet", package = "wallet" }
@@ -21,3 +21,4 @@ edition = "2021"
 
 [patch.crates-io]
 sha2 = { git = "https://github.com/risc0/RustCrypto-hashes", tag = "sha2-v0.10.8-risczero.0" }
+# boundless-market = { git = "https://github.com/Hyle-org/boundless.git" }
