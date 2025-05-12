@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Wallet, addSessionKey, removeSessionKey, walletContractName } from '../../types/wallet';
+import { Wallet, addSessionKey, removeSessionKey } from '../../types/wallet';
 import { nodeService } from '../../services/NodeService';
 import { indexerService } from '../../services/IndexerService';
 import { webSocketService } from '../../services/WebSocketService';
@@ -7,6 +7,7 @@ import { useSessionKey } from 'hyle-wallet/src/hooks/useSessionKey';
 import { build_proof_transaction, build_blob as check_secret_blob } from 'hyle-check-secret';
 import { BlobTransaction } from 'hyle';
 import './SessionKeys.css';
+import { walletContractName } from 'hyle-wallet/src/types/wallet';
 
 interface SessionKeysProps {
   wallet: Wallet;
