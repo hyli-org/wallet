@@ -13,7 +13,7 @@ export interface AuthResult {
 
 export interface AuthProvider {
   type: string;
-  login(credentials: AuthCredentials): Promise<AuthResult>;
-  register(credentials: AuthCredentials): Promise<AuthResult>;
+  login(credentials: AuthCredentials, onBlobSent?: (wallet: Wallet) => void): Promise<AuthResult>;
+  register(credentials: AuthCredentials, onBlobSent?: (wallet: Wallet) => void): Promise<AuthResult>;
   isEnabled(): boolean;
 }

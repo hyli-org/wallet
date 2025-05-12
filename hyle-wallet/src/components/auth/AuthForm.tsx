@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthCredentials, AuthProvider, AuthResult } from '../../providers/BaseAuthProvider';
 import { useWallet, ProviderOption } from '../../hooks/useWallet';
+import { AuthStage } from '../../types/login';
 import './AuthForm.css';
 
 interface AuthFormProps {
@@ -12,34 +13,53 @@ export const AuthForm: React.FC<AuthFormProps> = ({
   provider,
   mode,
 }) => {
-  const { login, register: registerWallet } = useWallet();
+  const { login, register: registerWallet, stage } = useWallet();
   const [credentials, setCredentials] = useState<AuthCredentials>({
     username: 'bob',
     password: 'password123',
     confirmPassword: 'password123'
   });
   const [error, setError] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [status, setStatus] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Derive UI messaging from stage
+  const deriveStatusMessage = (stage: AuthStage): string => {
+    switch (stage) {
+      case 'submitting':
+        return 'Sending transaction...';
+      case 'blobSent':
+        return 'Waiting for transaction confirmation...';
+      case 'settled':
+        return 'Success!';
+      case 'error':
+        return 'Error occurred';
+      default:
+        return '';
+    }
+  };
+
+  const statusMessage = deriveStatusMessage(stage);
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setIsLoading(true);
-    setStatus('Processing...');
+    setIsSubmitting(true);
 
     const authAction = mode === 'login' ? login : registerWallet;
 
-    try {
-      await authAction(provider.type as ProviderOption, credentials);
-    } catch (err) {
+    authAction(provider.type as ProviderOption, credentials).catch((err) => {
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
       setError(errorMessage);
-    } finally {
-      setIsLoading(false);
-      setStatus('');
-    }
+      setIsSubmitting(false);
+    });
   };
+
+  // Reset local submitting flag whenever stage transitions away from 'submitting'
+  useEffect(() => {
+    if (stage !== 'submitting') {
+      setIsSubmitting(false);
+    }
+  }, [stage]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -60,7 +80,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
           value={credentials.username}
           onChange={handleInputChange}
           placeholder="Enter your username"
-          disabled={isLoading}
+          disabled={isSubmitting || stage === 'submitting' || stage === 'blobSent'}
         />
       </div>
 
@@ -73,7 +93,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
           value={credentials.password}
           onChange={handleInputChange}
           placeholder="Enter your password"
-          disabled={isLoading}
+          disabled={isSubmitting || stage === 'submitting' || stage === 'blobSent'}
         />
       </div>
 
@@ -87,20 +107,26 @@ export const AuthForm: React.FC<AuthFormProps> = ({
             value={credentials.confirmPassword}
             onChange={handleInputChange}
             placeholder="Confirm your password"
-            disabled={isLoading}
+            disabled={isSubmitting || stage === 'submitting' || stage === 'blobSent'}
           />
         </div>
       )}
 
       {error && <div className="error-message">{error}</div>}
-      {status && <div className="status-message">{status}</div>}
+      {statusMessage && <div className="status-message">{statusMessage}</div>}
 
       <button
         type="submit"
         className="auth-submit-button"
-        disabled={isLoading}
+        disabled={isSubmitting || stage === 'submitting' || stage === 'blobSent'}
       >
-        {isLoading ? 'Processing...' : mode === 'login' ? 'Login' : 'Create Account'}
+        {stage === 'submitting'
+          ? 'Processing...'
+          : stage === 'blobSent'
+          ? 'Pending…'
+          : mode === 'login'
+          ? 'Login'
+          : 'Create Account'}
       </button>
     </form>
   );

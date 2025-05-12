@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useRoutes } from 'react-router-dom';
 import './App.css';
 import { LoadingErrorState } from './components/common/LoadingErrorState';
@@ -12,7 +12,7 @@ import { WalletProvider, useWallet } from '../../hyle-wallet/src';
 
 function AppContent() {
   const { isLoading: isLoadingConfig, error: configError } = useConfig();
-  const { wallet, logout } = useWallet();
+  const { wallet, logout, stage, error } = useWallet();
   const navigate = useNavigate();
   
   // Use custom hooks
@@ -30,6 +30,13 @@ function AppContent() {
       fetchBalance();
     }
   });
+
+  // Redirect back to root on auth settlement error and show message via state
+  useEffect(() => {
+    if (stage === 'error') {
+      navigate(ROUTES.ROOT, { state: { authError: error } });
+    }
+  }, [stage, error, navigate]);
 
   const handleLogout = () => {
     logout();

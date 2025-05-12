@@ -18,7 +18,7 @@ export class PasswordAuthProvider implements AuthProvider {
     return true;
   }
 
-  async login(credentials: PasswordAuthCredentials): Promise<AuthResult> {
+  async login(credentials: PasswordAuthCredentials, onBlobSent?: (wallet: Wallet) => void): Promise<AuthResult> {
     try {
       const { username, password } = credentials;
       
@@ -38,6 +38,17 @@ export class PasswordAuthProvider implements AuthProvider {
       console.log('Blob transaction:', blobTx);
 
       const tx_hash = await nodeService.client.sendBlobTx(blobTx);
+
+      // Optimistic notification to the caller that the blobTx has been sent successfully
+      const optimisticWallet: Wallet = {
+        username,
+        address: identity,
+      };
+      onBlobSent?.(optimisticWallet);
+
+      // TODO: Execute noir circuit to make sure the blobTx is valid
+
+      // Build and send the proof transaction (may take some time)
       const proofTx = await build_proof_transaction(
         identity,
         password,
@@ -48,6 +59,7 @@ export class PasswordAuthProvider implements AuthProvider {
 
       await nodeService.client.sendProofTx(proofTx);
 
+      // Wait for on-chain settlement (existing behaviour)
       await new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
           webSocketService.unsubscribeFromWalletEvents();
@@ -56,11 +68,17 @@ export class PasswordAuthProvider implements AuthProvider {
 
         webSocketService.connect(identity);
         const unsubscribeWalletEvents = webSocketService.subscribeToWalletEvents((event) => {
-          if (event.event === 'Identity verified') {
+          const msg = event.event.toLowerCase();
+          if (msg.includes('identity verified')) {
             clearTimeout(timeout);
             unsubscribeWalletEvents();
             webSocketService.disconnect();
             resolve(event);
+          } else if (msg.includes('failed') || msg.includes('error')) {
+            clearTimeout(timeout);
+            unsubscribeWalletEvents();
+            webSocketService.disconnect();
+            reject(new Error(event.event));
           }
         });
       });
@@ -79,7 +97,7 @@ export class PasswordAuthProvider implements AuthProvider {
     }
   }
 
-  async register(credentials: PasswordAuthCredentials): Promise<AuthResult> {
+  async register(credentials: PasswordAuthCredentials, onBlobSent?: (wallet: Wallet) => void): Promise<AuthResult> {
     try {
       const { username, password, confirmPassword } = credentials;
 
@@ -110,6 +128,14 @@ export class PasswordAuthProvider implements AuthProvider {
       await register_contract(nodeService.client as any);
       const tx_hash = await nodeService.client.sendBlobTx(blobTx);
       
+      // Optimistic notification to the caller that the blobTx has been sent successfully
+      const optimisticWallet: Wallet = {
+        username,
+        address: identity,
+      };
+      onBlobSent?.(optimisticWallet);
+
+      // Build and send the proof transaction (may take some time)
       const proofTx = await build_proof_transaction(
         identity,
         password,
@@ -120,6 +146,7 @@ export class PasswordAuthProvider implements AuthProvider {
 
       await nodeService.client.sendProofTx(proofTx);
 
+      // Wait for on-chain settlement (existing behaviour)
       await new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
           webSocketService.unsubscribeFromWalletEvents();
@@ -128,11 +155,17 @@ export class PasswordAuthProvider implements AuthProvider {
 
         webSocketService.connect(identity);
         const unsubscribeWalletEvents = webSocketService.subscribeToWalletEvents((event) => {
-          if (event.event.startsWith('Successfully registered identity for account')) {
+          const msg = event.event.toLowerCase();
+          if (msg.startsWith('successfully registered identity')) {
             clearTimeout(timeout);
             unsubscribeWalletEvents();
             webSocketService.disconnect();
             resolve(event);
+          } else if (msg.includes('failed') || msg.includes('error')) {
+            clearTimeout(timeout);
+            unsubscribeWalletEvents();
+            webSocketService.disconnect();
+            reject(new Error(event.event));
           }
         });
       });

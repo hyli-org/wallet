@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 import type { Wallet } from '../types/wallet';
 import type { AuthCredentials } from '../providers/BaseAuthProvider';
 import { authProviderManager } from '../providers/AuthProviderManager';
+import { AuthStage } from '../types/login';
 
 export type ProviderOption = 'password' | 'google' | 'github' | 'x';
 
@@ -10,6 +11,7 @@ interface WalletContextType {
   wallet: Wallet | null;
   isLoading: boolean;
   error: string | null;
+  stage: AuthStage;
   login: (provider: ProviderOption, credentials: AuthCredentials) => Promise<void>;
   register: (provider: ProviderOption, credentials: AuthCredentials) => Promise<void>;
   logout: () => void;
@@ -21,10 +23,12 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stage, setStage] = useState<AuthStage>('idle');
 
   const clear = () => {
     setWallet(null);
     setError(null);
+    setStage('idle');
   };
 
   const login = useCallback(async (provider: ProviderOption, credentials: AuthCredentials) => {
@@ -36,14 +40,30 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       setIsLoading(true);
       setError(null);
-      const result = await authProvider.login(credentials as any);
+      setStage('submitting');
+
+      const resultPromise = authProvider.login(credentials as any, (optimisticWallet: Wallet) => {
+        // Called as soon as blob/proofs are sent
+        setWallet(optimisticWallet);
+        setStage('blobSent');
+        setIsLoading(false);
+      });
+
+      const result = await resultPromise;
+
       if (result.success && result.wallet) {
+        // Settlement achieved
         setWallet(result.wallet);
+        setStage('settled');
       } else {
+        setStage('error');
         setError(result.error ?? 'Login failed');
+        setWallet(null);
       }
     } catch (e) {
+      setStage('error');
       setError(e instanceof Error ? e.message : 'Login failed');
+      setWallet(null);
     } finally {
       setIsLoading(false);
     }
@@ -58,14 +78,28 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       setIsLoading(true);
       setError(null);
-      const result = await authProvider.register(credentials as any);
+      setStage('submitting');
+
+      const resultPromise = authProvider.register(credentials as any, (optimisticWallet: Wallet) => {
+        setWallet(optimisticWallet);
+        setStage('blobSent');
+        setIsLoading(false);
+      });
+
+      const result = await resultPromise;
+
       if (result.success && result.wallet) {
         setWallet(result.wallet);
+        setStage('settled');
       } else {
+        setStage('error');
         setError(result.error ?? 'Registration failed');
+        setWallet(null);
       }
     } catch (e) {
+      setStage('error');
       setError(e instanceof Error ? e.message : 'Registration failed');
+      setWallet(null);
     } finally {
       setIsLoading(false);
     }
@@ -76,7 +110,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, []);
 
   return (
-    <WalletContext.Provider value={{ wallet, isLoading, error, login, register, logout }}>
+    <WalletContext.Provider value={{ wallet, isLoading, error, stage, login, register, logout }}>
       {children}
     </WalletContext.Provider>
   );
