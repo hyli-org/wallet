@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Wallet } from '../types/wallet';
 import { authProviderManager } from '../providers/AuthProviderManager';
 import { AuthForm } from './auth/AuthForm';
 import './HyleWallet.css';
 import { useConfig } from '../hooks/useConfig';
-
-export type ProviderOption = 'password' | 'google' | 'github' | 'x';
+import type { ProviderOption } from '../hooks/useWallet';
+import { useWallet } from '../hooks/useWallet';
 
 // SVG Icons for providers
 const ProviderIcons = {
@@ -39,29 +39,35 @@ const ProviderIcons = {
 
 interface HyleWalletProps {
   /**
-   * List of providers to display in the selector. "password" will always be shown if omitted.
-   */
-  providers?: ProviderOption[];
-  /**
    * Optional render prop that gives full control over the connect button UI.
    * If not supplied, a simple default button will be rendered.
    */
   button?: (props: { onClick: () => void }) => React.ReactNode;
   /**
-   * Callback invoked when the user successfully connects (creates or logs-in) a wallet.
+   * Optional explicit provider list (e.g., ["password", "google"]). If omitted, available providers will be detected automatically.
    */
-  onWalletConnected?: (wallet: Wallet) => void;
+  providers?: ProviderOption[];
 }
 
 export const HyleWallet = ({
-  providers = [],
   button,
-  onWalletConnected,
+  providers,
 }: HyleWalletProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<ProviderOption | null>(null);
   const [showLogin, setShowLogin] = useState(true); // true = login (default), false = create/sign-up
   const { isLoading: isLoadingConfig, error: configError } = useConfig();
+  const { wallet } = useWallet();
+
+  // Get available providers dynamically
+  const availableProviders = authProviderManager.getAvailableProviders() as ProviderOption[];
+
+  // Close the modal automatically when the user is connected
+  useEffect(() => {
+    if (wallet && isOpen) {
+      setIsOpen(false);
+    }
+  }, [wallet, isOpen]);
 
   const openModal = () => setIsOpen(true);
 
@@ -69,11 +75,6 @@ export const HyleWallet = ({
     setIsOpen(false);
     setSelectedProvider(null);
     setShowLogin(true);
-  };
-
-  const handleWalletConnected = (wallet: Wallet) => {
-    onWalletConnected?.(wallet);
-    closeModal();
   };
   
   if (isLoadingConfig) {
@@ -148,7 +149,7 @@ export const HyleWallet = ({
               <div className="provider-selection">
                 <h2>Sign in</h2>
                 <div className="provider-list">
-                  {providers.map(renderProviderButton)}
+                  {(providers ?? availableProviders).map(renderProviderButton)}
                 </div>
               </div>
             )}
@@ -161,7 +162,6 @@ export const HyleWallet = ({
                     <AuthForm
                       provider={authProviderManager.getProvider(selectedProvider)!}
                       mode="login"
-                      onSuccess={handleWalletConnected}
                     />
                     <button
                       className="switch-auth-button"
@@ -176,7 +176,6 @@ export const HyleWallet = ({
                     <AuthForm
                       provider={authProviderManager.getProvider(selectedProvider)!}
                       mode="register"
-                      onSuccess={handleWalletConnected}
                     />
                     <button
                       className="switch-auth-button"

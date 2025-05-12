@@ -1,20 +1,18 @@
 import React, { useState } from 'react';
-import { Wallet } from '../../types/wallet';
 import { AuthCredentials, AuthProvider, AuthResult } from '../../providers/BaseAuthProvider';
+import { useWallet, ProviderOption } from '../../hooks/useWallet';
+import './AuthForm.css';
 
 interface AuthFormProps {
   provider: AuthProvider;
   mode: 'login' | 'register';
-  onSuccess: (wallet: Wallet) => void;
-  onError?: (error: string) => void;
 }
 
 export const AuthForm: React.FC<AuthFormProps> = ({
   provider,
   mode,
-  onSuccess,
-  onError
 }) => {
+  const { login, register: registerWallet } = useWallet();
   const [credentials, setCredentials] = useState<AuthCredentials>({
     username: 'bob',
     password: 'password123',
@@ -30,21 +28,13 @@ export const AuthForm: React.FC<AuthFormProps> = ({
     setIsLoading(true);
     setStatus('Processing...');
 
-    try {
-      const result: AuthResult = await (mode === 'login' 
-        ? provider.login(credentials)
-        : provider.register(credentials));
+    const authAction = mode === 'login' ? login : registerWallet;
 
-      if (result.success && result.wallet) {
-        onSuccess(result.wallet);
-      } else {
-        setError(result.error || 'An unknown error occurred');
-        onError?.(result.error || 'An unknown error occurred');
-      }
+    try {
+      await authAction(provider.type as ProviderOption, credentials);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
       setError(errorMessage);
-      onError?.(errorMessage);
     } finally {
       setIsLoading(false);
       setStatus('');

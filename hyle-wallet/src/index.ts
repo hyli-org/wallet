@@ -8,6 +8,8 @@ export { PasswordAuthProvider } from './providers/PasswordAuthProvider';
 export type { AuthProvider, AuthCredentials } from './types/auth';
 export type { Wallet, Transaction } from './types/wallet';
 export type { ProviderOption };
+export { WalletProvider, useWallet } from './hooks/useWallet';
+export { useSessionKey } from './hooks/useSessionKey';
 
 // Register the Web Component
 class HyleWalletElement extends HTMLElement {
