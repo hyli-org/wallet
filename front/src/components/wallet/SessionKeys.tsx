@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Wallet, addSessionKey, removeSessionKey } from '../../types/wallet';
+import { Wallet, addSessionKey, removeSessionKey } from 'hyle-wallet/src';
 import { nodeService } from '../../services/NodeService';
 import { indexerService } from '../../services/IndexerService';
 import { webSocketService } from '../../services/WebSocketService';

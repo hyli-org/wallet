@@ -4,7 +4,7 @@ import { Send } from '../components/wallet/Send';
 import { History } from '../components/wallet/History';
 import { SessionKeys } from '../components/wallet/SessionKeys';
 import { WalletLayout } from '../components/layout/WalletLayout';
-import { Wallet } from '../types/wallet';
+import { Wallet } from 'hyle-wallet/src';
 
 // Route path constants
 export const ROUTES = {

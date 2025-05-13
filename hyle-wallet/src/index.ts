@@ -7,7 +7,17 @@ import { ProviderOption } from './hooks/useWallet';
 export { HyleWallet } from './components/HyleWallet';
 export { PasswordAuthProvider } from './providers/PasswordAuthProvider';
 export type { AuthProvider, AuthCredentials } from './types/auth';
-export type { Wallet, Transaction } from './types/wallet';
+export type { Wallet, WalletAction, Transaction } from './types/wallet';
+export {
+  register,
+  verifyIdentity,
+  addSessionKey,
+  removeSessionKey,
+  serializeSecp256k1Blob,
+  serializeIdentityAction,
+  deserializeIdentityAction,
+  setWalletContractName
+} from './types/wallet';
 export type { ProviderOption };
 export { WalletProvider, useWallet } from './hooks/useWallet';
 export { useSessionKey } from './hooks/useSessionKey';

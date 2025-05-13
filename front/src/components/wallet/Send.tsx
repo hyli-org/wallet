@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Transaction, verifyIdentity, Wallet } from '../../types/wallet';
+import { Transaction, verifyIdentity, Wallet } from 'hyle-wallet/src';
 import { blob_builder, BlobTransaction } from 'hyle'
 import { build_proof_transaction, build_blob as check_secret_blob } from 'hyle-check-secret';
 import { nodeService } from '../../services/NodeService';
