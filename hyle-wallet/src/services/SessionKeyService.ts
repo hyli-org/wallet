@@ -11,7 +11,7 @@ class SessionKeyService {
     this.ec = new EC.ec('secp256k1');
   }
 
-  generateSessionKey(): string {
+  generateSessionKey(): [string, string] {
     // Génère une paire de clés ECDSA
     const keyPair = this.ec.genKeyPair();
     
@@ -25,16 +25,10 @@ class SessionKeyService {
       throw new Error('Failed to generate public key');
     }
 
-    localStorage.setItem(publicKey, privateKey);
-    
-    return publicKey;
+    return [publicKey, privateKey];
   }
 
-  getSignedBlob(identity: string, message: string, publicKey: string): Secp256k1Blob {
-    const privateKey = localStorage.getItem(publicKey);
-    if (!privateKey) {
-      throw new Error('No session key or provided private key available');
-    }
+  getSignedBlob(identity: string, message: string, privateKey: string): Secp256k1Blob {
     const hash = SHA256(message);
     const hashBytes = Buffer.from(hash.toString(), 'hex');
 
@@ -43,6 +37,7 @@ class SessionKeyService {
     }
     
     const keyPair = this.ec.keyFromPrivate(privateKey);
+    const publicKey = keyPair.getPublic(true, 'hex');
     const signature = keyPair.sign(hash.toString());
 
     // Normaliser s en utilisant min(s, n-s)

@@ -4,7 +4,7 @@ import { sessionKeyService } from '../services/SessionKeyService';
 import type { Blob } from 'hyle';
 
 export const useSessionKey = () => {
-  const generateSessionKey = useCallback((): string => {
+  const generateSessionKey = useCallback((): [string, string] => {
     return sessionKeyService.generateSessionKey();
   }, []);
 

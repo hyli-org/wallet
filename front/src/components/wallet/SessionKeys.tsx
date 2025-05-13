@@ -67,7 +67,8 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
     setTransactionHash('');
 
     // Génère une nouvelle paire de clés
-    const publicKey = generateSessionKey();
+    const [publicKey, privateKey] = generateSessionKey();
+    localStorage.setItem(publicKey, privateKey);
     try {
 
       const identity = `${wallet.username}@${walletContractName}`;
