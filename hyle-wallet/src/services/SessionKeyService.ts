@@ -58,9 +58,11 @@ class SessionKeyService {
     return secp256k1Blob;
   }
 
-  useSessionKey(account: string, public_key: string, privateKey: string, message: string): [Blob, Blob] {
+  useSessionKey(account: string, privateKey: string, message: string): [Blob, Blob] {
+    const publicKey = this.ec.keyFromPrivate(privateKey).getPublic(true, 'hex');
+
     const action: WalletAction = {
-      UseSessionKey: { account, key: public_key, message }
+      UseSessionKey: { account, key: publicKey, message }
     };
 
     const identity = `${account}@${walletContractName}`;

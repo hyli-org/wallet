@@ -186,7 +186,7 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
       if (!privateKey) {
         throw new Error('Private key not found in local storage');
       }
-      const [blob0, blob1] = createSignedBlobs(wallet.username, publicKey, privateKey, "Hello world!");
+      const [blob0, blob1] = createSignedBlobs(wallet.username, privateKey, "Hello world!");
 
       const blobTx: BlobTransaction = {
         identity,
