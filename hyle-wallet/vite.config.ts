@@ -1,11 +1,39 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import dts from 'vite-plugin-dts'
+import cssInjectedByJsPlugin from 'vite-plugin-css-injected-by-js'
 
-// https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
-  optimizeDeps: {
-    esbuildOptions: { target: "esnext" },
-    exclude: ["@noir-lang/noirc_abi", "@noir-lang/acvm_js"],
+  build: {
+    lib: {
+      entry: 'src/index.ts',
+      name: 'HyleWallet',
+      fileName: (format) => `hyle-wallet.${format}.js`,
+      formats: ['es', 'cjs']
+    },
+    rollupOptions: {
+      external: [
+        'react',
+        'react-dom',
+        'hyle-check-secret',
+        'barretenberg',
+        'barretenberg/threads'
+      ],
+      output: {
+        globals: {
+          react: 'React',
+          'react-dom': 'ReactDOM'
+        }
+      }
+    },
+    outDir: 'dist'
   },
+  plugins: [
+    react(),
+    dts({
+      entryRoot: 'src',
+      insertTypesEntry: true
+    }),
+    cssInjectedByJsPlugin()
+  ],
 });

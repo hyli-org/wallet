@@ -1,6 +1,5 @@
 import { IndexerApiHttpClient } from "hyle";
-import { Transaction, AuthMethod } from "../types/wallet";
-import { walletContractName } from "hyle-wallet/src/types/wallet";
+import { Transaction, AuthMethod, walletContractName } from "hyle-wallet";
 
 interface BalanceResponse {
   account: string;

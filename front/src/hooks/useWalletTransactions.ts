@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Transaction } from 'hyle-wallet/src';
+import { Transaction } from 'hyle-wallet';
 import { indexerService } from '../services/IndexerService';
 import { AppEvent } from '../services/WebSocketService';
 

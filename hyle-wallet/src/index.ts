@@ -1,13 +1,8 @@
-import React from 'react';
-import { createRoot } from 'react-dom/client';
-import { HyleWallet } from './components/HyleWallet';
-import { ProviderOption } from './hooks/useWallet';
-
-// Export the React component directly
 export { HyleWallet } from './components/HyleWallet';
 export { PasswordAuthProvider } from './providers/PasswordAuthProvider';
 export type { AuthProvider, AuthCredentials } from './types/auth';
-export type { Wallet, WalletAction, Transaction } from './types/wallet';
+export type { AuthMethod, Wallet, WalletAction, Transaction } from './types/wallet';
+export { walletContractName } from './types/wallet';
 export {
   register,
   verifyIdentity,
@@ -18,22 +13,8 @@ export {
   deserializeIdentityAction,
   setWalletContractName
 } from './types/wallet';
-export type { ProviderOption };
+export type { ProviderOption } from './hooks/useWallet';
 export { WalletProvider, useWallet } from './hooks/useWallet';
 export { useSessionKey } from './hooks/useSessionKey';
+export { useConfig } from './hooks/useConfig';
 export { sessionKeyService } from './services/SessionKeyService';
-
-// Register the Web Component
-class HyleWalletElement extends HTMLElement {
-  connectedCallback() {
-    const mountPoint = document.createElement('div');
-    this.appendChild(mountPoint);
-
-    const providersAttr = this.getAttribute('providers');
-    const providers = providersAttr ? providersAttr.split(',') as ProviderOption[] : ["password" as ProviderOption];
-
-    createRoot(mountPoint).render(React.createElement(HyleWallet, { providers }));
-  }
-}
-
-customElements.define('hyle-wallet', HyleWalletElement);

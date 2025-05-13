@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Wallet, addSessionKey, removeSessionKey } from 'hyle-wallet/src';
+import { Wallet, addSessionKey, removeSessionKey } from 'hyle-wallet';
 import { nodeService } from '../../services/NodeService';
 import { indexerService } from '../../services/IndexerService';
 import { webSocketService } from '../../services/WebSocketService';
-import { useSessionKey } from 'hyle-wallet/src/hooks/useSessionKey';
+import { useSessionKey, walletContractName } from 'hyle-wallet';
 import { build_proof_transaction, build_blob as check_secret_blob } from 'hyle-check-secret';
 import { BlobTransaction } from 'hyle';
 import './SessionKeys.css';
-import { walletContractName } from 'hyle-wallet/src/types/wallet';
 
 interface SessionKeysProps {
   wallet: Wallet;
