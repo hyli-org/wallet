@@ -135,7 +135,21 @@ export const removeSessionKey = (account: string, key: string): Blob => {
   return blob;
 };
 
-// Removed the `useSessionKey` function as it has been moved to `SessionKeyService`.
+// Store wallet in localStorage
+export const storeWallet = (wallet: Wallet) => {
+  localStorage.setItem('wallet', JSON.stringify(wallet));
+};
+
+// Get wallet from localStorage
+export const getStoredWallet = (): Wallet | null => {
+  const storedWallet = localStorage.getItem('wallet');
+  return storedWallet ? JSON.parse(storedWallet) : null;
+};
+
+// Clear wallet from localStorage
+export const clearStoredWallet = () => {
+  localStorage.removeItem('wallet');
+};
 
 //
 // Serialisation

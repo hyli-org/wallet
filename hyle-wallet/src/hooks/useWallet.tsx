@@ -20,15 +20,26 @@ interface WalletContextType {
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [wallet, setWallet] = useState<Wallet | null>(null);
+  const [wallet, setWallet] = useState<Wallet | null>(() => {
+    const storedWallet = localStorage.getItem('wallet');
+    return storedWallet ? JSON.parse(storedWallet) : null;
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stage, setStage] = useState<AuthStage>('idle');
+
+  // Persist wallet when updated
+  React.useEffect(() => {
+    if (wallet) {
+      localStorage.setItem('wallet', JSON.stringify(wallet));
+    }
+  }, [wallet]);
 
   const clear = () => {
     setWallet(null);
     setError(null);
     setStage('idle');
+    localStorage.removeItem('wallet');
   };
 
   const login = useCallback(async (provider: ProviderOption, credentials: AuthCredentials) => {
@@ -122,4 +133,4 @@ export const useWallet = (): WalletContextType => {
     throw new Error('useWallet must be used within a WalletProvider');
   }
   return ctx;
-}; 
+};
