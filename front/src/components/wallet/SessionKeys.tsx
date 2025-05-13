@@ -173,15 +173,20 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
     }
   };
 
-  const handleSendTransactionWithSessionKey = async (key: string) => {
+  const handleSendTransactionWithSessionKey = async (publicKey: string) => {
     setIsLoading(true);
     setError('');
     setStatus('Sending transaction...');
     setTransactionHash('');
 
     try {
+
       const identity = `${wallet.username}@${walletContractName}`;
-      const [blob0, blob1] = createSignedBlobs(wallet.username, key, "Hello world!");
+      const privateKey = localStorage.getItem(publicKey);
+      if (!privateKey) {
+        throw new Error('Private key not found in local storage');
+      }
+      const [blob0, blob1] = createSignedBlobs(wallet.username, publicKey, privateKey, "Hello world!");
 
       const blobTx: BlobTransaction = {
         identity,

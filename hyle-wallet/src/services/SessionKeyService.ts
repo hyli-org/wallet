@@ -55,17 +55,16 @@ class SessionKeyService {
       public_key: new Uint8Array(Buffer.from(publicKey, 'hex')),
       signature: signatureBytes,
     };
-    console.log('secp256k1Blob', secp256k1Blob);
     return secp256k1Blob;
   }
 
-  useSessionKey(account: string, key: string, message: string): [Blob, Blob] {
+  useSessionKey(account: string, public_key: string, privateKey: string, message: string): [Blob, Blob] {
     const action: WalletAction = {
-      UseSessionKey: { account, key, message }
+      UseSessionKey: { account, key: public_key, message }
     };
 
     const identity = `${account}@${walletContractName}`;
-    const secp256k1Blob: Secp256k1Blob = this.getSignedBlob(identity, message, key);
+    const secp256k1Blob: Secp256k1Blob = this.getSignedBlob(identity, message, privateKey);
     const blob0: Blob = {
       contract_name: "secp256k1",
       data: serializeSecp256k1Blob(secp256k1Blob),

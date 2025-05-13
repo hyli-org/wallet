@@ -12,8 +12,8 @@ export const useSessionKey = () => {
     sessionKeyService.clear(publicKey);
   }, []);
 
-  const createSignedBlobs = useCallback((account: string, key: string, message: string): [Blob, Blob] => {
-    return sessionKeyService.useSessionKey(account, key, message);
+  const createSignedBlobs = useCallback((account: string, publicKey: string, privateKey: string, message: string): [Blob, Blob] => {
+    return sessionKeyService.useSessionKey(account, publicKey, privateKey, message);
   }, []);
 
   return {
