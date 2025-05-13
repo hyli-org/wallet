@@ -34,7 +34,7 @@ class IndexerService {
       import.meta.env.VITE_INDEXER_BASE_URL,
     );
     this.server = new IndexerApiHttpClient(
-      import.meta.env.VITE_SERVER_BASE_URL,
+      import.meta.env.VITE_WALLET_SERVER_BASE_URL,
     );
   }
 

@@ -4,7 +4,7 @@ interface Config {
 
 export async function fetchConfig(): Promise<Config> {
   const response = await fetch(
-    `${import.meta.env.VITE_SERVER_BASE_URL}/api/config`,
+    `${import.meta.env.VITE_WALLET_SERVER_BASE_URL}/api/config`,
   );
   if (!response.ok) {
     throw new Error("Failed to fetch config");

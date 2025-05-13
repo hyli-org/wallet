@@ -6,7 +6,7 @@ import { useWalletBalance } from './hooks/useWalletBalance';
 import { useWalletTransactions } from './hooks/useWalletTransactions';
 import { useWebSocketConnection } from './hooks/useWebSocketConnection';
 import { getPublicRoutes, getProtectedRoutes, ROUTES } from './routes/routes';
-import { WalletProvider, useWallet } from '../../hyle-wallet/src';
+import { WalletProvider, useWallet } from 'hyle-wallet/src';
 import { useConfig } from 'hyle-wallet/src/hooks/useConfig';
 import { LoadingErrorState } from './components/common/LoadingErrorState';
 

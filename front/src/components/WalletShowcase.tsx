@@ -1,5 +1,5 @@
 import React from 'react';
-import { HyleWallet } from '../../../hyle-wallet/src';
+import { HyleWallet } from 'hyle-wallet/src';
 import { useLocation } from 'react-router-dom';
 
 type ProviderOption = 'password' | 'google' | 'github';
