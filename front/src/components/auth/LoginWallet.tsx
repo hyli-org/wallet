@@ -10,8 +10,8 @@ interface LoginWalletProps {
 }
 
 export const LoginWallet = ({ onWalletLoggedIn }: LoginWalletProps) => {
-  const [username, setUsername] = useState<string>('bob');
-  const [password, setPassword] = useState<string>('password123');
+  const [username, setUsername] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [status, setStatus] = useState<string>('');
