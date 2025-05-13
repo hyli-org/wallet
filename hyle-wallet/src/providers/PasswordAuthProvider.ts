@@ -35,8 +35,6 @@ export class PasswordAuthProvider implements AuthProvider {
         blobs: [blob0, blob1],
       };
 
-      console.log('Blob transaction:', blobTx);
-
       const tx_hash = await nodeService.client.sendBlobTx(blobTx);
 
       // Optimistic notification to the caller that the blobTx has been sent successfully
@@ -122,8 +120,6 @@ export class PasswordAuthProvider implements AuthProvider {
         identity,
         blobs: [blob0, blob1],
       };
-
-      console.log('Blob transaction:', blobTx);
 
       await register_contract(nodeService.client as any);
       const tx_hash = await nodeService.client.sendBlobTx(blobTx);

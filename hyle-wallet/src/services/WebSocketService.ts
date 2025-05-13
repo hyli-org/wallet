@@ -40,7 +40,7 @@ export class WebSocketService {
     }
 
     this.currentAccount = account;
-    this.ws = new WebSocket(import.meta.env.VITE_WS_URL);
+    this.ws = new WebSocket(import.meta.env.VITE_WALLET_WS_URL);
 
     this.ws.onopen = () => {
       console.log("WebSocket connected");
