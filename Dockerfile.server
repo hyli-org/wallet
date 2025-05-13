@@ -20,7 +20,9 @@ WORKDIR /app
 
 COPY --from=builder /app/target/debug/server ./
 
-RUN apt-get update && apt-get install -y libdbus-1-dev
+RUN apt-get update && apt-get install -y libdbus-1-dev curl
+RUN curl -L https://risczero.com/install | bash
+RUN /root/.risc0/bin/rzup install r0vm 2.0.2
 
 EXPOSE 4000
 
