@@ -3720,7 +3720,7 @@ dependencies = [
 [[package]]
 name = "hyle-bonsai-runner"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=feat/prover_networks#b13ba3763badc8401ee5db250fd3538e4ef4621c"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=feat/prover_networks#503ed37af2e361b9d93e372aedf0d345a5e0ee43"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3738,7 +3738,7 @@ dependencies = [
 [[package]]
 name = "hyle-client-sdk"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=feat/prover_networks#b13ba3763badc8401ee5db250fd3538e4ef4621c"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=feat/prover_networks#503ed37af2e361b9d93e372aedf0d345a5e0ee43"
 dependencies = [
  "anyhow",
  "axum",
@@ -3758,7 +3758,7 @@ dependencies = [
 [[package]]
 name = "hyle-contract-sdk"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=feat/prover_networks#b13ba3763badc8401ee5db250fd3538e4ef4621c"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=feat/prover_networks#503ed37af2e361b9d93e372aedf0d345a5e0ee43"
 dependencies = [
  "borsh",
  "hyle-model",
@@ -3771,7 +3771,7 @@ dependencies = [
 [[package]]
 name = "hyle-crypto"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=feat/prover_networks#b13ba3763badc8401ee5db250fd3538e4ef4621c"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=feat/prover_networks#503ed37af2e361b9d93e372aedf0d345a5e0ee43"
 dependencies = [
  "anyhow",
  "blst",
@@ -3784,7 +3784,7 @@ dependencies = [
 [[package]]
 name = "hyle-hyllar"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=feat/prover_networks#b13ba3763badc8401ee5db250fd3538e4ef4621c"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=feat/prover_networks#503ed37af2e361b9d93e372aedf0d345a5e0ee43"
 dependencies = [
  "anyhow",
  "borsh",
@@ -3798,7 +3798,7 @@ dependencies = [
 [[package]]
 name = "hyle-model"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=feat/prover_networks#b13ba3763badc8401ee5db250fd3538e4ef4621c"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=feat/prover_networks#503ed37af2e361b9d93e372aedf0d345a5e0ee43"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -3821,7 +3821,7 @@ dependencies = [
 [[package]]
 name = "hyle-modules"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=feat/prover_networks#b13ba3763badc8401ee5db250fd3538e4ef4621c"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=feat/prover_networks#503ed37af2e361b9d93e372aedf0d345a5e0ee43"
 dependencies = [
  "anyhow",
  "anymap",
@@ -3858,7 +3858,7 @@ dependencies = [
 [[package]]
 name = "hyle-net"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=feat/prover_networks#b13ba3763badc8401ee5db250fd3538e4ef4621c"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=feat/prover_networks#503ed37af2e361b9d93e372aedf0d345a5e0ee43"
 dependencies = [
  "anyhow",
  "axum",
@@ -3884,7 +3884,7 @@ dependencies = [
 [[package]]
 name = "hyle-verifiers"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=feat/prover_networks#b13ba3763badc8401ee5db250fd3538e4ef4621c"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=feat/prover_networks#503ed37af2e361b9d93e372aedf0d345a5e0ee43"
 dependencies = [
  "anyhow",
  "borsh",
@@ -4616,9 +4616,9 @@ checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
 
 [[package]]
 name = "matrixmultiply"
-version = "0.3.9"
+version = "0.3.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9380b911e3e96d10c1f415da0876389aaf1b56759054eeb0de7df940c456ba1a"
+checksum = "a06de3016e9fae57a36fd14dba131fccf49f74b40b7fbdb472f96e361ec71a08"
 dependencies = [
  "autocfg",
  "rawpointer",
