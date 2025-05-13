@@ -4,7 +4,7 @@ import { Secp256k1Blob, serializeIdentityAction, serializeSecp256k1Blob, WalletA
 import { Buffer } from 'buffer';
 import { Blob } from "hyle";
 
-class SessionKeyService {
+export class SessionKeyService {
   private ec: EC.ec;
 
   constructor() {

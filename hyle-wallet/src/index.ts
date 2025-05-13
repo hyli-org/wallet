@@ -21,6 +21,7 @@ export {
 export type { ProviderOption };
 export { WalletProvider, useWallet } from './hooks/useWallet';
 export { useSessionKey } from './hooks/useSessionKey';
+export { sessionKeyService } from './services/SessionKeyService';
 
 // Register the Web Component
 class HyleWalletElement extends HTMLElement {

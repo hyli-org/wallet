@@ -35,13 +35,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [wallet]);
 
-  const clear = () => {
-    setWallet(null);
-    setError(null);
-    setStage('idle');
-    localStorage.removeItem('wallet');
-  };
-
   const login = useCallback(async (provider: ProviderOption, credentials: AuthCredentials) => {
     const authProvider = authProviderManager.getProvider(provider);
     if (!authProvider) {
@@ -117,7 +110,10 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, []);
 
   const logout = useCallback(() => {
-    clear();
+    localStorage.removeItem('wallet');
+    setWallet(null);
+    setError(null);
+    setStage('idle');
   }, []);
 
   return (

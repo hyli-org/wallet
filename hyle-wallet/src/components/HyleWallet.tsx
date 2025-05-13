@@ -56,7 +56,15 @@ export const HyleWallet = ({
   const [selectedProvider, setSelectedProvider] = useState<ProviderOption | null>(null);
   const [showLogin, setShowLogin] = useState(true); // true = login (default), false = create/sign-up
   const { isLoading: isLoadingConfig, error: configError } = useConfig();
-  const { wallet } = useWallet();
+  const { wallet, logout } = useWallet();
+
+  const handleButtonClick = () => {
+    if (wallet) {
+      logout();
+    } else {
+      setIsOpen(true);
+    }
+  };
 
   // Get available providers dynamically
   const availableProviders = authProviderManager.getAvailableProviders() as ProviderOption[];
@@ -67,8 +75,6 @@ export const HyleWallet = ({
       setIsOpen(false);
     }
   }, [wallet, isOpen]);
-
-  const openModal = () => setIsOpen(true);
 
   const closeModal = () => {
     setIsOpen(false);
@@ -83,7 +89,6 @@ export const HyleWallet = ({
   if (configError) {
     return <div>Error loading configuration: {configError}</div>;
   }
-  
 
   const renderProviderButton = (providerType: ProviderOption) => {
     const provider = authProviderManager.getProvider(providerType);
@@ -120,10 +125,10 @@ export const HyleWallet = ({
   return (
     <>
       {button ? (
-        button({ onClick: openModal })
+        button({ onClick: handleButtonClick })
       ) : (
-        <button className="hyle-wallet-btn" onClick={openModal}>
-          Connect Wallet
+        <button className="hyle-wallet-btn" onClick={handleButtonClick}>
+          {wallet ? "Log Out" : "Connect Wallet"}
         </button>
       )}
 
