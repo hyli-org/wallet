@@ -6,6 +6,7 @@ use client_sdk::{
     helpers::risc0::Risc0Prover,
     rest_client::{IndexerApiHttpClient, NodeApiHttpClient},
 };
+use config::File;
 use history::{HistoryEvent, HyllarHistory};
 use hyle_modules::{
     bus::{metrics::BusMetrics, SharedMessageBus},
@@ -14,17 +15,19 @@ use hyle_modules::{
         da_listener::{DAListener, DAListenerConf},
         prover::{AutoProver, AutoProverCtx},
         rest::{RestApi, RestApiRunContext},
-        websocket::WebSocketModule,
+        websocket::{WebSocketConfig, WebSocketModule},
         BuildApiContextInner, ModulesHandler,
     },
-    utils::{conf, logger::setup_tracing},
+    utils::logger::setup_tracing,
 };
 
 use prometheus::Registry;
 use sdk::{api::NodeInfo, info, ContractName, ZkContract};
 use std::{
     env,
+    path::PathBuf,
     sync::{Arc, Mutex},
+    time::Duration,
 };
 use tracing::error;
 use wallet::{client::indexer::WalletEvent, Wallet};
@@ -42,12 +45,42 @@ pub struct Args {
     #[arg(long, default_value = "wallet")]
     pub wallet_cn: String,
 }
+#[derive(serde::Deserialize, Debug)]
+pub struct Conf {
+    pub id: String,
+    pub log_format: String,
+    pub data_directory: PathBuf,
+    pub rest_server_port: u16,
+    pub rest_server_max_body_size: usize,
+    pub da_read_from: String,
+    pub contract_name: String,
+    pub websocket: WSConfig,
+}
+
+#[derive(serde::Deserialize, Debug)]
+pub struct WSConfig {
+    /// The port number to bind the WebSocket server to
+    pub port: u16,
+    /// The endpoint path for WebSocket connections
+    pub ws_path: String,
+    /// The endpoint path for health checks
+    pub health_path: String,
+    /// The interval at which to check for new peers
+    pub peer_check_interval: u64,
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
-    let config =
-        conf::Conf::new(args.config_file, None, Some(true)).context("reading config file")?;
+    let config: Conf = config::Config::builder()
+        .add_source(File::from_str(
+            include_str!("../../config.toml"),
+            config::FileFormat::Toml,
+        ))
+        .add_source(config::Environment::with_prefix("WALLET"))
+        .build()
+        .unwrap()
+        .try_deserialize()?;
 
     setup_tracing(
         &config.log_format,
@@ -145,9 +178,12 @@ async fn main() -> Result<()> {
         .await?;
 
     handler
-        .build_module::<WebSocketModule<AppWsInMessage, AppOutWsEvent>>(
-            config.websocket.clone().into(),
-        )
+        .build_module::<WebSocketModule<AppWsInMessage, AppOutWsEvent>>(WebSocketConfig {
+            port: config.websocket.port,
+            ws_path: config.websocket.ws_path.clone(),
+            health_path: config.websocket.health_path.clone(),
+            peer_check_interval: Duration::from_millis(config.websocket.peer_check_interval),
+        })
         .await?;
 
     // This module connects to the da_address and receives all the blocks²
