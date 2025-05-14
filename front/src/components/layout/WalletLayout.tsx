@@ -1,5 +1,5 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Wallet } from '../../types/wallet';
+import { Wallet } from 'hyle-wallet';
 
 interface WalletLayoutProps {
   wallet: Wallet;

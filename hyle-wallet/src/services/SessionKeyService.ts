@@ -4,15 +4,14 @@ import { Secp256k1Blob, serializeIdentityAction, serializeSecp256k1Blob, WalletA
 import { Buffer } from 'buffer';
 import { Blob } from "hyle";
 
-class SessionKeyService {
+export class SessionKeyService {
   private ec: EC.ec;
 
   constructor() {
     this.ec = new EC.ec('secp256k1');
   }
 
-
-  generateSessionKey(): string {
+  generateSessionKey(): [string, string] {
     // Génère une paire de clés ECDSA
     const keyPair = this.ec.genKeyPair();
     
@@ -26,16 +25,10 @@ class SessionKeyService {
       throw new Error('Failed to generate public key');
     }
 
-    localStorage.setItem(publicKey, privateKey);
-    
-    return publicKey;
+    return [publicKey, privateKey];
   }
 
-  getSignedBlob(identity: string, message: string, publicKey: string): Secp256k1Blob {
-    const privateKey = localStorage.getItem(publicKey);
-    if (!privateKey) {
-      throw new Error('No session key or provided private key available');
-    }
+  getSignedBlob(identity: string, message: string, privateKey: string): Secp256k1Blob {
     const hash = SHA256(message);
     const hashBytes = Buffer.from(hash.toString(), 'hex');
 
@@ -44,6 +37,7 @@ class SessionKeyService {
     }
     
     const keyPair = this.ec.keyFromPrivate(privateKey);
+    const publicKey = keyPair.getPublic(true, 'hex');
     const signature = keyPair.sign(hash.toString());
 
     // Normaliser s en utilisant min(s, n-s)
@@ -61,17 +55,18 @@ class SessionKeyService {
       public_key: new Uint8Array(Buffer.from(publicKey, 'hex')),
       signature: signatureBytes,
     };
-    console.log('secp256k1Blob', secp256k1Blob);
     return secp256k1Blob;
   }
 
-  useSessionKey(account: string, key: string, message: string): [Blob, Blob] {
+  useSessionKey(account: string, privateKey: string, message: string): [Blob, Blob] {
+    const publicKey = this.ec.keyFromPrivate(privateKey).getPublic(true, 'hex');
+
     const action: WalletAction = {
-      UseSessionKey: { account, key, message }
+      UseSessionKey: { account, key: publicKey, message }
     };
 
     const identity = `${account}@${walletContractName}`;
-    const secp256k1Blob: Secp256k1Blob = this.getSignedBlob(identity, message, key);
+    const secp256k1Blob: Secp256k1Blob = this.getSignedBlob(identity, message, privateKey);
     const blob0: Blob = {
       contract_name: "secp256k1",
       data: serializeSecp256k1Blob(secp256k1Blob),

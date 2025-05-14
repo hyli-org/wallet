@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Wallet, addSessionKey, removeSessionKey, walletContractName } from '../../types/wallet';
+import { Wallet, addSessionKey, removeSessionKey } from 'hyle-wallet';
 import { nodeService } from '../../services/NodeService';
 import { indexerService } from '../../services/IndexerService';
 import { webSocketService } from '../../services/WebSocketService';
-import { sessionKeyService } from '../../services/SessionKeyService';
+import { useSessionKey, walletContractName } from 'hyle-wallet';
 import { build_proof_transaction, build_blob as check_secret_blob } from 'hyle-check-secret';
 import { BlobTransaction } from 'hyle';
 import './SessionKeys.css';
@@ -31,6 +31,8 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
   const [status, setStatus] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [transactionHash, setTransactionHash] = useState('');
+
+  const { generateSessionKey, clearSessionKey, createSignedBlobs } = useSessionKey();
 
   const fetchSessionKeys = async () => {
     try {
@@ -64,7 +66,8 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
     setTransactionHash('');
 
     // Génère une nouvelle paire de clés
-    const publicKey = sessionKeyService.generateSessionKey();
+    const [publicKey, privateKey] = generateSessionKey();
+    localStorage.setItem(publicKey, privateKey);
     try {
 
       const identity = `${wallet.username}@${walletContractName}`;
@@ -116,7 +119,7 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
       await fetchSessionKeys();
     } catch (error) {
       setError('Failed to add session key: ' + error);
-      sessionKeyService.clear(publicKey); // Remove key from local storage if it fails
+      clearSessionKey(publicKey); // Remove key from local storage if it fails
     } finally {
       setIsLoading(false);
     }
@@ -169,15 +172,20 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
     }
   };
 
-  const handleSendTransactionWithSessionKey = async (key: string) => {
+  const handleSendTransactionWithSessionKey = async (publicKey: string) => {
     setIsLoading(true);
     setError('');
     setStatus('Sending transaction...');
     setTransactionHash('');
 
     try {
+
       const identity = `${wallet.username}@${walletContractName}`;
-      const [blob0, blob1] = sessionKeyService.useSessionKey(wallet.username, key, "Hello world!");
+      const privateKey = localStorage.getItem(publicKey);
+      if (!privateKey) {
+        throw new Error('Private key not found in local storage');
+      }
+      const [blob0, blob1] = createSignedBlobs(wallet.username, privateKey, "Hello world!");
 
       const blobTx: BlobTransaction = {
         identity,

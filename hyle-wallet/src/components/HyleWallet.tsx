@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { Wallet } from '../../types/wallet';
-import { LoginWallet } from '../auth/LoginWallet';
-import { CreateWallet } from '../auth/CreateWallet';
-import './ConnectWallet.css';
-
-export type ProviderOption = 'password' | 'google' | 'github' | 'x';
+import { useState, useEffect } from 'react';
+import { authProviderManager } from '../providers/AuthProviderManager';
+import { AuthForm } from './auth/AuthForm';
+import './HyleWallet.css';
+import { useConfig } from '../hooks/useConfig';
+import type { ProviderOption } from '../hooks/useWallet';
+import { useWallet } from '../hooks/useWallet';
 
 // SVG Icons for providers
 const ProviderIcons = {
@@ -36,51 +36,63 @@ const ProviderIcons = {
   )
 };
 
-interface ConnectWalletProps {
-  /**
-   * List of providers to display in the selector. "password" will always be shown if omitted.
-   */
-  providers?: ProviderOption[];
+interface HyleWalletProps {
   /**
    * Optional render prop that gives full control over the connect button UI.
    * If not supplied, a simple default button will be rendered.
    */
   button?: (props: { onClick: () => void }) => React.ReactNode;
   /**
-   * Callback invoked when the user successfully connects (creates or logs-in) a wallet.
+   * Optional explicit provider list (e.g., ["password", "google"]). If omitted, available providers will be detected automatically.
    */
-  onWalletConnected?: (wallet: Wallet) => void;
+  providers?: ProviderOption[];
 }
 
-export const ConnectWallet = ({
-  providers = ['password'],
+export const HyleWallet = ({
   button,
-  onWalletConnected,
-}: ConnectWalletProps) => {
+  providers,
+}: HyleWalletProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<ProviderOption | null>(null);
   const [showLogin, setShowLogin] = useState(true); // true = login (default), false = create/sign-up
+  const { isLoading: isLoadingConfig, error: configError } = useConfig();
+  const { wallet, logout } = useWallet();
 
-  const openModal = () => setIsOpen(true);
+  const handleButtonClick = () => {
+    if (wallet) {
+      logout();
+    } else {
+      setIsOpen(true);
+    }
+  };
+
+  // Get available providers dynamically
+  const availableProviders = authProviderManager.getAvailableProviders() as ProviderOption[];
+
+  // Close the modal automatically when the user is connected
+  useEffect(() => {
+    if (wallet && isOpen) {
+      setIsOpen(false);
+    }
+  }, [wallet, isOpen]);
 
   const closeModal = () => {
     setIsOpen(false);
     setSelectedProvider(null);
     setShowLogin(true);
   };
+  
+  if (isLoadingConfig) {
+    return <div>Loading configuration...</div>;
+  }
 
-  const handleWalletConnected = (wallet: Wallet) => {
-    onWalletConnected?.(wallet);
-    closeModal();
-  };
+  if (configError) {
+    return <div>Error loading configuration: {configError}</div>;
+  }
 
-  // Compose the list of providers, ensuring password is included if requested implicitly
-  const providerList: ProviderOption[] = Array.from(
-    new Set(['password', ...providers])
-  );
-
-  const renderProviderButton = (provider: ProviderOption) => {
-    const disabled = provider !== 'password';
+  const renderProviderButton = (providerType: ProviderOption) => {
+    const provider = authProviderManager.getProvider(providerType);
+    const disabled = !provider?.isEnabled();
 
     const config: Record<ProviderOption, { label: string; icon: React.ReactNode }> = {
       password: { label: 'Password', icon: ProviderIcons.password },
@@ -89,14 +101,13 @@ export const ConnectWallet = ({
       x: { label: 'X', icon: ProviderIcons.x },
     };
 
-    const { label, icon } = config[provider];
+    const { label, icon } = config[providerType];
 
     return (
       <button
-        key={provider}
+        key={providerType}
         className={`provider-row${disabled ? ' disabled' : ''}`}
-        disabled={disabled}
-        onClick={() => !disabled && setSelectedProvider(provider)}
+        onClick={() => !disabled && setSelectedProvider(providerType)}
       >
         <span className="label">
           <span className="provider-icon">{icon}</span>
@@ -114,16 +125,16 @@ export const ConnectWallet = ({
   return (
     <>
       {button ? (
-        button({ onClick: openModal })
+        button({ onClick: handleButtonClick })
       ) : (
-        <button className="connect-wallet-btn" onClick={openModal}>
-          Connect Wallet
+        <button className="hyle-wallet-btn" onClick={handleButtonClick}>
+          {wallet ? "Log Out" : "Connect Wallet"}
         </button>
       )}
 
       {isOpen && (
-        <div className="connect-wallet-overlay" onClick={closeModal}>
-          <div className="connect-wallet-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="hyle-wallet-overlay" onClick={closeModal}>
+          <div className="hyle-wallet-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-logo">
                 <svg width="120" height="28" viewBox="0 0 931 218" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -133,28 +144,29 @@ export const ConnectWallet = ({
                   <path d="M216.082 82.4269H68.1538C62.0491 82.4269 57.1002 77.4778 57.1002 71.3733V0H0.609375V217.187H57.1002V145.814C57.1002 139.709 62.0492 134.76 68.1538 134.76H216.082C222.187 134.76 227.136 139.709 227.136 145.814V217.187H283.916V0H227.136V71.3733C227.136 77.4779 222.187 82.4269 216.082 82.4269Z" fill="#FFFFFF"/>
                 </svg>
               </div>
-              <button className="connect-modal-close" onClick={closeModal}>
+              <button className="hyle-modal-close" onClick={closeModal}>
                 &times;
               </button>
             </div>
 
-            {/* Provider selection */}
             {selectedProvider === null && (
               <div className="provider-selection">
                 <h2>Sign in</h2>
                 <div className="provider-list">
-                  {providerList.map(renderProviderButton)}
+                  {(providers ?? availableProviders).map(renderProviderButton)}
                 </div>
               </div>
             )}
 
-            {/* Password provider flow */}
-            {selectedProvider === 'password' && (
+            {selectedProvider && (
               <div className="password-provider-flow">
                 {showLogin ? (
                   <>
                     <h2 className="auth-title">Log in</h2>
-                    <LoginWallet onWalletLoggedIn={handleWalletConnected} />
+                    <AuthForm
+                      provider={authProviderManager.getProvider(selectedProvider)!}
+                      mode="login"
+                    />
                     <button
                       className="switch-auth-button"
                       onClick={() => setShowLogin(false)}
@@ -165,7 +177,10 @@ export const ConnectWallet = ({
                 ) : (
                   <>
                     <h2 className="auth-title">Create account</h2>
-                    <CreateWallet onWalletCreated={handleWalletConnected} />
+                    <AuthForm
+                      provider={authProviderManager.getProvider(selectedProvider)!}
+                      mode="register"
+                    />
                     <button
                       className="switch-auth-button"
                       onClick={() => setShowLogin(true)}
@@ -176,19 +191,9 @@ export const ConnectWallet = ({
                 )}
               </div>
             )}
-
-            {/* Stub for other providers */}
-            {selectedProvider && selectedProvider !== 'password' && (
-              <div className="provider-coming-soon">
-                <h2>{selectedProvider} provider coming soon!</h2>
-                <button className="back-to-providers" onClick={() => setSelectedProvider(null)}>
-                  Back to providers
-                </button>
-              </div>
-            )}
           </div>
         </div>
       )}
     </>
   );
-}; 
+};

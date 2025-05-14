@@ -1,4 +1,4 @@
-import { Transaction } from 'hyle-wallet';
+import { Transaction } from "../types/wallet";
 
 export interface AppEvent {
   TxEvent: {

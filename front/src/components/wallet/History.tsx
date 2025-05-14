@@ -1,4 +1,4 @@
-import { Transaction } from '../../types/wallet';
+import { Transaction } from 'hyle-wallet';
 
 interface HistoryProps {
   transactions: Transaction[];
