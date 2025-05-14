@@ -1,8 +1,10 @@
 import EC from 'elliptic';
 import { SHA256 } from 'crypto-js';
-import { Secp256k1Blob, serializeIdentityAction, serializeSecp256k1Blob, WalletAction, walletContractName } from '../types/wallet';
+import { addSessionKey, Secp256k1Blob, serializeIdentityAction, serializeSecp256k1Blob, WalletAction, walletContractName } from '../types/wallet';
+import { build_proof_transaction, build_blob as check_secret_blob } from 'hyle-check-secret';
 import { Buffer } from 'buffer';
-import { Blob } from "hyle";
+import { Blob, BlobTransaction } from "hyle";
+import { nodeService } from './NodeService';
 
 export class SessionKeyService {
   private ec: EC.ec;
@@ -26,6 +28,41 @@ export class SessionKeyService {
     }
 
     return [publicKey, privateKey];
+  }
+
+  async registerSessionKey(accountName: string, password: string, expiration: number, privateKey: string): Promise<[string, string]> {
+    const keyPair = this.ec.keyFromPrivate(privateKey);
+    const publicKey = keyPair.getPublic(true, 'hex');
+    if (!publicKey) {
+      throw new Error('Failed to derive public key from private key');
+    }
+    try {
+      const identity = `${accountName}@${walletContractName}`;
+      const blob0 = await check_secret_blob(identity, password);
+      const blob1 = addSessionKey(identity, publicKey, expiration);
+
+      const blobTx: BlobTransaction = {
+        identity,
+        blobs: [blob0, blob1],
+      };
+
+      // Send transaction to add session key
+      const blobTxHash = await nodeService.client.sendBlobTx(blobTx);
+
+      const proofTx = await build_proof_transaction(
+        identity,
+        password,
+        blobTxHash,
+        0,
+        blobTx.blobs.length,
+      );
+
+      const proofTxHash = await nodeService.client.sendProofTx(proofTx);
+      return [blobTxHash, proofTxHash];
+    } catch (error) {
+      console.error('Failed to initialize session key:', error);
+      throw error;
+    }
   }
 
   getSignedBlob(identity: string, message: string, privateKey: string): Secp256k1Blob {
