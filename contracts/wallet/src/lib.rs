@@ -19,8 +19,8 @@ impl sdk::ZkContract for Wallet {
                 nonce,
                 auth_method,
             } => self.handle_registration(account, nonce, auth_method, calldata)?,
-            WalletAction::UseSessionKey { account, message } => {
-                self.handle_session_key_usage(account, message, calldata)?
+            WalletAction::UseSessionKey { account, nonce } => {
+                self.handle_session_key_usage(account, nonce, calldata)?
             }
             _ => self.handle_authenticated_action(action, calldata)?,
         };
@@ -112,12 +112,12 @@ impl Wallet {
     fn handle_session_key_usage(
         &mut self,
         account: String,
-        message: String,
+        nonce: u128,
         calldata: &sdk::Calldata,
     ) -> Result<String, String> {
-        let secp256k1blob = CheckSecp256k1::new(calldata, message.as_bytes()).expect()?;
+        let secp256k1blob = CheckSecp256k1::new(calldata, nonce.to_string().as_bytes()).expect()?;
         let public_key = hex::encode(secp256k1blob.public_key);
-        self.use_session_key(account, public_key, calldata)
+        self.use_session_key(account, public_key, calldata, nonce)
     }
 
     fn handle_authenticated_action(
@@ -244,6 +244,7 @@ impl Wallet {
         account: String,
         public_key: String,
         calldata: &sdk::Calldata,
+        nonce: u128,
     ) -> Result<String, String> {
         let Some(tx_ctx) = &calldata.tx_ctx else {
             return Err("tx_ctx is missing".to_string());
@@ -276,8 +277,7 @@ impl Wallet {
                         }
                     }
                     if session_key.expiration_date > tx_ctx.timestamp {
-                        // Increment nonce during use
-                        session_key.nonce += 1;
+                        session_key.nonce = nonce;
                         return Ok("Session key is valid".to_string());
                     } else {
                         return Err("Session key expired".to_string());
@@ -332,7 +332,7 @@ pub enum WalletAction {
     },
     UseSessionKey {
         account: String,
-        message: String,
+        nonce: u128,
     },
 }
 

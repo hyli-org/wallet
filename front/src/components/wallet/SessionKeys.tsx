@@ -185,7 +185,7 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
       if (!privateKey) {
         throw new Error('Private key not found in local storage');
       }
-      const [blob0, blob1] = createSignedBlobs(wallet.username, privateKey, "Hello world!");
+      const [blob0, blob1] = createSignedBlobs(wallet.username, privateKey);
 
       const blobTx: BlobTransaction = {
         identity,
@@ -295,7 +295,7 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
                     Expires: {new Date(key.expiration_date).toLocaleDateString()}
                   </span>
                   <span className="key-nonce">
-                    Uses: {key.nonce}
+                    Nonce: {key.nonce}
                   </span>
                 </div>
                 <button

@@ -65,8 +65,8 @@ export class SessionKeyService {
     }
   }
 
-  getSignedBlob(identity: string, message: string, privateKey: string): Secp256k1Blob {
-    const hash = SHA256(message);
+  getSignedBlob(identity: string, nonce: number, privateKey: string): Secp256k1Blob {
+    const hash = SHA256(nonce.toString());
     const hashBytes = Buffer.from(hash.toString(), 'hex');
 
     if (hashBytes.length !== 32) {
@@ -95,15 +95,15 @@ export class SessionKeyService {
     return secp256k1Blob;
   }
 
-  useSessionKey(account: string, privateKey: string, message: string): [Blob, Blob] {
+  useSessionKey(account: string, privateKey: string, nonce: number): [Blob, Blob] {
     const publicKey = this.ec.keyFromPrivate(privateKey).getPublic(true, 'hex');
 
     const action: WalletAction = {
-      UseSessionKey: { account, key: publicKey, message }
+      UseSessionKey: { account, key: publicKey, nonce }
     };
 
     const identity = `${account}@${walletContractName}`;
-    const secp256k1Blob: Secp256k1Blob = this.getSignedBlob(identity, message, privateKey);
+    const secp256k1Blob: Secp256k1Blob = this.getSignedBlob(identity, nonce, privateKey);
     const blob0: Blob = {
       contract_name: "secp256k1",
       data: serializeSecp256k1Blob(secp256k1Blob),

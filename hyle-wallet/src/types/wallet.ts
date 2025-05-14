@@ -72,16 +72,9 @@ export type WalletAction =
       UseSessionKey: {
         account: string;
         key: string;
-        message: string;
+        nonce: number;
       };
     }
-  | {
-      UseSessionKey: {
-        account: string;
-        key: string;
-        message: string;
-      };
-    };
 
 //
 // Builders
@@ -201,6 +194,6 @@ const schema = BorshSchema.Enum({
   }),
 UseSessionKey: BorshSchema.Struct({
     account: BorshSchema.String,
-    message: BorshSchema.String,
+    nonce: BorshSchema.u128,
   }),
 });
