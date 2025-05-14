@@ -95,8 +95,9 @@ export class SessionKeyService {
     return secp256k1Blob;
   }
 
-  useSessionKey(account: string, privateKey: string, nonce: number): [Blob, Blob] {
+  useSessionKey(account: string, privateKey: string): [Blob, Blob] {
     const publicKey = this.ec.keyFromPrivate(privateKey).getPublic(true, 'hex');
+    let nonce = Date.now();
 
     const action: WalletAction = {
       UseSessionKey: { account, key: publicKey, nonce }
