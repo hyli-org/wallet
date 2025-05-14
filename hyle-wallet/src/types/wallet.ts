@@ -59,6 +59,7 @@ export type WalletAction =
         account: string;
         key: string;
         expiration: number;
+        whitelist: string[];
       };
     }
   | {
@@ -113,9 +114,9 @@ export const verifyIdentity = (account: string, nonce: number): Blob => {
   return blob;
 };
 
-export const addSessionKey = (account: string, key: string, expiration: number): Blob => {
+export const addSessionKey = (account: string, key: string, expiration: number, whitelist: string[] = []): Blob => {
   const action: WalletAction = {
-    AddSessionKey: { account, key, expiration }
+    AddSessionKey: { account, key, expiration, whitelist }
   };
   const blob: Blob = {
     contract_name: walletContractName,
@@ -192,6 +193,7 @@ const schema = BorshSchema.Enum({
     account: BorshSchema.String,
     key: BorshSchema.String,
     expiration: BorshSchema.u128,
+    whitelist: BorshSchema.Vec(BorshSchema.String),
   }),
   RemoveSessionKey: BorshSchema.Struct({
     account: BorshSchema.String,

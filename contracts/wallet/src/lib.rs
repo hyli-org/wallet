@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use borsh::{io::Error, BorshDeserialize, BorshSerialize};
 #[cfg(feature = "client")]
 use client_sdk::contract_indexer::utoipa;
-use sdk::{hyle_model_utils::TimestampMs, secp256k1::CheckSecp256k1, RunResult, TxContext};
+use sdk::{hyle_model_utils::TimestampMs, secp256k1::CheckSecp256k1, ContractName, RunResult};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "client")]
@@ -61,6 +61,7 @@ pub struct SessionKey {
     pub public_key: String,
     pub expiration_date: TimestampMs,
     pub nonce: u128,
+    pub whitelist: Vec<ContractName>,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -116,7 +117,7 @@ impl Wallet {
     ) -> Result<String, String> {
         let secp256k1blob = CheckSecp256k1::new(calldata, message.as_bytes()).expect()?;
         let public_key = hex::encode(secp256k1blob.public_key);
-        self.use_session_key(account, public_key, &calldata.tx_ctx)
+        self.use_session_key(account, public_key, calldata)
     }
 
     fn handle_authenticated_action(
@@ -141,7 +142,8 @@ impl Wallet {
                 account,
                 key,
                 expiration_date,
-            } => self.add_session_key(account, key, expiration_date),
+                whitelist,
+            } => self.add_session_key(account, key, expiration_date, whitelist),
             WalletAction::RemoveSessionKey { account, key } => {
                 self.remove_session_key(account, key)
             }
@@ -195,6 +197,7 @@ impl Wallet {
         account: String,
         key: String,
         expiration_date: u128,
+        whitelist: Vec<ContractName>,
     ) -> Result<String, String> {
         let stored_info = self
             .identities
@@ -212,7 +215,8 @@ impl Wallet {
         stored_info.session_keys.push(SessionKey {
             public_key: key,
             expiration_date: TimestampMs(expiration_date),
-            nonce: 0, // Initialize nonce to 0
+            nonce: 0, // Initialize nonce at 0
+            whitelist,
         });
         stored_info.nonce += 1;
         Ok("Session key added".to_string())
@@ -239,11 +243,15 @@ impl Wallet {
         &mut self,
         account: String,
         public_key: String,
-        tx_ctx: &Option<TxContext>,
+        calldata: &sdk::Calldata,
     ) -> Result<String, String> {
-        let Some(tx_ctx) = tx_ctx else {
+        let Some(tx_ctx) = &calldata.tx_ctx else {
             return Err("tx_ctx is missing".to_string());
         };
+        // Check that all blobs of the transaction are in the Calldata
+        if calldata.blobs.len() != calldata.tx_blob_count {
+            return Err("All blobs should be in the Calldata for whitelist validation".to_string());
+        }
         match self.identities.get_mut(&account) {
             Some(stored_info) => {
                 if let Some(session_key) = stored_info
@@ -251,6 +259,22 @@ impl Wallet {
                     .iter_mut()
                     .find(|sk| sk.public_key == public_key)
                 {
+                    // Check if all blobs in the transaction context are whitelisted
+                    for (index, blob) in &calldata.blobs {
+                        if index == &calldata.index {
+                            continue; // Skip the blob for this contract
+                        }
+                        if blob.contract_name.0 == "secp256k1" {
+                            continue; // Skip the secp256k1 blob
+                        }
+                        if !session_key
+                            .whitelist
+                            .iter()
+                            .any(|contract_name| contract_name.0 == blob.contract_name.0)
+                        {
+                            return Err("Blob not whitelisted".to_string());
+                        }
+                    }
                     if session_key.expiration_date > tx_ctx.timestamp {
                         // Increment nonce during use
                         session_key.nonce += 1;
@@ -300,6 +324,7 @@ pub enum WalletAction {
         account: String,
         key: String,
         expiration_date: u128,
+        whitelist: Vec<ContractName>,
     },
     RemoveSessionKey {
         account: String,
