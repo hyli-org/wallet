@@ -73,7 +73,7 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
       const identity = `${wallet.username}@${walletContractName}`;
       const blob0 = await check_secret_blob(identity, password);
       const expiration = Date.now() + (days * 24 * 60 * 60 * 1000);
-      const blob1 = addSessionKey(wallet.username, publicKey, expiration);
+      const blob1 = addSessionKey(wallet.username, publicKey, expiration, ["hyllar"]);
 
       const blobTx: BlobTransaction = {
         identity,
