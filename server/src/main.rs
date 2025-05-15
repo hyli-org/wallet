@@ -6,6 +6,7 @@ use client_sdk::{
     helpers::risc0::Risc0Prover,
     rest_client::{IndexerApiHttpClient, NodeApiHttpClient},
 };
+use conf::Conf;
 use history::{HistoryEvent, HyllarHistory};
 use hyle_modules::{
     bus::{metrics::BusMetrics, SharedMessageBus},
@@ -17,7 +18,7 @@ use hyle_modules::{
         websocket::WebSocketModule,
         BuildApiContextInner, ModulesHandler,
     },
-    utils::{conf, logger::setup_tracing},
+    utils::logger::setup_tracing,
 };
 
 use prometheus::Registry;
@@ -27,6 +28,7 @@ use tracing::error;
 use wallet::{client::indexer::WalletEvent, Wallet};
 
 mod app;
+mod conf;
 mod history;
 mod init;
 
@@ -34,7 +36,7 @@ mod init;
 #[command(version, about, long_about = None)]
 pub struct Args {
     #[arg(long, default_value = "config.toml")]
-    pub config_file: Option<String>,
+    pub config_file: Vec<String>,
 
     #[arg(long, default_value = "wallet")]
     pub wallet_cn: String,
@@ -43,8 +45,7 @@ pub struct Args {
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
-    let config =
-        conf::Conf::new(args.config_file, None, Some(true)).context("reading config file")?;
+    let config = Conf::new(args.config_file).context("reading config file")?;
 
     setup_tracing(
         &config.log_format,
@@ -127,6 +128,7 @@ async fn main() -> Result<()> {
             prover: Arc::new(Risc0Prover::new(contracts::WALLET_ELF)),
             contract_name: contract_name.clone(),
             node: app_ctx.node_client.clone(),
+            default_state: Wallet::default(),
         }))
         .await?;
     handler
@@ -138,13 +140,12 @@ async fn main() -> Result<()> {
             )),
             contract_name: "hyllar".into(),
             node: app_ctx.node_client.clone(),
+            default_state: hyle_hyllar::Hyllar::default(),
         }))
         .await?;
 
     handler
-        .build_module::<WebSocketModule<AppWsInMessage, AppOutWsEvent>>(
-            config.websocket.clone().into(),
-        )
+        .build_module::<WebSocketModule<AppWsInMessage, AppOutWsEvent>>(config.websocket.clone())
         .await?;
 
     // This module connects to the da_address and receives all the blocks²

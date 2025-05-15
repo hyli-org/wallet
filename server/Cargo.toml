@@ -11,6 +11,7 @@ hyle-modules = { workspace = true }
 # Remove features if you want reproducible builds with docker
 contracts = { workspace = true, features = ["nonreproducible", "all"] }
 
+config = { version = "0.15.11", default-features = false, features = ["toml"] }
 borsh = "1.5.7"
 axum = "0.8.3"
 tokio = { version = "1", features = ["full"] }
