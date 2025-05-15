@@ -7,10 +7,10 @@ members = ["contracts", "contracts/wallet", "server"]
 # client-sdk = { default-features = false, package = "hyle-client-sdk", version = "0.13.0-rc.4" }
 # hyle = { version = "0.13.0-rc.4" }
 
-sdk = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-contract-sdk", branch = "fix/da_listener_ordering" }
-client-sdk = { git = "https://github.com/Hyle-org/hyle.git", default-features = false, package = "hyle-client-sdk", branch = "fix/da_listener_ordering" }
-hyle-hyllar = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-hyllar", branch = "fix/da_listener_ordering" }
-hyle-modules = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-modules", branch = "fix/da_listener_ordering" }
+sdk = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-contract-sdk", branch = "main" }
+client-sdk = { git = "https://github.com/Hyle-org/hyle.git", default-features = false, package = "hyle-client-sdk", branch = "main" }
+hyle-hyllar = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-hyllar", branch = "main" }
+hyle-modules = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-modules", branch = "main" }
 
 contracts = { path = "contracts", default-features = false, package = "contracts" }
 wallet = { path = "contracts/wallet", package = "wallet" }

@@ -163,6 +163,7 @@ async fn main() -> Result<()> {
             prover: Arc::new(Risc0Prover::new(contracts::WALLET_ELF)),
             contract_name: contract_name.clone(),
             node: app_ctx.node_client.clone(),
+            default_state: Default::default(),
         }))
         .await?;
     handler
@@ -174,6 +175,7 @@ async fn main() -> Result<()> {
             )),
             contract_name: "hyllar".into(),
             node: app_ctx.node_client.clone(),
+            default_state: Default::default(),
         }))
         .await?;
 
