@@ -23,7 +23,10 @@ use hyle_modules::{
 
 use prometheus::Registry;
 use sdk::{api::NodeInfo, info, ContractName, ZkContract};
-use std::{env, sync::Arc};
+use std::{
+    env,
+    sync::{Arc, Mutex},
+};
 use tracing::error;
 use wallet::{client::indexer::WalletEvent, Wallet};
 
@@ -90,15 +93,15 @@ async fn main() -> Result<()> {
 
     let mut handler = ModulesHandler::new(&bus).await;
 
-    let build_api_ctx = Arc::new(BuildApiContextInner {
-        router: std::sync::Mutex::new(Some(Router::new())),
-        openapi: std::sync::Mutex::new(Default::default()),
+    let api_ctx = Arc::new(BuildApiContextInner {
+        router: Mutex::new(Some(Router::new())),
+        openapi: Default::default(),
     });
 
     let app_ctx = Arc::new(AppModuleCtx {
+        api: api_ctx.clone(),
         node_client,
         wallet_cn: contract_name.clone(),
-        api: build_api_ctx.clone(),
     });
     let start_height = app_ctx.node_client.get_block_height().await?;
 
@@ -108,7 +111,7 @@ async fn main() -> Result<()> {
         .build_module::<ContractStateIndexer<Wallet, WalletEvent>>(ContractStateIndexerCtx {
             contract_name: contract_name.clone(),
             data_directory: config.data_directory.clone(),
-            api: build_api_ctx.clone(),
+            api: api_ctx.clone(),
         })
         .await?;
     handler
@@ -116,7 +119,7 @@ async fn main() -> Result<()> {
             ContractStateIndexerCtx {
                 contract_name: "hyllar".into(),
                 data_directory: config.data_directory.clone(),
-                api: build_api_ctx.clone(),
+                api: api_ctx.clone(),
             },
         )
         .await?;
@@ -128,7 +131,7 @@ async fn main() -> Result<()> {
             prover: Arc::new(Risc0Prover::new(contracts::WALLET_ELF)),
             contract_name: contract_name.clone(),
             node: app_ctx.node_client.clone(),
-            default_state: Wallet::default(),
+            default_state: Default::default(),
         }))
         .await?;
     handler
@@ -140,7 +143,7 @@ async fn main() -> Result<()> {
             )),
             contract_name: "hyllar".into(),
             node: app_ctx.node_client.clone(),
-            default_state: hyle_hyllar::Hyllar::default(),
+            default_state: Default::default(),
         }))
         .await?;
 
@@ -151,22 +154,22 @@ async fn main() -> Result<()> {
     // This module connects to the da_address and receives all the blocks²
     handler
         .build_module::<DAListener>(DAListenerConf {
+            start_block: None,
             data_directory: config.data_directory.clone(),
             da_read_from: config.da_read_from.clone(),
-            start_block: None,
         })
         .await?;
 
     // Should come last so the other modules have nested their own routes.
     #[allow(clippy::expect_used, reason = "Fail on misconfiguration")]
-    let router = build_api_ctx
+    let router = api_ctx
         .router
         .lock()
         .expect("Context router should be available.")
         .take()
         .expect("Context router should be available.");
     #[allow(clippy::expect_used, reason = "Fail on misconfiguration")]
-    let openapi = build_api_ctx
+    let openapi = api_ctx
         .openapi
         .lock()
         .expect("OpenAPI should be available")

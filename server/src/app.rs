@@ -30,9 +30,9 @@ pub struct AppModule {
 }
 
 pub struct AppModuleCtx {
+    pub api: Arc<BuildApiContextInner>,
     pub node_client: Arc<NodeApiHttpClient>,
     pub wallet_cn: ContractName,
-    pub api: Arc<BuildApiContextInner>,
 }
 
 /// Messages received from WebSocket clients that will be processed by the system
