@@ -10,6 +10,7 @@ COPY ./contracts/ ./contracts
 COPY ./server ./server
 COPY Cargo.toml . 
 COPY Cargo.lock .
+COPY config.toml .
 
 RUN cargo build --bin server
 
