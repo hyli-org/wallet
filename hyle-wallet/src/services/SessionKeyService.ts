@@ -30,7 +30,7 @@ export class SessionKeyService {
     return [publicKey, privateKey];
   }
 
-  async registerSessionKey(accountName: string, password: string, expiration: number, privateKey: string): Promise<[string, string]> {
+  async registerSessionKey(accountName: string, password: string, expiration: number, privateKey: string, whitelist: string[]): Promise<[string, string]> {
     const keyPair = this.ec.keyFromPrivate(privateKey);
     const publicKey = keyPair.getPublic(true, 'hex');
     if (!publicKey) {
@@ -39,7 +39,7 @@ export class SessionKeyService {
     try {
       const identity = `${accountName}@${walletContractName}`;
       const blob0 = await check_secret_blob(identity, password);
-      const blob1 = addSessionKey(identity, publicKey, expiration);
+      const blob1 = addSessionKey(accountName, publicKey, expiration, whitelist);
 
       const blobTx: BlobTransaction = {
         identity,

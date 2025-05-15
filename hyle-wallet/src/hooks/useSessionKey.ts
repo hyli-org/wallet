@@ -8,8 +8,8 @@ export const useSessionKey = () => {
     return sessionKeyService.generateSessionKey();
   }, []);
 
-  const registerSessionKey = useCallback((accountName: string, password: string, expiration: number, privateKey: string) => {
-    sessionKeyService.registerSessionKey(accountName, password, expiration, privateKey)
+  const registerSessionKey = useCallback((accountName: string, password: string, expiration: number, privateKey: string, whitelist: string[]) => {
+    sessionKeyService.registerSessionKey(accountName, password, expiration, privateKey, whitelist)
   }, []);
 
   const clearSessionKey = useCallback((publicKey: string) => {

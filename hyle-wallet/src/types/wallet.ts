@@ -107,7 +107,7 @@ export const verifyIdentity = (account: string, nonce: number): Blob => {
   return blob;
 };
 
-export const addSessionKey = (account: string, key: string, expiration: number, whitelist: string[] = []): Blob => {
+export const addSessionKey = (account: string, key: string, expiration: number, whitelist: string[]): Blob => {
   const action: WalletAction = {
     AddSessionKey: { account, key, expiration, whitelist }
   };

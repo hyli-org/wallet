@@ -133,7 +133,7 @@ impl Wallet {
         };
 
         // Verify identity before executing the action
-        let stored_info = self.identities.get(account).ok_or("Identity not found")?;
+        let stored_info = self.identities.get(account).ok_or(format!("Identity not found: {account}, identities: {:?}", self.identities))?;
         stored_info.auth_method.verify(calldata)?;
 
         match action {
@@ -273,7 +273,7 @@ impl Wallet {
                             .iter()
                             .any(|contract_name| contract_name.0 == blob.contract_name.0)
                         {
-                            return Err("Blob not whitelisted".to_string());
+                            return Err(format!("Blob: {} not whitelisted", blob.contract_name.0));
                         }
                     }
                     if session_key.expiration_date > tx_ctx.timestamp {
