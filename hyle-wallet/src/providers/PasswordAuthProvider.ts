@@ -1,7 +1,7 @@
 import { Buffer } from 'buffer';
 import { AuthProvider, AuthCredentials, AuthResult, AuthEvents } from './BaseAuthProvider';
 import { Wallet, registerBlob, verifyIdentityBlob, walletContractName } from '../types/wallet';
-import { nodeService } from '../services/NodeService';
+import { NodeService } from '../services/NodeService';
 import { webSocketService } from '../services/WebSocketService';
 import { build_proof_transaction, build_blob as check_secret_blob, register_contract } from 'hyle-check-secret';
 import { BlobTransaction } from 'hyle';
@@ -20,6 +20,7 @@ export class PasswordAuthProvider implements AuthProvider {
   }
 
   async login(credentials: PasswordAuthCredentials, events: AuthEvents): Promise<AuthResult> {
+    const nodeService = NodeService.getInstance();
     try {
       const { username, password } = credentials;
       const { onTransaction } = events;
@@ -95,6 +96,7 @@ export class PasswordAuthProvider implements AuthProvider {
   }
 
   async register(credentials: PasswordAuthCredentials, events: AuthEvents): Promise<AuthResult> {
+    const nodeService = NodeService.getInstance();
     try {
       const { username, password, confirmPassword } = credentials;
       const { onTransaction } = events;

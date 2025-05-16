@@ -12,7 +12,7 @@ import {
 import { sessionKeyService } from './SessionKeyService';
 import { build_proof_transaction, build_blob as check_secret_blob } from 'hyle-check-secret';
 import { Blob, BlobTransaction } from 'hyle';
-import { nodeService } from './NodeService';
+import { NodeService } from './NodeService';
 
 /**
  * Registers a new session key in the wallet and sends transactions to register it. 
@@ -33,6 +33,8 @@ export const registerSessionKey = async (
   txHashes: [string, string];
   updatedWallet: Wallet;
 }> => {
+  const nodeService = NodeService.getInstance();
+
   // Create the new session key
   const newSessionKey = sessionKeyService.generateSessionKey(expiration, whitelist);
   const accountName = wallet.username;
@@ -98,6 +100,8 @@ export const removeSessionKey = async (
   txHashes: [string, string];
   updatedWallet: Wallet;
 }> => {
+  const nodeService = NodeService.getInstance();
+  
   const accountName = wallet.username;
   
   // Remove the session key with the service

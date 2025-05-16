@@ -3,7 +3,6 @@ import ReactDOM from 'react-dom';
 import { authProviderManager } from '../providers/AuthProviderManager';
 import { AuthForm } from './auth/AuthForm';
 import './HyleWallet.css';
-import { useConfig } from '../hooks/useConfig';
 import type { ProviderOption } from '../hooks/useWallet';
 import { useWallet } from '../hooks/useWallet';
 
@@ -56,8 +55,7 @@ export const HyleWallet = ({
   const [isOpen, setIsOpen] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<ProviderOption | null>(null);
   const [showLogin, setShowLogin] = useState(true); // true = login (default), false = create/sign-up
-  const { isLoading: isLoadingConfig, error: configError } = useConfig();
-  const { wallet, logout } = useWallet();
+  const { wallet, logout, isLoading, error } = useWallet();
 
   const handleButtonClick = () => {
     if (wallet) {
@@ -82,14 +80,6 @@ export const HyleWallet = ({
     setSelectedProvider(null);
     setShowLogin(true);
   };
-
-  if (isLoadingConfig) {
-    return <div>Loading configuration...</div>;
-  }
-
-  if (configError) {
-    return <div>Error loading configuration: {configError}</div>;
-  }
 
   const renderProviderButton = (providerType: ProviderOption) => {
     const provider = authProviderManager.getProvider(providerType);

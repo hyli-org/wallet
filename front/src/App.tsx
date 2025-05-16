@@ -7,12 +7,10 @@ import { useWalletTransactions } from './hooks/useWalletTransactions';
 import { useWebSocketConnection } from './hooks/useWebSocketConnection';
 import { getPublicRoutes, getProtectedRoutes, ROUTES } from './routes/routes';
 import { WalletProvider, useWallet } from 'hyle-wallet';
-import { useConfig } from 'hyle-wallet';
 import { LoadingErrorState } from './components/common/LoadingErrorState';
 import { WebSocketProvider } from './providers/WebSocketProvider';
 
 function AppContent() {
-  const { isLoading: isLoadingConfig, error: configError } = useConfig();
   const { wallet, logout, stage, error } = useWallet();
   const navigate = useNavigate();
   
@@ -44,12 +42,8 @@ function AppContent() {
     navigate(ROUTES.ROOT);
   };
 
-  if (isLoadingConfig) {
-    return <LoadingErrorState isLoading={true} error={null} loadingMessage="Loading configuration..." />;
-  }
-
-  if (configError) {
-    return <LoadingErrorState isLoading={false} error={`Error loading configuration: ${configError}`} />;
+  if (error) {
+    return <LoadingErrorState isLoading={false} error={error} />;
   }
 
   // If wallet is not connected, show the showcase screen
@@ -83,7 +77,11 @@ function AppContent() {
 export default function App() {
   return (
     <BrowserRouter>
-      <WalletProvider>
+      <WalletProvider config={{
+        nodeBaseUrl: import.meta.env.VITE_NODE_BASE_URL,
+        walletServerBaseUrl: import.meta.env.VITE_WALLET_SERVER_BASE_URL,
+        applicationWsUrl: import.meta.env.VITE_WALLET_WS_URL
+      }}>
         <WebSocketProvider>
           <AppContent />
         </WebSocketProvider>

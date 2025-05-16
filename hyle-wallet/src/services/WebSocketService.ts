@@ -1,4 +1,5 @@
 import { Transaction } from "../types/wallet";
+import { ConfigService } from "./ConfigService";
 
 export interface AppEvent {
   TxEvent: {
@@ -19,6 +20,8 @@ type TxEventCallback = (event: AppEvent["TxEvent"]) => void;
 type WalletEventCallback = (event: AppEvent["WalletEvent"]) => void;
 
 export class WebSocketService {
+  private static instance: WebSocketService | null = null;
+  // private applicationWsUrl: string;
   private ws: WebSocket | null = null;
   private txEventCallbacks: TxEventCallback[] = [];
   private walletEventCallbacks: WalletEventCallback[] = [];
@@ -27,7 +30,14 @@ export class WebSocketService {
   private reconnectTimeout: number = 1000; // Base timeout for exponential backoff
   private currentAccount: string | null = null;
 
-  constructor() {}
+  private constructor() {}
+
+  static getInstance(): WebSocketService {
+    if (!WebSocketService.instance) {
+      WebSocketService.instance = new WebSocketService();
+    }
+    return WebSocketService.instance;
+  }
 
   connect(account: string) {
     if (this.ws) {
@@ -67,7 +77,8 @@ export class WebSocketService {
     // If it was Case 1b (same account path), this.currentAccount is still correct.
     this.currentAccount = account;
     console.log(`Attempting to connect WebSocket for account: ${account}`);
-    this.ws = new WebSocket(import.meta.env.VITE_WALLET_WS_URL);
+    const config = ConfigService.getConfig();
+    this.ws = new WebSocket(config.applicationWsUrl);
 
     this.ws.onopen = () => {
       console.log(`WebSocket connected for account: ${this.currentAccount}`);
@@ -173,5 +184,5 @@ export class WebSocketService {
   }
 }
 
-export const webSocketService = new WebSocketService();
+export const webSocketService = WebSocketService.getInstance();
 

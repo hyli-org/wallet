@@ -25,11 +25,7 @@ export interface Wallet {
 import { borshSerialize, BorshSchema, borshDeserialize } from "borsher";
 import { Blob } from "hyle";
 
-export let walletContractName = "wallet"; // Default value that will be updated
-
-export const setWalletContractName = (name: string) => {
-  walletContractName = name;
-};
+export let walletContractName = "wallet";
 
 //
 // Types

@@ -1,12 +1,13 @@
 // useWallet hook and WalletProvider implementation
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { useConfig } from './useConfig';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { storeWallet, type Wallet, type SessionKey, type TransactionCallback } from '../types/wallet';
 import type { AuthCredentials } from '../providers/BaseAuthProvider';
 import { authProviderManager } from '../providers/AuthProviderManager';
 import { AuthStage } from '../types/login';
 import * as WalletOperations from '../services/WalletOperations';
 import { Blob } from 'hyle';
+import { ConfigService } from '../services/ConfigService';
+import { NodeService } from '../services/NodeService';
 
 export type ProviderOption = 'password' | 'google' | 'github' | 'x';
 
@@ -35,21 +36,45 @@ interface WalletContextType {
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
-export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isLoading: isConfigLoading, error: configError } = useConfig();
+interface WalletProviderProps {
+  children: React.ReactNode;
+  config: {
+    nodeBaseUrl: string;
+    walletServerBaseUrl: string;
+    applicationWsUrl: string;
+  };
+}
+
+export const WalletProvider: React.FC<WalletProviderProps> = ({ children, config }) => {
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [wallet, setWallet] = useState<Wallet | null>(() => {
     const storedWallet = localStorage.getItem('wallet');
     return storedWallet ? JSON.parse(storedWallet) : null;
   });
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(configError);
   const [stage, setStage] = useState<AuthStage>('idle');
 
+  // Initialize config and services on mount
+  useEffect(() => {
+    const initConfig = async () => {
+      try {
+        ConfigService.initialize(config);
+        NodeService.initialize(config.nodeBaseUrl);
+        setIsLoading(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load configuration');
+        setIsLoading(false);
+      }
+    };
+
+    initConfig();
+  }, [config]);
+
   // Block wallet operations if config isn't loaded
-  const isWalletReady = !isConfigLoading && !configError;
+  const isWalletReady = !isLoading && !error;
 
   // Persist wallet when updated
-  React.useEffect(() => {
+  useEffect(() => {
     if (wallet) {
       storeWallet(wallet);
     }
@@ -261,7 +286,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     <WalletContext.Provider 
       value={{ 
         wallet, 
-        isLoading: isLoading || isConfigLoading, 
+        isLoading, 
         error, 
         stage, 
         login, 

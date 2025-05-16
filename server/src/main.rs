@@ -58,13 +58,6 @@ async fn main() -> Result<()> {
 
     let config = Arc::new(config);
 
-    let contract_name: ContractName = format!(
-        "{}-{}",
-        args.wallet_cn.clone(),
-        &hex::encode(contracts::WALLET_ID)[..5]
-    )
-    .into();
-
     info!("Starting app with config: {:?}", &config);
 
     let node_url = env::var("NODE_URL").unwrap_or_else(|_| "http://localhost:4321".to_string());
@@ -74,8 +67,10 @@ async fn main() -> Result<()> {
     let indexer_client =
         Arc::new(IndexerApiHttpClient::new(indexer_url).context("build indexer client")?);
 
+    let wallet_cn: ContractName = args.wallet_cn.clone().into();
+
     let contracts = vec![init::ContractInit {
-        name: contract_name.clone(),
+        name: wallet_cn.clone(),
         program_id: contracts::WALLET_ID,
         initial_state: Wallet::default().commit(),
     }];
@@ -101,7 +96,7 @@ async fn main() -> Result<()> {
     let app_ctx = Arc::new(AppModuleCtx {
         api: api_ctx.clone(),
         node_client,
-        wallet_cn: contract_name.clone(),
+        wallet_cn: wallet_cn.clone(),
     });
     let start_height = app_ctx.node_client.get_block_height().await?;
 
@@ -109,7 +104,7 @@ async fn main() -> Result<()> {
 
     handler
         .build_module::<ContractStateIndexer<Wallet, WalletEvent>>(ContractStateIndexerCtx {
-            contract_name: contract_name.clone(),
+            contract_name: wallet_cn.clone(),
             data_directory: config.data_directory.clone(),
             api: api_ctx.clone(),
         })
@@ -129,7 +124,7 @@ async fn main() -> Result<()> {
             start_height,
             data_directory: config.data_directory.clone(),
             prover: Arc::new(Risc0Prover::new(contracts::WALLET_ELF)),
-            contract_name: contract_name.clone(),
+            contract_name: wallet_cn.clone(),
             node: app_ctx.node_client.clone(),
             default_state: Default::default(),
         }))
