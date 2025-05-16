@@ -70,14 +70,12 @@ export const HyleWallet = ({
   // Get available providers dynamically
   const availableProviders = authProviderManager.getAvailableProviders() as ProviderOption[];
 
-  // Close the modal automatically if the user is connected (e.g., via session restoration)
+  // Close the modal automatically when the user is connected 
   useEffect(() => {
     if (wallet && isOpen) {
       setIsOpen(false);
-      setSelectedProvider(null); // Reset for next time
-      setShowLogin(true);      // Reset for next time
     }
-  }, [wallet, isOpen, setSelectedProvider, setShowLogin]);
+  }, [wallet, isOpen]);
 
   const closeModal = () => {
     setIsOpen(false);
