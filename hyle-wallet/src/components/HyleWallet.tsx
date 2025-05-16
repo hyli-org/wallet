@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { authProviderManager } from '../providers/AuthProviderManager';
 import { AuthForm } from './auth/AuthForm';
@@ -70,19 +70,21 @@ export const HyleWallet = ({
   // Get available providers dynamically
   const availableProviders = authProviderManager.getAvailableProviders() as ProviderOption[];
 
-  // Close the modal automatically when the user is connected
+  // Close the modal automatically if the user is connected (e.g., via session restoration)
   useEffect(() => {
     if (wallet && isOpen) {
       setIsOpen(false);
+      setSelectedProvider(null); // Reset for next time
+      setShowLogin(true);      // Reset for next time
     }
-  }, [wallet, isOpen]);
+  }, [wallet, isOpen, setSelectedProvider, setShowLogin]);
 
   const closeModal = () => {
     setIsOpen(false);
     setSelectedProvider(null);
     setShowLogin(true);
   };
-  
+
   if (isLoadingConfig) {
     return <div>Loading configuration...</div>;
   }

@@ -31,7 +31,7 @@ export const registerSessionKey = async (
 ): Promise<{
   sessionKey: SessionKey;
   txHashes: [string, string];
-  optimisticWallet: Wallet;
+  updatedWallet: Wallet;
 }> => {
   // Create the new session key
   const newSessionKey = sessionKeyService.generateSessionKey(expiration, whitelist);
@@ -66,7 +66,7 @@ export const registerSessionKey = async (
     onTransaction?.(proofTxHash, 'proof');
 
     // Create optimistic wallet update
-    const optimisticWallet = {
+    const updatedWallet = {
       ...wallet,
       sessionKey: newSessionKey
     };
@@ -74,7 +74,7 @@ export const registerSessionKey = async (
     return {
       sessionKey: newSessionKey,
       txHashes: [blobTxHash, proofTxHash],
-      optimisticWallet
+      updatedWallet
     };
   } catch (error) {
     console.error('Failed to initialize session key:', error);
@@ -96,7 +96,7 @@ export const removeSessionKey = async (
   onTransaction?: TransactionCallback
 ): Promise<{
   txHashes: [string, string];
-  optimisticWallet: Wallet;
+  updatedWallet: Wallet;
 }> => {
   const accountName = wallet.username;
   
@@ -130,19 +130,19 @@ export const removeSessionKey = async (
     onTransaction?.(proofTxHash, 'proof');
 
     // Create optimistic wallet update
-    let optimisticWallet: Wallet;
+    let updatedWallet: Wallet;
     if (wallet.sessionKey && wallet.sessionKey.publicKey === publicKey) {
-      optimisticWallet = {
+      updatedWallet = {
       username: wallet.username,
       address: wallet.address,
       };
     } else {
-      optimisticWallet = { ...wallet };
+      updatedWallet = { ...wallet };
     }
 
     return {
       txHashes: [blobTxHash, proofTxHash],
-      optimisticWallet
+      updatedWallet
     };
   } catch (error) {
     console.error('Failed to remove session key:', error);

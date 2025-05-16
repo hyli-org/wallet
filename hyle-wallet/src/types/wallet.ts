@@ -85,7 +85,7 @@ export type WalletAction =
     }
 
 // Callback pour les transactions
-export type TransactionCallback = (txHash: string, type: string, wallet?: Wallet) => void;
+export type TransactionCallback = (txHash: string, type: string) => void;
 
 //
 // Builders

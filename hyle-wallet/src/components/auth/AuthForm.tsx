@@ -7,11 +7,13 @@ import './AuthForm.css';
 interface AuthFormProps {
   provider: AuthProvider;
   mode: 'login' | 'register';
+  onAuthSubmitInitiated?: () => void;
 }
 
 export const AuthForm: React.FC<AuthFormProps> = ({
   provider,
   mode,
+  onAuthSubmitInitiated,
 }) => {
   const { login, registerAccount: registerWallet, stage } = useWallet();
   const [credentials, setCredentials] = useState<AuthCredentials>({
@@ -44,6 +46,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({
     e.preventDefault();
     setError('');
     setIsSubmitting(true);
+
+    onAuthSubmitInitiated?.();
 
     const authAction = mode === 'login' ? login : registerWallet;
 
