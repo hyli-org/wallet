@@ -1,16 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Wallet, addSessionKey, removeSessionKey } from 'hyle-wallet';
-import { nodeService } from '../../services/NodeService';
-import { indexerService } from '../../services/IndexerService';
+import { serializeIdentityAction, serializeSecp256k1Blob, sessionKeyService, useWallet, WalletAction, walletContractName } from 'hyle-wallet';
 import { webSocketService } from '../../services/WebSocketService';
-import { useSessionKey, walletContractName } from 'hyle-wallet';
-import { build_proof_transaction, build_blob as check_secret_blob } from 'hyle-check-secret';
-import { BlobTransaction } from 'hyle';
+import { Blob, BlobTransaction } from 'hyle';
+import { indexerService } from '../../services/IndexerService';
 import './SessionKeys.css';
-
-interface SessionKeysProps {
-  wallet: Wallet;
-}
+import { nodeService } from '../../services/NodeService';
 
 interface SessionKey {
   key: string;
@@ -18,12 +12,13 @@ interface SessionKey {
   nonce: number;
 }
 
-const truncateKey = (key: string) => {
-    if (key.length <= 6) return key;
-    return `${key.slice(0, 3)}[...]${key.slice(-3)}`;
-  };
+export const SessionKeys = () => {
+  const { wallet, registerSessionKey, removeSessionKey } = useWallet();
 
-export const SessionKeys = ({ wallet }: SessionKeysProps) => {
+  if (!wallet) {
+    return <div>Please connect your wallet first</div>;
+  }
+  
   const [sessionKeys, setSessionKeys] = useState<SessionKey[]>([]);
   const [password, setPassword] = useState('password123');
   const [expirationDays, setExpirationDays] = useState('7');
@@ -31,8 +26,6 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
   const [status, setStatus] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [transactionHash, setTransactionHash] = useState('');
-
-  const { generateSessionKey, clearSessionKey, createSignedBlobs } = useSessionKey();
 
   const fetchSessionKeys = async () => {
     try {
@@ -46,7 +39,7 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
 
   useEffect(() => {
     fetchSessionKeys();
-  }, [wallet.address, wallet.username]);
+  }, [wallet.username]);
 
   const handleAddKey = async () => {
     if (!password) {
@@ -65,50 +58,34 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
     setStatus('Generating new session key...');
     setTransactionHash('');
 
-    // Génère une nouvelle paire de clés
-    const [publicKey, privateKey] = generateSessionKey();
-    localStorage.setItem(publicKey, privateKey);
     try {
-
-      const identity = `${wallet.username}@${walletContractName}`;
-      const blob0 = await check_secret_blob(identity, password);
       const expiration = Date.now() + (days * 24 * 60 * 60 * 1000);
-      const blob1 = addSessionKey(wallet.username, publicKey, expiration, ["hyllar"]);
-
-      const blobTx: BlobTransaction = {
-        identity,
-        blobs: [blob0, blob1],
-      };
-
-      setStatus('Verifying identity...');
-      const tx_hash = await nodeService.client.sendBlobTx(blobTx);
-      setTransactionHash(tx_hash);
-
-      setStatus('Building proof transaction (this may take a few moments)...');
-      const proofTx = await build_proof_transaction(
-        identity,
+      
+      const { sessionKey } = await registerSessionKey(
         password,
-        tx_hash,
-        0,
-        blobTx.blobs.length,
+        expiration,
+        ["hyllar"],
+        (txHash: string, type: string) => {
+          if (type === 'blob') {
+            setStatus('Verifying identity...');
+            setTransactionHash(txHash);
+          } else if (type === 'proof') {
+            setStatus('Proof transaction sent, waiting for confirmation...');
+          }
+        }
       );
 
-      setStatus('Sending proof transaction...');
-      await nodeService.client.sendProofTx(proofTx);
-      setStatus('Waiting for confirmation...');
-      
       await new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
           webSocketService.unsubscribeFromWalletEvents();
           reject(new Error('Operation timed out'));
         }, 30000);
 
-        webSocketService.connect(identity);
         const unsubscribe = webSocketService.subscribeToWalletEvents((event) => {
           if (event.event === 'Session key added') {
+            localStorage.setItem(sessionKey.publicKey, sessionKey.privateKey);
             clearTimeout(timeout);
             unsubscribe();
-            webSocketService.disconnect();
             resolve(event);
           }
         });
@@ -119,33 +96,32 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
       await fetchSessionKeys();
     } catch (error) {
       setError('Failed to add session key: ' + error);
-      clearSessionKey(publicKey); // Remove key from local storage if it fails
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleRemoveKey = async (key: string) => {
+  const handleRemoveKey = async (publicKey: string) => {
     setIsLoading(true);
     setError('');
     setStatus('Removing session key...');
     setTransactionHash('');
 
     try {
-      const identity = `${wallet.username}@${walletContractName}`;
-      const blob0 = await check_secret_blob(identity, password);
-      const blob1 = removeSessionKey(wallet.username, key);
+      await removeSessionKey(
+        password,
+        publicKey,
+        (txHash: string, type: string) => {
+          if (type === 'blob') {
+            setStatus('Verifying identity...');
+            setTransactionHash(txHash);
+          } else if (type === 'proof') {
+            setStatus('Proof transaction sent, waiting for confirmation...');
+          }
+        }
+      );
 
-      const blobTx: BlobTransaction = {
-        identity,
-        blobs: [blob0, blob1],
-      };
 
-      const tx_hash = await nodeService.client.sendBlobTx(blobTx);
-      setTransactionHash(tx_hash);
-
-      setStatus('Waiting for confirmation...');
-      
       await new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
           webSocketService.unsubscribeFromWalletEvents();
@@ -155,6 +131,7 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
         webSocketService.connect(wallet.address);
         const unsubscribe = webSocketService.subscribeToWalletEvents((event) => {
           if (event.event === 'Session key removed') {
+            localStorage.removeItem(publicKey);
             clearTimeout(timeout);
             unsubscribe();
             webSocketService.disconnect();
@@ -180,12 +157,31 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
 
     try {
 
-      const identity = `${wallet.username}@${walletContractName}`;
+      const identity = wallet.address;
       const privateKey = localStorage.getItem(publicKey);
       if (!privateKey) {
         throw new Error('Private key not found in local storage');
       }
-      const [blob0, blob1] = createSignedBlobs(wallet.username, privateKey);
+
+      let nonce = Date.now();
+      const secp256k1Blob = sessionKeyService.getSignedBlob(wallet.address, nonce, privateKey);
+
+      const blob0: Blob = {
+        contract_name: "secp256k1",
+        data: serializeSecp256k1Blob(secp256k1Blob),
+      };
+
+      const action: WalletAction = {
+        UseSessionKey: { 
+          account: wallet.username, 
+          key: publicKey, 
+          nonce 
+        }
+      };
+      const blob1: Blob = {
+        contract_name: walletContractName,
+        data: serializeIdentityAction(action),
+      };
 
       const blobTx: BlobTransaction = {
         identity,
@@ -221,6 +217,11 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const truncateKey = (key: string) => {
+    if (key.length <= 6) return key;
+    return `${key.slice(0, 3)}[...]${key.slice(-3)}`;
   };
 
   return (
@@ -274,8 +275,8 @@ export const SessionKeys = ({ wallet }: SessionKeysProps) => {
         <div className="transaction-hash">
           Transaction:&nbsp;
           <code>
-            <a href={`${import.meta.env.VITE_TX_EXPLORER_URL}/tx/${transactionHash}`} target="_blank">
-              {`${transactionHash.slice(0, 10)}...${transactionHash.slice(-10)}`}
+            <a href={`${import.meta.env.VITE_TX_EXPLORER_URL}/tx/${transactionHash}`} target="_blank" rel="noreferrer">
+              {truncateKey(transactionHash)}
             </a>
           </code>
         </div>

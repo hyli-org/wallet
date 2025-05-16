@@ -9,9 +9,17 @@ export interface Transaction {
   timestamp: number;
 }
 
+export interface SessionKey {
+  publicKey: string;
+  privateKey: string;
+  expiration: number;
+  whitelist: string[];
+}
+
 export interface Wallet {
   username: string;
   address: string;
+  sessionKey?: SessionKey;
 }
 
 import { borshSerialize, BorshSchema, borshDeserialize } from "borsher";
@@ -67,8 +75,8 @@ export type WalletAction =
         account: string;
         key: string;
       };
-}
-| {
+    }
+  | {
       UseSessionKey: {
         account: string;
         key: string;
@@ -76,11 +84,14 @@ export type WalletAction =
       };
     }
 
+// Callback pour les transactions
+export type TransactionCallback = (txHash: string, type: string, wallet?: Wallet) => void;
+
 //
 // Builders
 //
 
-export const register = (account: string, nonce: number, hash: string): Blob => {
+export const registerBlob = (account: string, nonce: number, hash: string): Blob => {
   const action: WalletAction = {
     RegisterIdentity: { 
       account, 
@@ -95,7 +106,7 @@ export const register = (account: string, nonce: number, hash: string): Blob => 
   return blob;
 };
 
-export const verifyIdentity = (account: string, nonce: number): Blob => {
+export const verifyIdentityBlob = (account: string, nonce: number): Blob => {
   const action: WalletAction = {
     VerifyIdentity: { nonce, account },
   };
@@ -107,7 +118,7 @@ export const verifyIdentity = (account: string, nonce: number): Blob => {
   return blob;
 };
 
-export const addSessionKey = (account: string, key: string, expiration: number, whitelist: string[]): Blob => {
+export const addSessionKeyBlob = (account: string, key: string, expiration: number, whitelist: string[]): Blob => {
   const action: WalletAction = {
     AddSessionKey: { account, key, expiration, whitelist }
   };
@@ -118,7 +129,7 @@ export const addSessionKey = (account: string, key: string, expiration: number, 
   return blob;
 };
 
-export const removeSessionKey = (account: string, key: string): Blob => {
+export const removeSessionKeyBlob = (account: string, key: string): Blob => {
   const action: WalletAction = {
     RemoveSessionKey: { account, key }
   };
@@ -192,7 +203,7 @@ const schema = BorshSchema.Enum({
     account: BorshSchema.String,
     key: BorshSchema.String,
   }),
-UseSessionKey: BorshSchema.Struct({
+  UseSessionKey: BorshSchema.Struct({
     account: BorshSchema.String,
     nonce: BorshSchema.u128,
   }),

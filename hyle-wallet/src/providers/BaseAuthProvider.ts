@@ -5,6 +5,10 @@ export interface AuthCredentials {
   [key: string]: any;
 }
 
+export interface AuthEvents {
+  onTransaction?: (txHash: string, type: string, wallet?: Wallet) => void;
+}
+
 export interface AuthResult {
   success: boolean;
   wallet?: Wallet;
@@ -13,7 +17,7 @@ export interface AuthResult {
 
 export interface AuthProvider {
   type: string;
-  login(credentials: AuthCredentials, onBlobSent?: (wallet: Wallet) => void): Promise<AuthResult>;
-  register(credentials: AuthCredentials, onBlobSent?: (wallet: Wallet) => void): Promise<AuthResult>;
+  login(credentials: AuthCredentials, events: AuthEvents): Promise<AuthResult>;
+  register(credentials: AuthCredentials, events: AuthEvents): Promise<AuthResult>;
   isEnabled(): boolean;
 }

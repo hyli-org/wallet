@@ -9,6 +9,7 @@ import { getPublicRoutes, getProtectedRoutes, ROUTES } from './routes/routes';
 import { WalletProvider, useWallet } from 'hyle-wallet';
 import { useConfig } from 'hyle-wallet';
 import { LoadingErrorState } from './components/common/LoadingErrorState';
+import { WebSocketProvider } from './providers/WebSocketProvider';
 
 function AppContent() {
   const { isLoading: isLoadingConfig, error: configError } = useConfig();
@@ -83,7 +84,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <WalletProvider>
-        <AppContent />
+        <WebSocketProvider>
+          <AppContent />
+        </WebSocketProvider>
       </WalletProvider>
     </BrowserRouter>
   );

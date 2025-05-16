@@ -34,7 +34,7 @@ export const getProtectedRoutes = (
       { path: 'balance', element: <Balance wallet={wallet!} balance={balance} /> },
       { path: 'send', element: <Send wallet={wallet!} /> },
       { path: 'history', element: <History transactions={transactions} /> },
-      { path: 'session-keys', element: <SessionKeys wallet={wallet!} /> },
+      { path: 'session-keys', element: <SessionKeys/> },
       { index: true, element: <Navigate to="balance" replace /> },
     ],
   },
