@@ -46,7 +46,7 @@ export class PasswordAuthProvider implements AuthProvider {
       };
 
       // Notification avec le wallet pour mise à jour optimiste
-      onTransaction?.(tx_hash, 'blob', wallet);
+      onTransaction?.(tx_hash, 'blob');
 
       // Build and send the proof transaction
       const proofTx = await build_proof_transaction(
@@ -131,7 +131,7 @@ export class PasswordAuthProvider implements AuthProvider {
       };
       
       // Notification avec le wallet pour mise à jour optimiste
-      onTransaction?.(tx_hash, 'blob', wallet);
+      onTransaction?.(tx_hash, 'blob');
 
       // Build and send the proof transaction
       const proofTx = await build_proof_transaction(

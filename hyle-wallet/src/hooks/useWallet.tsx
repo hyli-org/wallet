@@ -71,12 +71,8 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setStage('submitting');
 
       const resultPromise = authProvider.login(credentials as any, {
-        onTransaction: (txHash: string, type: string, optimisticWallet?: Wallet) => {
+        onTransaction: (txHash: string, type: string) => {
           if (type === 'blob') {
-            if (optimisticWallet) {
-              setWallet(optimisticWallet);
-              setIsLoading(false);
-            }
             setStage('blobSent');
           }
         }
@@ -118,12 +114,8 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setStage('submitting');
 
       const resultPromise = authProvider.register(credentials as any, {
-        onTransaction: (txHash: string, type: string, optimisticWallet?: Wallet) => {
+        onTransaction: (txHash: string, type: string) => {
           if (type === 'blob') {
-            if (optimisticWallet) {
-              setWallet(optimisticWallet);
-              setIsLoading(false);
-            }
             setStage('blobSent');
           }
         }
@@ -185,9 +177,9 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
       );
       
-      // Mise à jour optimiste du wallet avant la confirmation blockchain
-      setWallet(result.optimisticWallet);
-      setStage('blobSent');
+      // Mise à jour du wallet après la confirmation blockchain
+      setWallet(result.updatedWallet);
+      setStage('settled');
       return {
         sessionKey: result.sessionKey,
         txHashes: result.txHashes
@@ -228,9 +220,9 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
       );
       
-      // Mise à jour optimiste du wallet avant la confirmation blockchain
-      setWallet(result.optimisticWallet);
-      setStage('blobSent');
+      // Mise à jour du wallet après la confirmation blockchain
+      setWallet(result.updatedWallet);
+      setStage('settled');
       return { txHashes: result.txHashes };
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to remove session key');

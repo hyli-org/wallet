@@ -6,7 +6,7 @@ export interface AuthCredentials {
 }
 
 export interface AuthEvents {
-  onTransaction?: (txHash: string, type: string, wallet?: Wallet) => void;
+  onTransaction?: (txHash: string, type: string) => void;
 }
 
 export interface AuthResult {
