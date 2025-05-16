@@ -77,7 +77,7 @@ fn main() {
             guest_opts.use_docker(
                 DockerOptionsBuilder::default()
                     // Point to the workspace
-                    .root_dir("../..".to_string())
+                    .root_dir("..".to_string())
                     .build()
                     .unwrap(),
             );

@@ -1,4 +1,4 @@
-import { Wallet } from '../../types/wallet';
+import { Wallet } from 'hyle-wallet';
 
 interface BalanceProps {
   wallet: Wallet;

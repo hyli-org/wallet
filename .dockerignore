@@ -1,1 +1,9 @@
-target
+**/target/
+target/
+**/node_modules/
+.git
+.gitignore
+**/dist
+**/.env
+**/*.pdb
+**/*.rs.bk
