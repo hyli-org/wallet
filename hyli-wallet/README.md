@@ -100,6 +100,9 @@ function WalletFeatures() {
 
 ## Session Key Management
 
+> **Note:** 
+> You can find a complete and exhaustive implementation in [`here`](../front/src/components/wallet/SessionKeys.tsx).
+
 ### Creating a Session Key
 
 Session keys allow for delegated transaction signing. Here's how to create one:
