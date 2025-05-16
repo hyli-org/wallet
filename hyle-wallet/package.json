@@ -1,8 +1,10 @@
 {
-  "name": "hyle-wallet",
-  "version": "1.0.0",
+  "name": "hyli-wallet",
+  "version": "0.1.0",
   "type": "module",
-  "description": "A reusable wallet component for React applications",
+  "license": "MIT",
+  "repository": "hyli-org/wallet",
+  "description": "A reusable wallet component",
   "main": "./dist/hyle-wallet.cjs.js",
   "types": "dist/hyle-wallet.d.ts",
   "module": "./dist/hyle-wallet.es.js",
