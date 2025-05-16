@@ -13,7 +13,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
   provider,
   mode,
 }) => {
-  const { login, register: registerWallet, stage } = useWallet();
+  const { login, registerAccount: registerWallet, stage } = useWallet();
   const [credentials, setCredentials] = useState<AuthCredentials>({
     username: 'bob',
     password: 'password123',
