@@ -13,7 +13,7 @@ interface SessionKey {
 }
 
 export const SessionKeys = () => {
-  const { wallet, registerSessionKey, removeSessionKey } = useWallet();
+  const { wallet, registerSessionKey, removeSessionKey, createIdentityBlobs } = useWallet();
 
   if (!wallet) {
     return <div>Please connect your wallet first</div>;
@@ -219,6 +219,49 @@ export const SessionKeys = () => {
     }
   };
 
+  const handleSendTransactionWithWallet = async () => {
+    setIsLoading(true);
+    setError('');
+    setStatus('Sending transaction with wallet identity...');
+    setTransactionHash('');
+
+    try {
+      const [blob0, blob1] = createIdentityBlobs();
+      const blobTx: BlobTransaction = {
+        identity: wallet.address,
+        blobs: [blob0, blob1],
+      };
+
+      const tx_hash = await nodeService.client.sendBlobTx(blobTx);
+      setTransactionHash(tx_hash);
+
+      setStatus('Waiting for transaction confirmation...');
+
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          webSocketService.unsubscribeFromWalletEvents();
+          reject(new Error('Transaction timed out'));
+        }, 30000);
+
+        webSocketService.connect(wallet.address);
+        const unsubscribe = webSocketService.subscribeToWalletEvents((event) => {
+          if (event.event === 'Session key is valid') {
+            clearTimeout(timeout);
+            unsubscribe();
+            webSocketService.disconnect();
+            resolve(event);
+          }
+        });
+      });
+
+      setStatus('Transaction completed successfully');
+    } catch (error) {
+      setError('Failed to send transaction: ' + error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const truncateKey = (key: string) => {
     if (key.length <= 6) return key;
     return `${key.slice(0, 3)}[...]${key.slice(-3)}`;
@@ -281,6 +324,15 @@ export const SessionKeys = () => {
           </code>
         </div>
       )}
+
+      <button
+        onClick={handleSendTransactionWithWallet}
+        disabled={isLoading}
+        className="send-transaction-button"
+        style={{ marginBottom: '20px' }}
+      >
+        Send Transaction with Current Wallet
+      </button>
 
       <div className="session-keys-list">
         <h3>Active Session Keys</h3>
