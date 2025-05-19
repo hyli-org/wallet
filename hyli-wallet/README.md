@@ -1,4 +1,4 @@
-# Hyle Wallet
+# Hyli Wallet
 
 A reusable React wallet component for blockchain applications, designed to provide seamless wallet management functionality.
 
@@ -22,7 +22,7 @@ yarn add hyli-wallet
 Required peer dependencies:
 ```json
 {
-  "hyle-check-secret": "^0.3.2",
+  "hyli-check-secret": "^0.3.2",
   "react": "^19.1.0",
   "react-dom": "^19.1.0",
   "react-router-dom": "^7.5.0"

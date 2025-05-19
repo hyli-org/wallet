@@ -1,6 +1,6 @@
 {
   "name": "hyli-wallet",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "type": "module",
   "license": "MIT",
   "repository": "hyli-org/wallet",
@@ -19,7 +19,7 @@
     }
   },
   "peerDependencies": {
-    "hyle-check-secret": "^0.3.2",
+    "hyli-check-secret": "^0.3.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.5.0"
@@ -38,7 +38,7 @@
     "@types/react-router-dom": "^5.3.3",
     "crypto-js": "^4.2.0",
     "elliptic": "^6.6.1",
-    "hyle": "^0.2.5"
+    "hyli": "^0.3.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.24.0",

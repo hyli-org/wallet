@@ -1,4 +1,4 @@
-import { Buffer } from 'buffer';
+import { Buffer } from "buffer";
 
 export interface Transaction {
   id: string;
@@ -23,14 +23,14 @@ export interface Wallet {
 }
 
 import { borshSerialize, BorshSchema, borshDeserialize } from "borsher";
-import { Blob } from "hyle";
+import { Blob } from "hyli";
 
 export let walletContractName = "wallet";
 
 //
 // Types
 //
- 
+
 export type Secp256k1Blob = {
   identity: String;
   data: Uint8Array;
@@ -78,7 +78,7 @@ export type WalletAction =
         key: string;
         nonce: number;
       };
-    }
+    };
 
 // Callback pour les transactions
 export type TransactionCallback = (txHash: string, type: string) => void;
@@ -87,10 +87,14 @@ export type TransactionCallback = (txHash: string, type: string) => void;
 // Builders
 //
 
-export const registerBlob = (account: string, nonce: number, hash: string): Blob => {
+export const registerBlob = (
+  account: string,
+  nonce: number,
+  hash: string,
+): Blob => {
   const action: WalletAction = {
-    RegisterIdentity: { 
-      account, 
+    RegisterIdentity: {
+      account,
       nonce,
       auth_method: { Password: { hash } },
     },
@@ -114,9 +118,14 @@ export const verifyIdentityBlob = (account: string, nonce: number): Blob => {
   return blob;
 };
 
-export const addSessionKeyBlob = (account: string, key: string, expiration: number, whitelist: string[]): Blob => {
+export const addSessionKeyBlob = (
+  account: string,
+  key: string,
+  expiration: number,
+  whitelist: string[],
+): Blob => {
   const action: WalletAction = {
-    AddSessionKey: { account, key, expiration, whitelist }
+    AddSessionKey: { account, key, expiration, whitelist },
   };
   const blob: Blob = {
     contract_name: walletContractName,
@@ -127,7 +136,7 @@ export const addSessionKeyBlob = (account: string, key: string, expiration: numb
 
 export const removeSessionKeyBlob = (account: string, key: string): Blob => {
   const action: WalletAction = {
-    RemoveSessionKey: { account, key }
+    RemoveSessionKey: { account, key },
   };
   const blob: Blob = {
     contract_name: walletContractName,
@@ -138,18 +147,18 @@ export const removeSessionKeyBlob = (account: string, key: string): Blob => {
 
 // Store wallet in localStorage
 export const storeWallet = (wallet: Wallet) => {
-  localStorage.setItem('wallet', JSON.stringify(wallet));
+  localStorage.setItem("wallet", JSON.stringify(wallet));
 };
 
 // Get wallet from localStorage
 export const getStoredWallet = (): Wallet | null => {
-  const storedWallet = localStorage.getItem('wallet');
+  const storedWallet = localStorage.getItem("wallet");
   return storedWallet ? JSON.parse(storedWallet) : null;
 };
 
 // Clear wallet from localStorage
 export const clearStoredWallet = () => {
-  localStorage.removeItem('wallet');
+  localStorage.removeItem("wallet");
 };
 
 //
@@ -157,7 +166,6 @@ export const clearStoredWallet = () => {
 //
 
 export const serializeSecp256k1Blob = (blob: Secp256k1Blob): number[] => {
-
   return Array.from(borshSerialize(secp256k1BlobSchema, blob));
 };
 

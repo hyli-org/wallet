@@ -1,299 +1,319 @@
 /* === Design tokens & motion === */
 :root {
-    --color-primary: #FF594B;
-    --color-secondary: #FF9660;
-    --color-primary-emphasis: rgba(255, 89, 75, 0.2);
-    --radius-l: 24px;
-    --shadow-xl: 0 12px 32px rgba(0, 0, 0, 0.12);
-    --overlay-bg: rgba(0, 0, 0, 0.5);
-    --modal-bg: rgba(255, 255, 255, 0.75);
-    --anim-ease: cubic-bezier(.16,1,.3,1);
-    --anim-fast: 120ms;
-    --anim-normal: 220ms;
+  --color-primary: #ff594b;
+  --color-secondary: #ff9660;
+  --color-primary-emphasis: rgba(255, 89, 75, 0.2);
+  --radius-l: 24px;
+  --shadow-xl: 0 12px 32px rgba(0, 0, 0, 0.12);
+  --overlay-bg: rgba(0, 0, 0, 0.5);
+  --modal-bg: rgba(255, 255, 255, 0.75);
+  --anim-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --anim-fast: 120ms;
+  --anim-normal: 220ms;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
   }
-  
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+  to {
+    opacity: 1;
   }
-  
-  @keyframes slideUp {
-    from { transform: translateY(24px) scale(0.98); opacity: 0; }
-    to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(24px) scale(0.98);
+    opacity: 0;
   }
-  
-  .-btn {
-    padding: 12px 24px;
-    background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-secondary) 100%);
-    color: #fff;
-    border: none;
-    border-radius: var(--radius-l);
-    cursor: pointer;
-    font-size: 16px;
-    font-weight: 600;
-    box-shadow: var(--shadow-xl);
-    transition: transform var(--anim-fast) var(--anim-ease), opacity var(--anim-fast) var(--anim-ease);
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
   }
-  
-  .-btn:hover {
-    opacity: 0.9;
-    transform: scale(0.98);
-  }
-  
-  /* Overlay */
-  .-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: var(--overlay-bg);
-    backdrop-filter: blur(8px) saturate(120%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 999999;
-    animation: fadeIn var(--anim-normal) var(--anim-ease);
-  }
-  
-  /* Modal */
-  .-modal {
-    background: var(--modal-bg);
-    backdrop-filter: blur(16px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: var(--radius-l);
-    box-shadow: var(--shadow-xl);
-    width: min(90%, 420px);
-    min-height: min-content;
-    max-height: 90vh;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding: 0 24px 28px;
-    position: relative;
-    animation: slideUp 0.3s var(--anim-ease);
-    margin: 16px;
-    display: flex;
-    flex-direction: column;
-  }
-  
-  /* Modal header with brand gradient */
-  .modal-header {
-    height: 56px;
-    background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-secondary) 100%);
-    border-top-left-radius: var(--radius-l);
-    border-top-right-radius: var(--radius-l);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    margin: 0 -24px 24px; /* stretch full width, then push content */
-  }
-  
-  .modal-logo {
-    margin: 0;
-    display: flex;
-    justify-content: center;
-  }
-  
-  .hyle-modal-close {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: transparent;
-    border: none;
-    color: #fff;
-    font-size: 24px;
-    cursor: pointer;
-    transition: transform var(--anim-fast) var(--anim-ease);
-  }
-  
-  .hyle-modal-close:hover {
-    transform: translateY(-50%) rotate(45deg);
-  }
-  
-  .provider-selection h2 {
-    margin-top: 0;
-    text-align: center;
-    font-size: 24px;
-    color: #333;
-  }
-  
-  .password-provider-flow .auth-title {
-    margin: 0 0 20px 0;
-    text-align: center;
-    font-size: 24px;
-    color: #333;
-  }
-  
-  .provider-selection .subtitle {
-    text-align: center;
-    color: #666;
-    margin: 8px 0 24px;
-    font-size: 14px;
-  }
-  
-  .provider-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    justify-content: center;
-    margin-top: 16px;
-  }
-  
-  .hyle-provider-btn {
-    flex: 1 1 40%;
-    padding: 12px 8px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    background: #f9f9f9;
-    cursor: pointer;
-    font-size: 14px;
-  }
-  
-  .hyle-provider-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-  
-  .coming-soon {
-    font-size: 12px;
-    color: #999;
-  }
-  
-  .password-provider-flow .switch-auth-button,
-  .provider-coming-soon .back-to-providers {
-    margin-top: 16px;
-    width: 100%;
-    padding: 8px;
-    border: none;
-    background: #eee;
-    cursor: pointer;
-    border-radius: 4px;
-  }
-  
-  /* Sleek link-style button for toggling between login and sign-up */
-  .password-provider-flow .switch-auth-button {
-    /* link style button */
-    background: none;
-    color: var(--color-primary);
-    font-size: 14px;
-    width: auto;
-    padding: 0;
-  }
-  
-  .password-provider-flow .switch-auth-button:hover {
-    opacity: 0.8;
-    text-decoration: none;
-  }
-  
-  /* Provider vertical list */
-  .provider-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-top: 16px;
-  }
-  
-  .provider-row {
-    width: 100%;
-    padding: 12px 16px;
-    border: 1px solid #e5e5e5;
-    border-radius: 8px;
-    background: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 16px;
-    cursor: pointer;
-    transition: background 0.15s ease;
-  }
-  
-  .provider-row:hover:not(.disabled) {
-    background: #f2f2f2;
-  }
-  
-  .provider-row.disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-  
-  .provider-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background-color: #f5f5f5;
-    color: #333;
-  }
-  
-  .provider-row .provider-icon svg {
-    display: block;
-  }
-  
-  /* Email field styling */
-  .provider-row:first-child {
-    position: relative;
-    background-color: white;
-    border-radius: 8px;
-    overflow: hidden;
-  }
-  
-  .label {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  
-  .row-arrow {
-    font-size: 20px;
-  }
-  
-  .password-provider-flow .wallet-login-container h1,
-  .password-provider-flow .wallet-creation-container h1 {
-    display: none;
-  }
-  
-  .password-provider-flow .wallet-creation-form p {
-    display: none;
-  }
-  
-  /* === Auth Components Styling === */
-  .password-provider-flow .wallet-login-container,
-  .password-provider-flow .wallet-creation-container {
-    /* Already hides h1 */
-  }
-  
-  .password-provider-flow .form-group {
-    margin-bottom: 10px;
-  }
-  
-  .password-provider-flow .form-group label {
-    display: block;
-    margin-bottom: 4px;
-    font-size: 14px;
-    font-weight: 500;
-    color: #333;
-  }
-  
-  .password-provider-flow input {
-    width: 100%;
-    height: 42px;
-    background: rgba(255, 255, 255, 0.8);
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    border-radius: 12px;
-    font-size: 15px;
-    transition: border-color var(--anim-fast) ease;
-    position: relative;
-  }
-  
-  .password-provider-flow .form-group {
-    position: relative;
-  }
-  
-  /* 
+}
+
+.-btn {
+  padding: 12px 24px;
+  background: linear-gradient(
+    90deg,
+    var(--color-primary) 0%,
+    var(--color-secondary) 100%
+  );
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-l);
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  box-shadow: var(--shadow-xl);
+  transition:
+    transform var(--anim-fast) var(--anim-ease),
+    opacity var(--anim-fast) var(--anim-ease);
+}
+
+.-btn:hover {
+  opacity: 0.9;
+  transform: scale(0.98);
+}
+
+/* Overlay */
+.-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: var(--overlay-bg);
+  backdrop-filter: blur(8px) saturate(120%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999999;
+  animation: fadeIn var(--anim-normal) var(--anim-ease);
+}
+
+/* Modal */
+.-modal {
+  background: var(--modal-bg);
+  backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--radius-l);
+  box-shadow: var(--shadow-xl);
+  width: min(90%, 420px);
+  min-height: min-content;
+  max-height: 90vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 24px 28px;
+  position: relative;
+  animation: slideUp 0.3s var(--anim-ease);
+  margin: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Modal header with brand gradient */
+.modal-header {
+  height: 56px;
+  background: linear-gradient(
+    90deg,
+    var(--color-primary) 0%,
+    var(--color-secondary) 100%
+  );
+  border-top-left-radius: var(--radius-l);
+  border-top-right-radius: var(--radius-l);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin: 0 -24px 24px; /* stretch full width, then push content */
+}
+
+.modal-logo {
+  margin: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.hyli-modal-close {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+  transition: transform var(--anim-fast) var(--anim-ease);
+}
+
+.hyli-modal-close:hover {
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.provider-selection h2 {
+  margin-top: 0;
+  text-align: center;
+  font-size: 24px;
+  color: #333;
+}
+
+.password-provider-flow .auth-title {
+  margin: 0 0 20px 0;
+  text-align: center;
+  font-size: 24px;
+  color: #333;
+}
+
+.provider-selection .subtitle {
+  text-align: center;
+  color: #666;
+  margin: 8px 0 24px;
+  font-size: 14px;
+}
+
+.provider-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.hyli-provider-btn {
+  flex: 1 1 40%;
+  padding: 12px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #f9f9f9;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.hyli-provider-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.coming-soon {
+  font-size: 12px;
+  color: #999;
+}
+
+.password-provider-flow .switch-auth-button,
+.provider-coming-soon .back-to-providers {
+  margin-top: 16px;
+  width: 100%;
+  padding: 8px;
+  border: none;
+  background: #eee;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+/* Sleek link-style button for toggling between login and sign-up */
+.password-provider-flow .switch-auth-button {
+  /* link style button */
+  background: none;
+  color: var(--color-primary);
+  font-size: 14px;
+  width: auto;
+  padding: 0;
+}
+
+.password-provider-flow .switch-auth-button:hover {
+  opacity: 0.8;
+  text-decoration: none;
+}
+
+/* Provider vertical list */
+.provider-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.provider-row {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.provider-row:hover:not(.disabled) {
+  background: #f2f2f2;
+}
+
+.provider-row.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.provider-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+.provider-row .provider-icon svg {
+  display: block;
+}
+
+/* Email field styling */
+.provider-row:first-child {
+  position: relative;
+  background-color: white;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.row-arrow {
+  font-size: 20px;
+}
+
+.password-provider-flow .wallet-login-container h1,
+.password-provider-flow .wallet-creation-container h1 {
+  display: none;
+}
+
+.password-provider-flow .wallet-creation-form p {
+  display: none;
+}
+
+/* === Auth Components Styling === */
+.password-provider-flow .wallet-login-container,
+.password-provider-flow .wallet-creation-container {
+  /* Already hides h1 */
+}
+
+.password-provider-flow .form-group {
+  margin-bottom: 10px;
+}
+
+.password-provider-flow .form-group label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.password-provider-flow input {
+  width: 100%;
+  height: 42px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  font-size: 15px;
+  transition: border-color var(--anim-fast) ease;
+  position: relative;
+}
+
+.password-provider-flow .form-group {
+  position: relative;
+}
+
+/* 
   .password-provider-flow .form-group::before {
     content: "";
     position: absolute;
@@ -315,91 +335,111 @@
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='11' width='18' height='11' rx='2' ry='2'%3E%3C/rect%3E%3Cpath d='M7 11V7a5 5 0 0 1 10 0v4'%3E%3C/path%3E%3C/svg%3E");
   }
   */
-  
-  .password-provider-flow input:focus {
-    outline: none;
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px var(--color-primary-emphasis);
+
+.password-provider-flow input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-emphasis);
+}
+
+.password-provider-flow .login-wallet-button,
+.password-provider-flow .create-wallet-button {
+  width: 100%;
+  height: 48px;
+  background: linear-gradient(
+    90deg,
+    var(--color-primary) 0%,
+    var(--color-secondary) 100%
+  );
+  color: #fff;
+  border: none;
+  border-radius: 24px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform var(--anim-fast) var(--anim-ease),
+    opacity var(--anim-fast) var(--anim-ease);
+  margin: 0;
+  padding: 0;
+}
+
+.password-provider-flow .login-wallet-button:hover,
+.password-provider-flow .create-wallet-button:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.password-provider-flow .login-wallet-button:active,
+.password-provider-flow .create-wallet-button:active {
+  transform: translateY(1px);
+}
+
+.password-provider-flow .login-wallet-button:disabled,
+.password-provider-flow .create-wallet-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  background: linear-gradient(90deg, #ccc 0%, #ddd 100%);
+}
+
+.password-provider-flow .error-message {
+  color: #e53935;
+  margin: 8px 0;
+  padding: 8px 12px;
+  background-color: rgba(229, 57, 53, 0.1);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.password-provider-flow .status-message {
+  color: #2196f3;
+  margin: 8px 0;
+  padding: 8px 12px;
+  background-color: rgba(33, 150, 243, 0.1);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.password-provider-flow .transaction-hash {
+  margin-top: 16px;
+  font-size: 13px;
+  text-align: center;
+  opacity: 0.7;
+}
+
+.password-provider-flow .transaction-hash a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.password-provider-flow .transaction-hash a:hover {
+  text-decoration: underline;
+}
+
+/* Animation for form fields */
+@keyframes formFieldAppear {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
   }
-  
-  .password-provider-flow .login-wallet-button,
-  .password-provider-flow .create-wallet-button {
-    width: 100%;
-    height: 48px;
-    background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-secondary) 100%);
-    color: #fff;
-    border: none;
-    border-radius: 24px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: transform var(--anim-fast) var(--anim-ease), opacity var(--anim-fast) var(--anim-ease);
-    margin: 0;
-    padding: 0;
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
-  
-  .password-provider-flow .login-wallet-button:hover,
-  .password-provider-flow .create-wallet-button:hover {
-    opacity: 0.9;
-    transform: translateY(-1px);
-  }
-  
-  .password-provider-flow .login-wallet-button:active,
-  .password-provider-flow .create-wallet-button:active {
-    transform: translateY(1px);
-  }
-  
-  .password-provider-flow .login-wallet-button:disabled,
-  .password-provider-flow .create-wallet-button:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-    background: linear-gradient(90deg, #ccc 0%, #ddd 100%);
-  }
-  
-  .password-provider-flow .error-message {
-    color: #e53935;
-    margin: 8px 0;
-    padding: 8px 12px;
-    background-color: rgba(229, 57, 53, 0.1);
-    border-radius: 8px;
-    font-size: 14px;
-  }
-  
-  .password-provider-flow .status-message {
-    color: #2196F3;
-    margin: 8px 0;
-    padding: 8px 12px;
-    background-color: rgba(33, 150, 243, 0.1);
-    border-radius: 8px;
-    font-size: 14px;
-  }
-  
-  .password-provider-flow .transaction-hash {
-    margin-top: 16px;
-    font-size: 13px;
-    text-align: center;
-    opacity: 0.7;
-  }
-  
-  .password-provider-flow .transaction-hash a {
-    color: var(--color-primary);
-    text-decoration: none;
-  }
-  
-  .password-provider-flow .transaction-hash a:hover {
-    text-decoration: underline;
-  }
-  
-  /* Animation for form fields */
-  @keyframes formFieldAppear {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  
-  .password-provider-flow .form-group:nth-child(1) { animation: formFieldAppear 0.3s var(--anim-ease) 0.1s backwards; }
-  .password-provider-flow .form-group:nth-child(2) { animation: formFieldAppear 0.3s var(--anim-ease) 0.2s backwards; }
-  .password-provider-flow .form-group:nth-child(3) { animation: formFieldAppear 0.3s var(--anim-ease) 0.3s backwards; }
-  .password-provider-flow button { animation: formFieldAppear 0.3s var(--anim-ease) 0.4s backwards; }
+}
+
+.password-provider-flow .form-group:nth-child(1) {
+  animation: formFieldAppear 0.3s var(--anim-ease) 0.1s backwards;
+}
+.password-provider-flow .form-group:nth-child(2) {
+  animation: formFieldAppear 0.3s var(--anim-ease) 0.2s backwards;
+}
+.password-provider-flow .form-group:nth-child(3) {
+  animation: formFieldAppear 0.3s var(--anim-ease) 0.3s backwards;
+}
+.password-provider-flow button {
+  animation: formFieldAppear 0.3s var(--anim-ease) 0.4s backwards;
+}
 
 .password-provider-flow {
   flex: 1;
@@ -450,3 +490,4 @@
   color: #2196f3;
   text-decoration: none;
 }
+

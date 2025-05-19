@@ -5,7 +5,7 @@ import type { AuthCredentials } from '../providers/BaseAuthProvider';
 import { authProviderManager } from '../providers/AuthProviderManager';
 import { AuthStage } from '../types/login';
 import * as WalletOperations from '../services/WalletOperations';
-import { Blob } from 'hyle';
+import { Blob } from 'hyli';
 import { ConfigService } from '../services/ConfigService';
 import { NodeService } from '../services/NodeService';
 
@@ -19,14 +19,14 @@ interface WalletContextType {
   login: (provider: ProviderOption, credentials: AuthCredentials) => Promise<void>;
   registerAccount: (provider: ProviderOption, credentials: AuthCredentials) => Promise<void>;
   registerSessionKey: (
-    password: string, 
-    expiration: number, 
-    whitelist: string[], 
+    password: string,
+    expiration: number,
+    whitelist: string[],
     onTransaction?: TransactionCallback
   ) => Promise<{ sessionKey: SessionKey; txHashes: [string, string] }>;
   removeSessionKey: (
-    password: string, 
-    publicKey: string, 
+    password: string,
+    publicKey: string,
     onTransaction?: TransactionCallback
   ) => Promise<{ txHashes: [string, string] }>;
   cleanExpiredSessionKey: () => void;
@@ -201,7 +201,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children, config
           }
         }
       );
-      
+
       // Mise à jour du wallet après la confirmation blockchain
       setWallet(result.updatedWallet);
       setStage('settled');
@@ -244,7 +244,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children, config
           }
         }
       );
-      
+
       // Mise à jour du wallet après la confirmation blockchain
       setWallet(result.updatedWallet);
       setStage('settled');
@@ -260,7 +260,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children, config
 
   const cleanExpiredSessionKey = useCallback(() => {
     if (!wallet) return;
-    
+
     try {
       const updatedWallet = WalletOperations.cleanExpiredSessionKeys(wallet);
       setWallet(updatedWallet);
@@ -283,14 +283,14 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children, config
   }, [wallet]);
 
   return (
-    <WalletContext.Provider 
-      value={{ 
-        wallet, 
-        isLoading, 
-        error, 
-        stage, 
-        login, 
-        registerAccount, 
+    <WalletContext.Provider
+      value={{
+        wallet,
+        isLoading,
+        error,
+        stage,
+        login,
+        registerAccount,
         registerSessionKey,
         removeSessionKey,
         createIdentityBlobs,

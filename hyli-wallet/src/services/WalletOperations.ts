@@ -1,21 +1,24 @@
-import { 
-  addSessionKeyBlob, 
-  type Wallet, 
+import {
+  addSessionKeyBlob,
+  type Wallet,
   walletContractName,
   type WalletAction,
   type TransactionCallback,
   serializeSecp256k1Blob,
   serializeIdentityAction,
   removeSessionKeyBlob,
-  SessionKey
-} from '../types/wallet';
-import { sessionKeyService } from './SessionKeyService';
-import { build_proof_transaction, build_blob as check_secret_blob } from 'hyle-check-secret';
-import { Blob, BlobTransaction } from 'hyle';
-import { NodeService } from './NodeService';
+  SessionKey,
+} from "../types/wallet";
+import { sessionKeyService } from "./SessionKeyService";
+import {
+  build_proof_transaction,
+  build_blob as check_secret_blob,
+} from "hyli-check-secret";
+import { Blob, BlobTransaction } from "hyli";
+import { NodeService } from "./NodeService";
 
 /**
- * Registers a new session key in the wallet and sends transactions to register it. 
+ * Registers a new session key in the wallet and sends transactions to register it.
  * @param wallet The wallet to update
  * @param password The password (for signing)
  * @param expiration Key expiration timestamp
@@ -27,7 +30,7 @@ export const registerSessionKey = async (
   password: string,
   expiration: number,
   whitelist: string[],
-  onTransaction?: TransactionCallback
+  onTransaction?: TransactionCallback,
 ): Promise<{
   sessionKey: SessionKey;
   txHashes: [string, string];
@@ -36,14 +39,22 @@ export const registerSessionKey = async (
   const nodeService = NodeService.getInstance();
 
   // Create the new session key
-  const newSessionKey = sessionKeyService.generateSessionKey(expiration, whitelist);
+  const newSessionKey = sessionKeyService.generateSessionKey(
+    expiration,
+    whitelist,
+  );
   const accountName = wallet.username;
 
   // Register the session key with the service
   try {
     const identity = `${accountName}@${walletContractName}`;
     const blob0 = await check_secret_blob(identity, password);
-    const blob1 = addSessionKeyBlob(accountName, newSessionKey.publicKey, expiration, whitelist);
+    const blob1 = addSessionKeyBlob(
+      accountName,
+      newSessionKey.publicKey,
+      expiration,
+      whitelist,
+    );
 
     const blobTx: BlobTransaction = {
       identity,
@@ -53,7 +64,7 @@ export const registerSessionKey = async (
     // Send transaction to add session key
     const blobTxHash = await nodeService.client.sendBlobTx(blobTx);
     // Notify of blob transaction
-    onTransaction?.(blobTxHash, 'blob');
+    onTransaction?.(blobTxHash, "blob");
 
     const proofTx = await build_proof_transaction(
       identity,
@@ -65,27 +76,27 @@ export const registerSessionKey = async (
 
     const proofTxHash = await nodeService.client.sendProofTx(proofTx);
     // Notify of proof transaction
-    onTransaction?.(proofTxHash, 'proof');
+    onTransaction?.(proofTxHash, "proof");
 
     // Create optimistic wallet update
     const updatedWallet = {
       ...wallet,
-      sessionKey: newSessionKey
+      sessionKey: newSessionKey,
     };
 
     return {
       sessionKey: newSessionKey,
       txHashes: [blobTxHash, proofTxHash],
-      updatedWallet
+      updatedWallet,
     };
   } catch (error) {
-    console.error('Failed to initialize session key:', error);
+    console.error("Failed to initialize session key:", error);
     throw error;
   }
-}
+};
 
 /**
- * Remove a session key in the wallet and sends transactions to remove it. 
+ * Remove a session key in the wallet and sends transactions to remove it.
  * @param wallet The wallet to update
  * @param password The password (for signing)
  * @param publicKey The key to remove
@@ -95,15 +106,15 @@ export const removeSessionKey = async (
   wallet: Wallet,
   password: string,
   publicKey: string,
-  onTransaction?: TransactionCallback
+  onTransaction?: TransactionCallback,
 ): Promise<{
   txHashes: [string, string];
   updatedWallet: Wallet;
 }> => {
   const nodeService = NodeService.getInstance();
-  
+
   const accountName = wallet.username;
-  
+
   // Remove the session key with the service
   try {
     const identity = `${accountName}@${walletContractName}`;
@@ -119,7 +130,7 @@ export const removeSessionKey = async (
     // Send transaction to remove session key
     const blobTxHash = await nodeService.client.sendBlobTx(blobTx);
     // Notify of blob transaction
-    onTransaction?.(blobTxHash, 'blob');
+    onTransaction?.(blobTxHash, "blob");
 
     const proofTx = await build_proof_transaction(
       identity,
@@ -131,14 +142,14 @@ export const removeSessionKey = async (
 
     const proofTxHash = await nodeService.client.sendProofTx(proofTx);
     // Notify of proof transaction
-    onTransaction?.(proofTxHash, 'proof');
+    onTransaction?.(proofTxHash, "proof");
 
     // Create optimistic wallet update
     let updatedWallet: Wallet;
     if (wallet.sessionKey && wallet.sessionKey.publicKey === publicKey) {
       updatedWallet = {
-      username: wallet.username,
-      address: wallet.address,
+        username: wallet.username,
+        address: wallet.address,
       };
     } else {
       updatedWallet = { ...wallet };
@@ -146,13 +157,13 @@ export const removeSessionKey = async (
 
     return {
       txHashes: [blobTxHash, proofTxHash],
-      updatedWallet
+      updatedWallet,
     };
   } catch (error) {
-    console.error('Failed to remove session key:', error);
+    console.error("Failed to remove session key:", error);
     throw error;
   }
-}
+};
 
 /**
  * Creates signed blobs using a session key
@@ -161,16 +172,22 @@ export const removeSessionKey = async (
  */
 export const createIdentityBlobs = (wallet: Wallet): [Blob, Blob] => {
   if (!wallet.sessionKey) {
-    throw new Error('No session key found. Please register a session key first.');
+    throw new Error(
+      "No session key found. Please register a session key first.",
+    );
   }
   const sessionKey = wallet.sessionKey;
-  
+
   if (sessionKey.expiration < Date.now()) {
-    throw new Error('Session key expired. Please register a new session key.');
+    throw new Error("Session key expired. Please register a new session key.");
   }
-  
+
   let nonce = Date.now();
-  const secp256k1Blob = sessionKeyService.getSignedBlob(wallet.address, nonce, sessionKey.privateKey);
+  const secp256k1Blob = sessionKeyService.getSignedBlob(
+    wallet.address,
+    nonce,
+    sessionKey.privateKey,
+  );
 
   const blob0: Blob = {
     contract_name: "secp256k1",
@@ -178,11 +195,11 @@ export const createIdentityBlobs = (wallet: Wallet): [Blob, Blob] => {
   };
 
   const action: WalletAction = {
-    UseSessionKey: { 
-      account: wallet.username, 
-      key: sessionKey.publicKey, 
-      nonce 
-    }
+    UseSessionKey: {
+      account: wallet.username,
+      key: sessionKey.publicKey,
+      nonce,
+    },
   };
   const blob1: Blob = {
     contract_name: walletContractName,
@@ -190,7 +207,7 @@ export const createIdentityBlobs = (wallet: Wallet): [Blob, Blob] => {
   };
 
   return [blob0, blob1];
-}
+};
 
 /**
  * Cleans expired session keys from the wallet
@@ -210,4 +227,4 @@ export const cleanExpiredSessionKeys = (wallet: Wallet): Wallet => {
     return updatedWallet;
   }
   return wallet;
-}
+};
