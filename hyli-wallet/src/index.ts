@@ -1,4 +1,4 @@
-export { HyleWallet } from './components/HyleWallet';
+export { HyliWallet } from './components/HyliWallet';
 export { PasswordAuthProvider } from './providers/PasswordAuthProvider';
 export type { AuthProvider, AuthCredentials } from './types/auth';
 export type { AuthMethod, Wallet, WalletAction, Transaction } from './types/wallet';

@@ -114,8 +114,8 @@ export const HyliWallet = ({
   };
 
   const ModalContent = (
-    <div className="hyli-wallet-overlay" onClick={closeModal}>
-      <div className="hyli-wallet-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="-overlay" onClick={closeModal}>
+      <div className="-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-logo">
             <svg width="120" height="28" viewBox="0 0 931 218" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -181,7 +181,7 @@ export const HyliWallet = ({
       {button ? (
         button({ onClick: handleButtonClick })
       ) : (
-        <button className="hyli-wallet-btn" onClick={handleButtonClick}>
+        <button className="-btn" onClick={handleButtonClick}>
           {wallet ? "Log Out" : "Connect Wallet"}
         </button>
       )}

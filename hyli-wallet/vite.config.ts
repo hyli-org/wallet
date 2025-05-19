@@ -7,8 +7,8 @@ export default defineConfig({
   build: {
     lib: {
       entry: 'src/index.ts',
-      name: 'HyleWallet',
-      fileName: (format) => `hyle-wallet.${format}.js`,
+      name: 'HyliWallet',
+      fileName: (format) => `hyli-wallet.${format}.js`,
       formats: ['es', 'cjs']
     },
     rollupOptions: {

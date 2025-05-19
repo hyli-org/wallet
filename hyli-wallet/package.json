@@ -1,21 +1,21 @@
 {
   "name": "hyli-wallet",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "license": "MIT",
   "repository": "hyli-org/wallet",
   "description": "A reusable wallet component",
-  "main": "./dist/hyle-wallet.cjs.js",
-  "types": "dist/hyle-wallet.d.ts",
-  "module": "./dist/hyle-wallet.es.js",
+  "main": "./dist/hyli-wallet.cjs.js",
+  "types": "dist/hyli-wallet.d.ts",
+  "module": "./dist/hyli-wallet.es.js",
   "files": [
     "dist"
   ],
   "exports": {
     ".": {
-      "types": "./dist/hyle-wallet.d.ts",
-      "import": "./dist/hyle-wallet.es.js",
-      "require": "./dist/hyle-wallet.cjs.js"
+      "types": "./dist/hyli-wallet.d.ts",
+      "import": "./dist/hyli-wallet.es.js",
+      "require": "./dist/hyli-wallet.cjs.js"
     }
   },
   "peerDependencies": {

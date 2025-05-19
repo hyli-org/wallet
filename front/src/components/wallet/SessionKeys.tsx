@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { serializeIdentityAction, serializeSecp256k1Blob, sessionKeyService, useWallet, WalletAction, walletContractName } from 'hyle-wallet';
+import { serializeIdentityAction, serializeSecp256k1Blob, sessionKeyService, useWallet, WalletAction, walletContractName } from 'hyli-wallet';
 import { webSocketService } from '../../services/WebSocketService';
 import { Blob, BlobTransaction } from 'hyle';
 import { indexerService } from '../../services/IndexerService';

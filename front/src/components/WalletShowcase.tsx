@@ -1,5 +1,5 @@
 import React from 'react';
-import { HyleWallet } from 'hyle-wallet';
+import { HyliWallet } from 'hyli-wallet';
 import { useLocation } from 'react-router-dom';
 
 type ProviderOption = 'password' | 'google' | 'github';
@@ -19,7 +19,7 @@ export const WalletShowcase: React.FC<WalletShowcaseProps> = ({ providers }) => 
         <p>Connect to your wallet using the default modal or your own custom UI.</p>
       </div>
       {authError && <div className="error-message" style={{ color: 'red' }}>{authError}</div>}
-      <HyleWallet providers={providers} />
+      <HyliWallet providers={providers} />
     </div>
   );
 }; 

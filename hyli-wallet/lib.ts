@@ -1,9 +1,9 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { HyleWallet } from './src/components/HyleWallet';
+import { HyliWallet } from './src/components/HyliWallet';
 import type { ProviderOption } from './src/hooks/useWallet';
 
-class HyleWalletElement extends HTMLElement {
+class HyliWalletElement extends HTMLElement {
   connectedCallback() {
     const mountPoint = document.createElement('div');
     this.appendChild(mountPoint);
@@ -11,8 +11,8 @@ class HyleWalletElement extends HTMLElement {
     const providersAttr = this.getAttribute('providers');
     const providers = providersAttr ? providersAttr.split(',') as ProviderOption[] : ["password" as ProviderOption];
 
-    createRoot(mountPoint).render(React.createElement(HyleWallet, { providers }));
+    createRoot(mountPoint).render(React.createElement(HyliWallet, { providers }));
   }
 }
 
-customElements.define('hyle-wallet', HyleWalletElement);
+customElements.define('hyli-wallet', HyliWalletElement);

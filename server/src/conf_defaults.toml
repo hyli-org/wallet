@@ -1,4 +1,4 @@
-id = "hyle-wallet"
+id = ""
 log_format = "full"
 
 data_directory = "data"

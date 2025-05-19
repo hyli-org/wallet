@@ -52,11 +52,11 @@ function App() {
 2. Use the wallet component:
 
 ```tsx
-import { HyleWallet } from 'hyli-wallet';
+import { HyliWallet } from 'hyli-wallet';
 
 function YourComponent() {
   return (
-    <HyleWallet 
+    <HyliWallet 
       providers={['password', 'google', 'github']} // Optional: specify auth providers
     />
   );
@@ -108,7 +108,7 @@ function WalletFeatures() {
 Session keys allow for delegated transaction signing. Here's how to create one:
 
 ```typescript
-import { useWallet } from 'hyle-wallet';
+import { useWallet } from 'hyli-wallet';
 
 const { wallet, registerSessionKey } = useWallet();
 
@@ -143,7 +143,7 @@ Session keys allow for automated transaction signing:
 Once you have a session key, you can use it to send transactions:
 
 ```typescript
-import { useWallet } from 'hyle-wallet';
+import { useWallet } from 'hyli-wallet';
 import { nodeService } from 'your-services';
 
 const { wallet, createIdentityBlobs } = useWallet();
@@ -168,7 +168,7 @@ console.log('Transaction sent:', txHash);
 When a session key is no longer needed, you can remove it:
 
 ```typescript
-import { useWallet } from 'hyle-wallet';
+import { useWallet } from 'hyli-wallet';
 
 const { removeSessionKey } = useWallet();
 
@@ -199,7 +199,7 @@ function TransactionMonitor() {
 You can customize the connect button by providing a render prop:
 
 ```tsx
-<HyleWallet 
+<HyliWallet 
   button={({ onClick }) => (
     <button 
       className="custom-button"

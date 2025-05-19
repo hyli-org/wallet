@@ -22,7 +22,7 @@
     to { transform: translateY(0) scale(1); opacity: 1; }
   }
   
-  .hyli-wallet-btn {
+  .-btn {
     padding: 12px 24px;
     background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-secondary) 100%);
     color: #fff;
@@ -35,13 +35,13 @@
     transition: transform var(--anim-fast) var(--anim-ease), opacity var(--anim-fast) var(--anim-ease);
   }
   
-  .hyli-wallet-btn:hover {
+  .-btn:hover {
     opacity: 0.9;
     transform: scale(0.98);
   }
   
   /* Overlay */
-  .hyli-wallet-overlay {
+  .-overlay {
     position: fixed;
     top: 0;
     left: 0;
@@ -57,7 +57,7 @@
   }
   
   /* Modal */
-  .hyli-wallet-modal {
+  .-modal {
     background: var(--modal-bg);
     backdrop-filter: blur(16px) saturate(180%);
     border: 1px solid rgba(255, 255, 255, 0.3);
