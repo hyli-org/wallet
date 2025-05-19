@@ -4,36 +4,30 @@ import dts from "vite-plugin-dts";
 import cssInjectedByJsPlugin from "vite-plugin-css-injected-by-js";
 
 export default defineConfig({
-  build: {
-    lib: {
-      entry: "src/index.ts",
-      name: "HyliWallet",
-      fileName: (format) => `hyli-wallet.${format}.js`,
-      formats: ["es", "cjs"],
-    },
-    rollupOptions: {
-      external: [
-        "react",
-        "react-dom",
-        "hyli-check-secret",
-        "barretenberg",
-        "barretenberg/threads",
-      ],
-      output: {
-        globals: {
-          react: "React",
-          "react-dom": "ReactDOM",
+    build: {
+        lib: {
+            entry: "src/index.ts",
+            name: "HyliWallet",
+            fileName: (format) => `hyli-wallet.${format}.js`,
+            formats: ["es", "cjs"],
         },
-      },
+        rollupOptions: {
+            external: ["react", "react-dom", "hyli-check-secret", "barretenberg", "barretenberg/threads"],
+            output: {
+                globals: {
+                    react: "React",
+                    "react-dom": "ReactDOM",
+                },
+            },
+        },
+        outDir: "dist",
     },
-    outDir: "dist",
-  },
-  plugins: [
-    react(),
-    dts({
-      entryRoot: "src",
-      insertTypesEntry: true,
-    }),
-    cssInjectedByJsPlugin(),
-  ],
+    plugins: [
+        react(),
+        dts({
+            entryRoot: "src",
+            insertTypesEntry: true,
+        }),
+        cssInjectedByJsPlugin(),
+    ],
 });

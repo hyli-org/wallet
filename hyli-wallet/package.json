@@ -1,62 +1,62 @@
 {
-  "name": "hyli-wallet",
-  "version": "0.2.1",
-  "type": "module",
-  "license": "MIT",
-  "repository": "hyli-org/wallet",
-  "description": "A reusable wallet component",
-  "main": "./dist/hyli-wallet.cjs.js",
-  "types": "dist/hyli-wallet.d.ts",
-  "module": "./dist/hyli-wallet.es.js",
-  "files": [
-    "dist"
-  ],
-  "exports": {
-    ".": {
-      "types": "./dist/hyli-wallet.d.ts",
-      "import": "./dist/hyli-wallet.es.js",
-      "require": "./dist/hyli-wallet.cjs.js"
+    "name": "hyli-wallet",
+    "version": "0.2.1",
+    "type": "module",
+    "license": "MIT",
+    "repository": "hyli-org/wallet",
+    "description": "A reusable wallet component",
+    "main": "./dist/hyli-wallet.cjs.js",
+    "types": "dist/hyli-wallet.d.ts",
+    "module": "./dist/hyli-wallet.es.js",
+    "files": [
+        "dist"
+    ],
+    "exports": {
+        ".": {
+            "types": "./dist/hyli-wallet.d.ts",
+            "import": "./dist/hyli-wallet.es.js",
+            "require": "./dist/hyli-wallet.cjs.js"
+        }
+    },
+    "peerDependencies": {
+        "hyli-check-secret": "^0.3.2",
+        "react": "^19.1.0",
+        "react-dom": "^19.1.0",
+        "react-router-dom": "^7.5.0"
+    },
+    "scripts": {
+        "clean": "rm -rf dist",
+        "dev": "vite",
+        "build": "vite build",
+        "build:lib": "tsc",
+        "prepublishOnly": "bun run build",
+        "pub": "npm publish"
+    },
+    "dependencies": {
+        "@types/crypto-js": "^4.2.2",
+        "@types/elliptic": "^6.4.18",
+        "@types/react-router-dom": "^5.3.3",
+        "crypto-js": "^4.2.0",
+        "elliptic": "^6.6.1",
+        "hyli": "^0.3.0"
+    },
+    "devDependencies": {
+        "@eslint/js": "^9.24.0",
+        "@types/react": "^19.1.3",
+        "@types/react-dom": "^19.1.4",
+        "@vitejs/plugin-react": "^4.4.0",
+        "ajv": "^8.17.1",
+        "autoprefixer": "^10.4.21",
+        "eslint": "^9.24.0",
+        "eslint-plugin-react-hooks": "^5.2.0",
+        "eslint-plugin-react-refresh": "^0.4.19",
+        "globals": "^15.15.0",
+        "postcss": "^8.5.3",
+        "tailwindcss": "^4.1.4",
+        "typescript": "^5.8.3",
+        "typescript-eslint": "^8.30.1",
+        "vite": "^6.3.5",
+        "vite-plugin-css-injected-by-js": "^3.5.2",
+        "vite-plugin-dts": "^4.5.3"
     }
-  },
-  "peerDependencies": {
-    "hyli-check-secret": "^0.3.2",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "react-router-dom": "^7.5.0"
-  },
-  "scripts": {
-    "clean": "rm -rf dist",
-    "dev": "vite",
-    "build": "vite build",
-    "build:lib": "tsc",
-    "prepublishOnly": "bun run build",
-    "pub": "npm publish"
-  },
-  "dependencies": {
-    "@types/crypto-js": "^4.2.2",
-    "@types/elliptic": "^6.4.18",
-    "@types/react-router-dom": "^5.3.3",
-    "crypto-js": "^4.2.0",
-    "elliptic": "^6.6.1",
-    "hyli": "^0.3.0"
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.24.0",
-    "@types/react": "^19.1.3",
-    "@types/react-dom": "^19.1.4",
-    "@vitejs/plugin-react": "^4.4.0",
-    "ajv": "^8.17.1",
-    "autoprefixer": "^10.4.21",
-    "eslint": "^9.24.0",
-    "eslint-plugin-react-hooks": "^5.2.0",
-    "eslint-plugin-react-refresh": "^0.4.19",
-    "globals": "^15.15.0",
-    "postcss": "^8.5.3",
-    "tailwindcss": "^4.1.4",
-    "typescript": "^5.8.3",
-    "typescript-eslint": "^8.30.1",
-    "vite": "^6.3.5",
-    "vite-plugin-css-injected-by-js": "^3.5.2",
-    "vite-plugin-dts": "^4.5.3"
-  }
 }

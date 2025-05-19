@@ -1,19 +1,16 @@
 import {
-  addSessionKeyBlob,
-  type Wallet,
-  walletContractName,
-  type WalletAction,
-  type TransactionCallback,
-  serializeSecp256k1Blob,
-  serializeIdentityAction,
-  removeSessionKeyBlob,
-  SessionKey,
+    addSessionKeyBlob,
+    type Wallet,
+    walletContractName,
+    type WalletAction,
+    type TransactionCallback,
+    serializeSecp256k1Blob,
+    serializeIdentityAction,
+    removeSessionKeyBlob,
+    SessionKey,
 } from "../types/wallet";
 import { sessionKeyService } from "./SessionKeyService";
-import {
-  build_proof_transaction,
-  build_blob as check_secret_blob,
-} from "hyli-check-secret";
+import { build_proof_transaction, build_blob as check_secret_blob } from "hyli-check-secret";
 import { Blob, BlobTransaction } from "hyli";
 import { NodeService } from "./NodeService";
 
@@ -26,73 +23,59 @@ import { NodeService } from "./NodeService";
  * @returns Object containing transaction hashes and optimistic wallet update
  */
 export const registerSessionKey = async (
-  wallet: Wallet,
-  password: string,
-  expiration: number,
-  whitelist: string[],
-  onTransaction?: TransactionCallback,
+    wallet: Wallet,
+    password: string,
+    expiration: number,
+    whitelist: string[],
+    onTransaction?: TransactionCallback
 ): Promise<{
-  sessionKey: SessionKey;
-  txHashes: [string, string];
-  updatedWallet: Wallet;
+    sessionKey: SessionKey;
+    txHashes: [string, string];
+    updatedWallet: Wallet;
 }> => {
-  const nodeService = NodeService.getInstance();
+    const nodeService = NodeService.getInstance();
 
-  // Create the new session key
-  const newSessionKey = sessionKeyService.generateSessionKey(
-    expiration,
-    whitelist,
-  );
-  const accountName = wallet.username;
+    // Create the new session key
+    const newSessionKey = sessionKeyService.generateSessionKey(expiration, whitelist);
+    const accountName = wallet.username;
 
-  // Register the session key with the service
-  try {
-    const identity = `${accountName}@${walletContractName}`;
-    const blob0 = await check_secret_blob(identity, password);
-    const blob1 = addSessionKeyBlob(
-      accountName,
-      newSessionKey.publicKey,
-      expiration,
-      whitelist,
-    );
+    // Register the session key with the service
+    try {
+        const identity = `${accountName}@${walletContractName}`;
+        const blob0 = await check_secret_blob(identity, password);
+        const blob1 = addSessionKeyBlob(accountName, newSessionKey.publicKey, expiration, whitelist);
 
-    const blobTx: BlobTransaction = {
-      identity,
-      blobs: [blob0, blob1],
-    };
+        const blobTx: BlobTransaction = {
+            identity,
+            blobs: [blob0, blob1],
+        };
 
-    // Send transaction to add session key
-    const blobTxHash = await nodeService.client.sendBlobTx(blobTx);
-    // Notify of blob transaction
-    onTransaction?.(blobTxHash, "blob");
+        // Send transaction to add session key
+        const blobTxHash = await nodeService.client.sendBlobTx(blobTx);
+        // Notify of blob transaction
+        onTransaction?.(blobTxHash, "blob");
 
-    const proofTx = await build_proof_transaction(
-      identity,
-      password,
-      blobTxHash,
-      0,
-      blobTx.blobs.length,
-    );
+        const proofTx = await build_proof_transaction(identity, password, blobTxHash, 0, blobTx.blobs.length);
 
-    const proofTxHash = await nodeService.client.sendProofTx(proofTx);
-    // Notify of proof transaction
-    onTransaction?.(proofTxHash, "proof");
+        const proofTxHash = await nodeService.client.sendProofTx(proofTx);
+        // Notify of proof transaction
+        onTransaction?.(proofTxHash, "proof");
 
-    // Create optimistic wallet update
-    const updatedWallet = {
-      ...wallet,
-      sessionKey: newSessionKey,
-    };
+        // Create optimistic wallet update
+        const updatedWallet = {
+            ...wallet,
+            sessionKey: newSessionKey,
+        };
 
-    return {
-      sessionKey: newSessionKey,
-      txHashes: [blobTxHash, proofTxHash],
-      updatedWallet,
-    };
-  } catch (error) {
-    console.error("Failed to initialize session key:", error);
-    throw error;
-  }
+        return {
+            sessionKey: newSessionKey,
+            txHashes: [blobTxHash, proofTxHash],
+            updatedWallet,
+        };
+    } catch (error) {
+        console.error("Failed to initialize session key:", error);
+        throw error;
+    }
 };
 
 /**
@@ -103,66 +86,60 @@ export const registerSessionKey = async (
  * @returns Object containing transaction hashes and optimistic wallet update
  */
 export const removeSessionKey = async (
-  wallet: Wallet,
-  password: string,
-  publicKey: string,
-  onTransaction?: TransactionCallback,
+    wallet: Wallet,
+    password: string,
+    publicKey: string,
+    onTransaction?: TransactionCallback
 ): Promise<{
-  txHashes: [string, string];
-  updatedWallet: Wallet;
+    txHashes: [string, string];
+    updatedWallet: Wallet;
 }> => {
-  const nodeService = NodeService.getInstance();
+    const nodeService = NodeService.getInstance();
 
-  const accountName = wallet.username;
+    const accountName = wallet.username;
 
-  // Remove the session key with the service
-  try {
-    const identity = `${accountName}@${walletContractName}`;
+    // Remove the session key with the service
+    try {
+        const identity = `${accountName}@${walletContractName}`;
 
-    const blob0 = await check_secret_blob(identity, password);
-    const blob1 = removeSessionKeyBlob(wallet.username, publicKey);
+        const blob0 = await check_secret_blob(identity, password);
+        const blob1 = removeSessionKeyBlob(wallet.username, publicKey);
 
-    const blobTx: BlobTransaction = {
-      identity,
-      blobs: [blob0, blob1],
-    };
+        const blobTx: BlobTransaction = {
+            identity,
+            blobs: [blob0, blob1],
+        };
 
-    // Send transaction to remove session key
-    const blobTxHash = await nodeService.client.sendBlobTx(blobTx);
-    // Notify of blob transaction
-    onTransaction?.(blobTxHash, "blob");
+        // Send transaction to remove session key
+        const blobTxHash = await nodeService.client.sendBlobTx(blobTx);
+        // Notify of blob transaction
+        onTransaction?.(blobTxHash, "blob");
 
-    const proofTx = await build_proof_transaction(
-      identity,
-      password,
-      blobTxHash,
-      0,
-      blobTx.blobs.length,
-    );
+        const proofTx = await build_proof_transaction(identity, password, blobTxHash, 0, blobTx.blobs.length);
 
-    const proofTxHash = await nodeService.client.sendProofTx(proofTx);
-    // Notify of proof transaction
-    onTransaction?.(proofTxHash, "proof");
+        const proofTxHash = await nodeService.client.sendProofTx(proofTx);
+        // Notify of proof transaction
+        onTransaction?.(proofTxHash, "proof");
 
-    // Create optimistic wallet update
-    let updatedWallet: Wallet;
-    if (wallet.sessionKey && wallet.sessionKey.publicKey === publicKey) {
-      updatedWallet = {
-        username: wallet.username,
-        address: wallet.address,
-      };
-    } else {
-      updatedWallet = { ...wallet };
+        // Create optimistic wallet update
+        let updatedWallet: Wallet;
+        if (wallet.sessionKey && wallet.sessionKey.publicKey === publicKey) {
+            updatedWallet = {
+                username: wallet.username,
+                address: wallet.address,
+            };
+        } else {
+            updatedWallet = { ...wallet };
+        }
+
+        return {
+            txHashes: [blobTxHash, proofTxHash],
+            updatedWallet,
+        };
+    } catch (error) {
+        console.error("Failed to remove session key:", error);
+        throw error;
     }
-
-    return {
-      txHashes: [blobTxHash, proofTxHash],
-      updatedWallet,
-    };
-  } catch (error) {
-    console.error("Failed to remove session key:", error);
-    throw error;
-  }
 };
 
 /**
@@ -171,42 +148,36 @@ export const removeSessionKey = async (
  * @returns [blob1, blob2] The signed blobs
  */
 export const createIdentityBlobs = (wallet: Wallet): [Blob, Blob] => {
-  if (!wallet.sessionKey) {
-    throw new Error(
-      "No session key found. Please register a session key first.",
-    );
-  }
-  const sessionKey = wallet.sessionKey;
+    if (!wallet.sessionKey) {
+        throw new Error("No session key found. Please register a session key first.");
+    }
+    const sessionKey = wallet.sessionKey;
 
-  if (sessionKey.expiration < Date.now()) {
-    throw new Error("Session key expired. Please register a new session key.");
-  }
+    if (sessionKey.expiration < Date.now()) {
+        throw new Error("Session key expired. Please register a new session key.");
+    }
 
-  let nonce = Date.now();
-  const secp256k1Blob = sessionKeyService.getSignedBlob(
-    wallet.address,
-    nonce,
-    sessionKey.privateKey,
-  );
+    let nonce = Date.now();
+    const secp256k1Blob = sessionKeyService.getSignedBlob(wallet.address, nonce, sessionKey.privateKey);
 
-  const blob0: Blob = {
-    contract_name: "secp256k1",
-    data: serializeSecp256k1Blob(secp256k1Blob),
-  };
+    const blob0: Blob = {
+        contract_name: "secp256k1",
+        data: serializeSecp256k1Blob(secp256k1Blob),
+    };
 
-  const action: WalletAction = {
-    UseSessionKey: {
-      account: wallet.username,
-      key: sessionKey.publicKey,
-      nonce,
-    },
-  };
-  const blob1: Blob = {
-    contract_name: walletContractName,
-    data: serializeIdentityAction(action),
-  };
+    const action: WalletAction = {
+        UseSessionKey: {
+            account: wallet.username,
+            key: sessionKey.publicKey,
+            nonce,
+        },
+    };
+    const blob1: Blob = {
+        contract_name: walletContractName,
+        data: serializeIdentityAction(action),
+    };
 
-  return [blob0, blob1];
+    return [blob0, blob1];
 };
 
 /**
@@ -215,16 +186,16 @@ export const createIdentityBlobs = (wallet: Wallet): [Blob, Blob] => {
  * @returns The updated wallet
  */
 export const cleanExpiredSessionKeys = (wallet: Wallet): Wallet => {
-  if (!wallet.sessionKey) {
+    if (!wallet.sessionKey) {
+        return wallet;
+    }
+    if (wallet.sessionKey.expiration < Date.now()) {
+        // Remove expired keys from wallet
+        const updatedWallet = {
+            username: wallet.username,
+            address: wallet.address,
+        };
+        return updatedWallet;
+    }
     return wallet;
-  }
-  if (wallet.sessionKey.expiration < Date.now()) {
-    // Remove expired keys from wallet
-    const updatedWallet = {
-      username: wallet.username,
-      address: wallet.address,
-    };
-    return updatedWallet;
-  }
-  return wallet;
 };

@@ -4,12 +4,12 @@ A reusable React wallet component for blockchain applications, designed to provi
 
 ## Features
 
-- 🔐 Multiple authentication providers (Password, Google, Github, etc.)
-- 🔑 Session key management
-- 💰 Transaction handling
-- 📡 WebSocket integration for real-time updates
-- 🎨 Customizable UI
-- 🔄 State management via React Context
+-   🔐 Multiple authentication providers (Password, Google, Github, etc.)
+-   🔑 Session key management
+-   💰 Transaction handling
+-   📡 WebSocket integration for real-time updates
+-   🎨 Customizable UI
+-   🔄 State management via React Context
 
 ## Installation
 
@@ -20,12 +20,13 @@ yarn add hyli-wallet
 ```
 
 Required peer dependencies:
+
 ```json
 {
-  "hyli-check-secret": "^0.3.2",
-  "react": "^19.1.0",
-  "react-dom": "^19.1.0",
-  "react-router-dom": "^7.5.0"
+    "hyli-check-secret": "^0.3.2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.5.0"
 }
 ```
 
@@ -34,32 +35,34 @@ Required peer dependencies:
 1. First, wrap your application with the `WalletProvider`:
 
 ```tsx
-import { WalletProvider } from 'hyli-wallet';
+import { WalletProvider } from "hyli-wallet";
 
 function App() {
-  return (
-    <WalletProvider config={{
-      nodeBaseUrl: 'NODE_BASE_URL',
-      walletServerBaseUrl: 'WALLET_SERVER_URL',
-      applicationWsUrl: 'WEBSOCKET_URL'
-    }}>
-      <YourApp />
-    </WalletProvider>
-  );
+    return (
+        <WalletProvider
+            config={{
+                nodeBaseUrl: "NODE_BASE_URL",
+                walletServerBaseUrl: "WALLET_SERVER_URL",
+                applicationWsUrl: "WEBSOCKET_URL",
+            }}
+        >
+            <YourApp />
+        </WalletProvider>
+    );
 }
 ```
 
 2. Use the wallet component:
 
 ```tsx
-import { HyliWallet } from 'hyli-wallet';
+import { HyliWallet } from "hyli-wallet";
 
 function YourComponent() {
-  return (
-    <HyliWallet 
-      providers={['password', 'google', 'github']} // Optional: specify auth providers
-    />
-  );
+    return (
+        <HyliWallet
+            providers={["password", "google", "github"]} // Optional: specify auth providers
+        />
+    );
 }
 ```
 
@@ -68,39 +71,39 @@ function YourComponent() {
 The `useWallet` hook provides access to wallet functionality:
 
 ```tsx
-import { useWallet } from 'hyli-wallet';
+import { useWallet } from "hyli-wallet";
 
 function WalletFeatures() {
-  const { 
-    wallet,           // Current wallet state
-    isLoading,
-    error,
-    login,           // Login function
-    registerAccount,  // Create new account
-    logout,          // Logout function
-    registerSessionKey,  // Create new session key
-    removeSessionKey,    // Remove existing session key
-  } = useWallet();
+    const {
+        wallet, // Current wallet state
+        isLoading,
+        error,
+        login, // Login function
+        registerAccount, // Create new account
+        logout, // Logout function
+        registerSessionKey, // Create new session key
+        removeSessionKey, // Remove existing session key
+    } = useWallet();
 
-  return (
-    <div>
-      {wallet ? (
+    return (
         <div>
-          <p>Welcome, {wallet.username}</p>
-          <p>Balance: {balance} HYLLAR</p>
-          <button onClick={logout}>Logout</button>
+            {wallet ? (
+                <div>
+                    <p>Welcome, {wallet.username}</p>
+                    <p>Balance: {balance} HYLLAR</p>
+                    <button onClick={logout}>Logout</button>
+                </div>
+            ) : (
+                <p>Please connect your wallet</p>
+            )}
         </div>
-      ) : (
-        <p>Please connect your wallet</p>
-      )}
-    </div>
-  );
+    );
 }
 ```
 
 ## Session Key Management
 
-> **Note:** 
+> **Note:**
 > You can find a complete and exhaustive implementation in [`here`](../front/src/components/wallet/SessionKeys.tsx).
 
 ### Creating a Session Key
@@ -143,8 +146,8 @@ Session keys allow for automated transaction signing:
 Once you have a session key, you can use it to send transactions:
 
 ```typescript
-import { useWallet } from 'hyli-wallet';
-import { nodeService } from 'your-services';
+import { useWallet } from "hyli-wallet";
+import { nodeService } from "your-services";
 
 const { wallet, createIdentityBlobs } = useWallet();
 
@@ -153,14 +156,14 @@ const [blob0, blob1] = createIdentityBlobs();
 
 // Create and send the transaction
 const blobTx = {
-  identity: wallet.address,
-  blobs: [blob0, blob1],
+    identity: wallet.address,
+    blobs: [blob0, blob1],
 };
 // blob0 is the secp256k1 blob containing the signature done with the wallet's session keu
 // blob1 is the hyli-wallet contract that verifies that the session key is valid
 
 const txHash = await nodeService.client.sendBlobTx(blobTx);
-console.log('Transaction sent:', txHash);
+console.log("Transaction sent:", txHash);
 ```
 
 ### Removing a Session Key
@@ -168,15 +171,12 @@ console.log('Transaction sent:', txHash);
 When a session key is no longer needed, you can remove it:
 
 ```typescript
-import { useWallet } from 'hyli-wallet';
+import { useWallet } from "hyli-wallet";
 
 const { removeSessionKey } = useWallet();
 
 // Remove the session key using the wallet password
-await removeSessionKey(
-  'your_password',
-  'session_key_public_key'
-);
+await removeSessionKey("your_password", "session_key_public_key");
 ```
 
 ## WebSocket Integration
@@ -185,12 +185,12 @@ Real-time updates for transactions and wallet events:
 
 ```tsx
 function TransactionMonitor() {
-  useWebSocketConnection(wallet?.address, event => {
-    if (event.tx.status === 'Success') {
-      // Handle successful transaction
-      fetchBalance();
-    }
-  });
+    useWebSocketConnection(wallet?.address, (event) => {
+        if (event.tx.status === "Success") {
+            // Handle successful transaction
+            fetchBalance();
+        }
+    });
 }
 ```
 
@@ -199,15 +199,12 @@ function TransactionMonitor() {
 You can customize the connect button by providing a render prop:
 
 ```tsx
-<HyliWallet 
-  button={({ onClick }) => (
-    <button 
-      className="custom-button"
-      onClick={onClick}
-    >
-      Connect to Wallet
-    </button>
-  )}
+<HyliWallet
+    button={({ onClick }) => (
+        <button className="custom-button" onClick={onClick}>
+            Connect to Wallet
+        </button>
+    )}
 />
 ```
 
