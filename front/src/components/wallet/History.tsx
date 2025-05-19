@@ -10,10 +10,10 @@ export const History = ({ transactions }: HistoryProps) => {
       <h2>Transaction History</h2>
       <div className="transactions-list">
         {transactions.map((tx) => (
-          <div key={tx.id +tx.type} className={`transaction ${tx.type}`}>
+          <div key={tx.id + tx.type} className={`transaction ${tx.type}`}>
             <div className="transaction-header">
               <span className="type">{tx.type.toUpperCase()}</span>
-              <span className="amount">{tx.amount} HYLLAR</span>
+              <span className="amount">{tx.amount} ORANJ</span>
             </div>
             <div className="transaction-details">
               <p>Address: {tx.address}</p>

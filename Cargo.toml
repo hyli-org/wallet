@@ -9,7 +9,6 @@ members = ["contracts", "contracts/wallet", "server"]
 
 sdk = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-contract-sdk", branch = "fix/smt_token_inputs" }
 client-sdk = { git = "https://github.com/Hyle-org/hyle.git", default-features = false, package = "hyle-client-sdk", branch = "fix/smt_token_inputs" }
-hyle-hyllar = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-hyllar", branch = "fix/smt_token_inputs" }
 hyle-smt-token = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-smt-token", branch = "fix/smt_token_inputs" }
 hyle-modules = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-modules", branch = "fix/smt_token_inputs" }
 

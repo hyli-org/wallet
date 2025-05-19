@@ -109,7 +109,7 @@ async fn main() -> Result<()> {
     handler
         .build_module::<ContractStateIndexer<HyllarHistory, Vec<HistoryEvent>>>(
             ContractStateIndexerCtx {
-                contract_name: "hyllar".into(),
+                contract_name: "oranj".into(),
                 data_directory: config.data_directory.clone(),
                 api: api_ctx.clone(),
             },
@@ -122,18 +122,6 @@ async fn main() -> Result<()> {
             data_directory: config.data_directory.clone(),
             prover: Arc::new(Risc0Prover::new(contracts::WALLET_ELF)),
             contract_name: wallet_cn.clone(),
-            node: app_ctx.node_client.clone(),
-            default_state: Default::default(),
-        }))
-        .await?;
-    handler
-        .build_module::<AutoProver<hyle_hyllar::Hyllar>>(Arc::new(AutoProverCtx {
-            start_height,
-            data_directory: config.data_directory.clone(),
-            prover: Arc::new(Risc0Prover::new(
-                hyle_hyllar::client::tx_executor_handler::metadata::HYLLAR_ELF,
-            )),
-            contract_name: "hyllar".into(),
             node: app_ctx.node_client.clone(),
             default_state: Default::default(),
         }))

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { serializeIdentityAction, serializeSecp256k1Blob, sessionKeyService, useWallet, WalletAction, walletContractName } from 'hyli-wallet';
 import { webSocketService } from '../../services/WebSocketService';
-import { Blob, BlobTransaction } from 'hyle';
+import { Blob, BlobTransaction } from 'hyli';
 import { indexerService } from '../../services/IndexerService';
 import './SessionKeys.css';
 import { nodeService } from '../../services/NodeService';
@@ -18,7 +18,7 @@ export const SessionKeys = () => {
   if (!wallet) {
     return <div>Please connect your wallet first</div>;
   }
-  
+
   const [sessionKeys, setSessionKeys] = useState<SessionKey[]>([]);
   const [password, setPassword] = useState('password123');
   const [expirationDays, setExpirationDays] = useState('7');
@@ -60,11 +60,11 @@ export const SessionKeys = () => {
 
     try {
       const expiration = Date.now() + (days * 24 * 60 * 60 * 1000);
-      
+
       const { sessionKey } = await registerSessionKey(
         password,
         expiration,
-        ["hyllar"],
+        ["oranj"],
         (txHash: string, type: string) => {
           if (type === 'blob') {
             setStatus('Verifying identity...');
@@ -172,10 +172,10 @@ export const SessionKeys = () => {
       };
 
       const action: WalletAction = {
-        UseSessionKey: { 
-          account: wallet.username, 
-          key: publicKey, 
-          nonce 
+        UseSessionKey: {
+          account: wallet.username,
+          key: publicKey,
+          nonce
         }
       };
       const blob1: Blob = {
@@ -270,20 +270,20 @@ export const SessionKeys = () => {
   return (
     <div className="session-keys-section">
       <h2>Session Keys</h2>
-      
+
       <div className="add-key-section">
         <h3>Add New Session Key</h3>
         <div className="form-group">
           <div className="input-group">
             <label htmlFor="password">Wallet Password</label>
             <div className="input-with-description">
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your wallet password"
-              disabled={isLoading}
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your wallet password"
+                disabled={isLoading}
               />
             </div>
           </div>

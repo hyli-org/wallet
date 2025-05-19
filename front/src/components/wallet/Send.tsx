@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Transaction, verifyIdentity, Wallet } from 'hyli-wallet';
-import { blob_builder, BlobTransaction } from 'hyle'
+import { blob_builder, BlobTransaction } from 'hyli'
 import { build_proof_transaction, build_blob as check_secret_blob } from 'hyle-check-secret';
 import { nodeService } from '../../services/NodeService';
 import { webSocketService } from '../../services/WebSocketService';
@@ -39,7 +39,7 @@ export const Send = ({ wallet, onSend }: SendProps) => {
     const identity = `${wallet.username}@${blob1.contract_name}`;
     const blob0 = await check_secret_blob(identity, password);
 
-    const blob2 = blob_builder.token.transfer(address, "hyllar", parsedAmount, null);
+    const blob2 = blob_builder.smt_token.transfer(identity, address, "oranj", BigInt(parsedAmount), null);
 
     const blobTx: BlobTransaction = {
       identity,

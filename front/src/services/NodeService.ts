@@ -1,8 +1,8 @@
-import { NodeApiHttpClient } from 'hyle';
+import { NodeApiHttpClient } from "hyli";
 
 class NodeService {
   client: NodeApiHttpClient;
-  
+
   constructor() {
     this.client = new NodeApiHttpClient(import.meta.env.VITE_NODE_BASE_URL);
   }

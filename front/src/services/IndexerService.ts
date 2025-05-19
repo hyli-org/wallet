@@ -1,4 +1,4 @@
-import { IndexerApiHttpClient } from "hyle";
+import { IndexerApiHttpClient } from "hyli";
 import { Transaction, AuthMethod, walletContractName } from "hyli-wallet";
 
 interface BalanceResponse {
@@ -40,7 +40,7 @@ class IndexerService {
   async getBalance(address: string): Promise<number> {
     try {
       const response = await this.client.get<BalanceResponse>(
-        `v1/indexer/contract/hyllar/balance/${address}`,
+        `v1/indexer/contract/oranj/balance/${address}`,
         "Fetching balance",
       );
       return response.balance;
@@ -53,7 +53,7 @@ class IndexerService {
   async getTransactionHistory(address: string): Promise<Transaction[]> {
     try {
       const response = await this.server.get<TransactionHistoryResponse>(
-        `v1/indexer/contract/hyllar/history/${address}`,
+        `v1/indexer/contract/oranj/history/${address}`,
         "Fetching transaction history",
       );
       return response.history;
@@ -72,7 +72,7 @@ class IndexerService {
       return response;
     } catch (error) {
       console.error("Error while fetching the account info:", error);
-      throw new Error('Failed to fetch account info');
+      throw new Error("Failed to fetch account info");
     }
   }
 }

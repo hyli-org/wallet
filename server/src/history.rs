@@ -2,6 +2,8 @@ use anyhow::anyhow;
 use anyhow::Context;
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
+use hyle_smt_token::client::tx_executor_handler::SmtTokenProvableState;
+use hyle_smt_token::SmtTokenAction;
 use sdk::BlobIndex;
 use sdk::Calldata;
 use sdk::Hashed;
@@ -21,8 +23,6 @@ use client_sdk::contract_indexer::{
     AppError, ContractHandler, ContractHandlerStore,
 };
 use client_sdk::transaction_builder::TxExecutorHandler;
-use hyle_hyllar::Hyllar;
-use hyle_hyllar::HyllarAction;
 use sdk::utils::parse_calldata;
 use sdk::Identity;
 use sdk::TxHash;
@@ -38,9 +38,9 @@ pub struct TransactionDetails {
     timestamp: u128,
 }
 
-#[derive(Debug, Clone, Default, Serialize, BorshDeserialize, BorshSerialize)]
+#[derive(Debug, Clone, Default, BorshDeserialize, BorshSerialize)]
 pub struct HyllarHistory {
-    hyllar: Hyllar,
+    oranj: SmtTokenProvableState,
     history: BTreeMap<Identity, Vec<TransactionDetails>>,
 }
 
@@ -78,7 +78,7 @@ impl HyllarHistory {
         }
     }
 
-    fn get_action(tx: &sdk::BlobTransaction, index: BlobIndex) -> anyhow::Result<HyllarAction> {
+    fn get_action(tx: &sdk::BlobTransaction, index: BlobIndex) -> anyhow::Result<SmtTokenAction> {
         let calldata = Calldata {
             identity: tx.identity.clone(),
             index,
@@ -88,7 +88,7 @@ impl HyllarHistory {
             tx_ctx: None,
             private_input: vec![],
         };
-        let (action, _) = parse_calldata::<HyllarAction>(&calldata)
+        let (action, _) = parse_calldata::<SmtTokenAction>(&calldata)
             .map_err(|e| anyhow!("Failed to parse calldata: {}", e))?;
         Ok(action)
     }
@@ -96,11 +96,11 @@ impl HyllarHistory {
 
 impl TxExecutorHandler for HyllarHistory {
     fn handle(&mut self, calldata: &sdk::Calldata) -> anyhow::Result<sdk::HyleOutput, String> {
-        self.hyllar.handle(calldata)
+        self.oranj.handle(calldata)
     }
 
     fn build_commitment_metadata(&self, blob: &sdk::Blob) -> anyhow::Result<Vec<u8>, String> {
-        self.hyllar.build_commitment_metadata(blob)
+        self.oranj.build_commitment_metadata(blob)
     }
 }
 
@@ -194,11 +194,15 @@ impl ContractHandler<Vec<HistoryEvent>> for HyllarHistory {
         let mut events = vec![];
 
         match action {
-            HyllarAction::Transfer { recipient, amount } => {
+            SmtTokenAction::Transfer {
+                sender,
+                recipient,
+                amount,
+            } => {
                 // Update history for the sender
                 events.push(self.add_to_history(
-                    tx.identity.clone(),
-                    recipient.clone().into(),
+                    sender.clone(),
+                    recipient.clone(),
                     "Send",
                     amount,
                     tx.hashed(),
@@ -206,47 +210,51 @@ impl ContractHandler<Vec<HistoryEvent>> for HyllarHistory {
                 ));
                 // Update history for the receiver
                 events.push(self.add_to_history(
-                    recipient.into(),
-                    tx.identity.clone(),
+                    recipient,
+                    sender,
                     "Receive",
                     amount,
                     tx.hashed(),
                     timestamp,
                 ));
             }
-            HyllarAction::Approve { spender, amount } => {
+            SmtTokenAction::Approve {
+                spender,
+                amount,
+                owner,
+            } => {
                 events.push(self.add_to_history(
-                    tx.identity.clone(),
-                    spender.into(),
+                    owner,
+                    spender,
                     "Approve",
                     amount,
                     tx.hashed(),
                     timestamp,
                 ));
             }
-            HyllarAction::TransferFrom {
+            SmtTokenAction::TransferFrom {
                 owner,
                 recipient,
                 amount,
+                spender: _,
             } => {
                 events.push(self.add_to_history(
-                    recipient.clone().into(),
-                    owner.clone().into(),
+                    recipient.clone(),
+                    owner.clone(),
                     "Receive TransferFrom",
                     amount,
                     tx.hashed(),
                     timestamp,
                 ));
                 events.push(self.add_to_history(
-                    owner.into(),
-                    recipient.into(),
+                    owner,
+                    recipient,
                     "Send TransferFrom",
                     amount,
                     tx.hashed(),
                     timestamp,
                 ));
             }
-            _ => {}
         }
         if !events.is_empty() {
             Ok(Some(events))

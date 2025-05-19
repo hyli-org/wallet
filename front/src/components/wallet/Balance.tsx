@@ -9,10 +9,10 @@ export const Balance = ({ wallet, balance }: BalanceProps) => {
   return (
     <div className="balance-section">
       <h2>Your Balance</h2>
-      <div className="balance-amount">{balance} HYLLAR</div>
-      <div className="currency-note">
-        <small>HYLLAR (from "hyle" + "dollar") - The currency of the Hyle testnet network</small>
-      </div>
+      <div className="balance-amount">{balance} ORANJ</div>
+      {/* <div className="currency-note"> */}
+      {/*   <small>HYLLAR (from "hyli" + "dollar") - The currency of the Hyli testnet network</small> */}
+      {/* </div> */}
       <div className="receive-section">
         <h3>Receive Funds</h3>
         <div className="address-display">
