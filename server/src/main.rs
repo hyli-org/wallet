@@ -6,7 +6,7 @@ use client_sdk::{
     helpers::risc0::Risc0Prover,
     rest_client::{IndexerApiHttpClient, NodeApiHttpClient},
 };
-use config::File;
+use conf::Conf;
 use history::{HistoryEvent, HyllarHistory};
 use hyle_modules::{
     bus::{metrics::BusMetrics, SharedMessageBus},
@@ -15,7 +15,7 @@ use hyle_modules::{
         da_listener::{DAListener, DAListenerConf},
         prover::{AutoProver, AutoProverCtx},
         rest::{RestApi, RestApiRunContext},
-        websocket::{WebSocketConfig, WebSocketModule},
+        websocket::WebSocketModule,
         BuildApiContextInner, ModulesHandler,
     },
     utils::logger::setup_tracing,
@@ -25,14 +25,13 @@ use prometheus::Registry;
 use sdk::{api::NodeInfo, info, ContractName, ZkContract};
 use std::{
     env,
-    path::PathBuf,
     sync::{Arc, Mutex},
-    time::Duration,
 };
 use tracing::error;
 use wallet::{client::indexer::WalletEvent, Wallet};
 
 mod app;
+mod conf;
 mod history;
 mod init;
 
@@ -40,47 +39,16 @@ mod init;
 #[command(version, about, long_about = None)]
 pub struct Args {
     #[arg(long, default_value = "config.toml")]
-    pub config_file: Option<String>,
+    pub config_file: Vec<String>,
 
     #[arg(long, default_value = "wallet")]
     pub wallet_cn: String,
-}
-#[derive(serde::Deserialize, Debug)]
-pub struct Conf {
-    pub id: String,
-    pub log_format: String,
-    pub data_directory: PathBuf,
-    pub rest_server_port: u16,
-    pub rest_server_max_body_size: usize,
-    pub da_read_from: String,
-    pub contract_name: String,
-    pub websocket: WSConfig,
-}
-
-#[derive(serde::Deserialize, Debug)]
-pub struct WSConfig {
-    /// The port number to bind the WebSocket server to
-    pub port: u16,
-    /// The endpoint path for WebSocket connections
-    pub ws_path: String,
-    /// The endpoint path for health checks
-    pub health_path: String,
-    /// The interval at which to check for new peers
-    pub peer_check_interval: u64,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
-    let config: Conf = config::Config::builder()
-        .add_source(File::from_str(
-            include_str!("../../config.toml"),
-            config::FileFormat::Toml,
-        ))
-        .add_source(config::Environment::with_prefix("WALLET"))
-        .build()
-        .unwrap()
-        .try_deserialize()?;
+    let config = Conf::new(args.config_file).context("reading config file")?;
 
     setup_tracing(
         &config.log_format,
@@ -89,13 +57,6 @@ async fn main() -> Result<()> {
     .context("setting up tracing")?;
 
     let config = Arc::new(config);
-
-    let contract_name: ContractName = format!(
-        "{}-{}",
-        args.wallet_cn.clone(),
-        &hex::encode(contracts::WALLET_ID)[..5]
-    )
-    .into();
 
     info!("Starting app with config: {:?}", &config);
 
@@ -106,8 +67,10 @@ async fn main() -> Result<()> {
     let indexer_client =
         Arc::new(IndexerApiHttpClient::new(indexer_url).context("build indexer client")?);
 
+    let wallet_cn: ContractName = args.wallet_cn.clone().into();
+
     let contracts = vec![init::ContractInit {
-        name: contract_name.clone(),
+        name: wallet_cn.clone(),
         program_id: contracts::WALLET_ID,
         initial_state: Wallet::default().commit(),
     }];
@@ -133,7 +96,7 @@ async fn main() -> Result<()> {
     let app_ctx = Arc::new(AppModuleCtx {
         api: api_ctx.clone(),
         node_client,
-        wallet_cn: contract_name.clone(),
+        wallet_cn: wallet_cn.clone(),
     });
     let start_height = app_ctx.node_client.get_block_height().await?;
 
@@ -141,7 +104,7 @@ async fn main() -> Result<()> {
 
     handler
         .build_module::<ContractStateIndexer<Wallet, WalletEvent>>(ContractStateIndexerCtx {
-            contract_name: contract_name.clone(),
+            contract_name: wallet_cn.clone(),
             data_directory: config.data_directory.clone(),
             api: api_ctx.clone(),
         })
@@ -161,7 +124,7 @@ async fn main() -> Result<()> {
             start_height,
             data_directory: config.data_directory.clone(),
             prover: Arc::new(Risc0Prover::new(contracts::WALLET_ELF)),
-            contract_name: contract_name.clone(),
+            contract_name: wallet_cn.clone(),
             node: app_ctx.node_client.clone(),
             default_state: Default::default(),
         }))
@@ -180,12 +143,7 @@ async fn main() -> Result<()> {
         .await?;
 
     handler
-        .build_module::<WebSocketModule<AppWsInMessage, AppOutWsEvent>>(WebSocketConfig {
-            port: config.websocket.port,
-            ws_path: config.websocket.ws_path.clone(),
-            health_path: config.websocket.health_path.clone(),
-            peer_check_interval: Duration::from_millis(config.websocket.peer_check_interval),
-        })
+        .build_module::<WebSocketModule<AppWsInMessage, AppOutWsEvent>>(config.websocket.clone())
         .await?;
 
     // This module connects to the da_address and receives all the blocks²
@@ -202,17 +160,23 @@ async fn main() -> Result<()> {
     let router = api_ctx
         .router
         .lock()
-        .expect("Context router should be available")
+        .expect("Context router should be available.")
         .take()
-        .expect("Context router should be available");
+        .expect("Context router should be available.");
+    #[allow(clippy::expect_used, reason = "Fail on misconfiguration")]
+    let openapi = api_ctx
+        .openapi
+        .lock()
+        .expect("OpenAPI should be available")
+        .clone();
 
     handler
         .build_module::<RestApi>(RestApiRunContext {
             port: config.rest_server_port,
             max_body_size: config.rest_server_max_body_size,
             registry: Registry::new(),
-            router: router.clone(),
-            openapi: Default::default(),
+            router,
+            openapi,
             info: NodeInfo {
                 id: config.id.clone(),
                 da_address: config.da_read_from.clone(),

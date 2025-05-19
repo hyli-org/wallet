@@ -1,4 +1,4 @@
-import { Transaction } from '../../types/wallet';
+import { Transaction } from 'hyli-wallet';
 
 interface HistoryProps {
   transactions: Transaction[];

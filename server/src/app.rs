@@ -63,17 +63,17 @@ impl Module for AppModule {
             wallet_cn: ctx.wallet_cn.clone(),
         };
 
-        // Créer un middleware CORS
+        // Create a CORS middleware
         let cors = CorsLayer::new()
-            .allow_origin(Any) // Permet toutes les origines (peut être restreint)
-            .allow_methods(vec![Method::GET, Method::POST]) // Permet les méthodes nécessaires
-            .allow_headers(Any); // Permet tous les en-têtes
+            .allow_origin(Any) // Allow all origins (can be restricted)
+            .allow_methods(vec![Method::GET, Method::POST]) // Allow necessary methods
+            .allow_headers(Any); // Allow all headers
 
         let api = Router::new()
             .route("/_health", get(health))
             .route("/api/config", get(get_config))
             .with_state(state)
-            .layer(cors); // Appliquer le middleware CORS
+            .layer(cors); // Apply the CORS middleware
 
         if let Ok(mut guard) = ctx.api.router.lock() {
             if let Some(router) = guard.take() {

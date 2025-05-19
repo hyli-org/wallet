@@ -1,0 +1,17 @@
+id = ""
+log_format = "full"
+
+data_directory = "data"
+da_read_from = "127.0.0.1:4141"
+
+rest_server_port = 4000
+rest_server_max_body_size = 10_485_760 # 10 MB
+
+da_address = "127.0.0.1:4141"
+
+[websocket]
+port = 8081
+ws_path = "/ws"
+health_path = "/ws_health"
+peer_check_interval.secs = 0
+peer_check_interval.nanos = 100_000_000

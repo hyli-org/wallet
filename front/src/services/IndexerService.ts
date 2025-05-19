@@ -1,5 +1,5 @@
 import { IndexerApiHttpClient } from "hyle";
-import { Transaction } from "../types/wallet";
+import { Transaction, AuthMethod, walletContractName } from "hyli-wallet";
 
 interface BalanceResponse {
   account: string;
@@ -11,6 +11,19 @@ interface TransactionHistoryResponse {
   history: Transaction[];
 }
 
+interface SessionKey {
+  key: string;
+  expiration_date: number;
+  nonce: number;
+}
+
+interface AccountInfo {
+  account: string;
+  auth_method: AuthMethod;
+  session_keys: SessionKey[];
+  nonce: number;
+}
+
 class IndexerService {
   client: IndexerApiHttpClient;
   server: IndexerApiHttpClient;
@@ -20,7 +33,7 @@ class IndexerService {
       import.meta.env.VITE_INDEXER_BASE_URL,
     );
     this.server = new IndexerApiHttpClient(
-      import.meta.env.VITE_SERVER_BASE_URL,
+      import.meta.env.VITE_WALLET_SERVER_BASE_URL,
     );
   }
 
@@ -47,6 +60,19 @@ class IndexerService {
     } catch (error) {
       console.error("Error while fetching the transaction history:", error);
       return [];
+    }
+  }
+
+  async getAccountInfo(address: string): Promise<AccountInfo> {
+    try {
+      const response = await this.server.get<AccountInfo>(
+        `v1/indexer/contract/${walletContractName}/account/${address}`,
+        "Fetching account info",
+      );
+      return response;
+    } catch (error) {
+      console.error("Error while fetching the account info:", error);
+      throw new Error('Failed to fetch account info');
     }
   }
 }

@@ -11,6 +11,7 @@ hyle-modules = { workspace = true }
 # Remove features if you want reproducible builds with docker
 contracts = { workspace = true, features = ["nonreproducible", "all"] }
 
+config = { version = "0.15.11", default-features = false, features = ["toml"] }
 borsh = "1.5.7"
 axum = "0.8.3"
 tokio = { version = "1", features = ["full"] }
@@ -28,7 +29,6 @@ prometheus = { version = "0.13.4" }
 rand = "0.9.0"
 serde_json = "1.0.140"
 futures = "0.3.31"
-config = "0.15.11"
 
 [package.metadata.cargo-machete]
 ignored = ["tracing-subscriber", "opentelemetry", "prometheus", "rand"]
