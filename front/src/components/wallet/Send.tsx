@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Transaction, verifyIdentity, Wallet } from 'hyli-wallet';
 import { blob_builder, BlobTransaction } from 'hyli'
-import { build_proof_transaction, build_blob as check_secret_blob } from 'hyle-check-secret';
+import { build_proof_transaction, build_blob as check_secret_blob } from 'hyli-check-secret';
 import { nodeService } from '../../services/NodeService';
 import { webSocketService } from '../../services/WebSocketService';
 
