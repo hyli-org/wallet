@@ -6,11 +6,11 @@ da_read_from = "127.0.0.1:4141"
 
 rest_server_port = 4000
 rest_server_max_body_size = 10_485_760 # 10 MB
-
-da_address = "127.0.0.1:4141"
+node_url = "http://localhost:4321"
+indexer_url = "http://localhost:4321"
 
 [websocket]
-port = 8081
+port = 8080
 ws_path = "/ws"
 health_path = "/ws_health"
 peer_check_interval.secs = 0
