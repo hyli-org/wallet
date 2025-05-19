@@ -1,4 +1,4 @@
-id = ""
+id = "wallet"
 log_format = "full"
 
 data_directory = "data"
