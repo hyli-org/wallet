@@ -21,7 +21,6 @@ use hyle_modules::{
     utils::logger::setup_tracing,
 };
 
-use hyle_smt_token::client::tx_executor_handler::SmtTokenProvableState;
 use prometheus::Registry;
 use sdk::{api::NodeInfo, info, ContractName, ZkContract};
 use std::sync::{Arc, Mutex};
@@ -134,18 +133,6 @@ async fn main() -> Result<()> {
                 hyle_hyllar::client::tx_executor_handler::metadata::HYLLAR_ELF,
             )),
             contract_name: "hyllar".into(),
-            node: app_ctx.node_client.clone(),
-            default_state: Default::default(),
-        }))
-        .await?;
-    handler
-        .build_module::<AutoProver<SmtTokenProvableState>>(Arc::new(AutoProverCtx {
-            start_height,
-            data_directory: config.data_directory.clone(),
-            prover: Arc::new(Risc0Prover::new(
-                hyle_smt_token::client::tx_executor_handler::metadata::SMT_TOKEN_ELF,
-            )),
-            contract_name: "oranj".into(),
             node: app_ctx.node_client.clone(),
             default_state: Default::default(),
         }))
