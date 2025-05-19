@@ -1,6 +1,6 @@
 {
   "name": "hyli-wallet",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "license": "MIT",
   "repository": "hyli-org/wallet",
@@ -29,7 +29,7 @@
     "dev": "vite",
     "build": "vite build",
     "build:lib": "tsc",
-    "prepublishOnly": "bun run build:lib",
+    "prepublishOnly": "bun run build",
     "pub": "npm publish"
   },
   "dependencies": {
