@@ -10,7 +10,7 @@ hyle-hyllar = { workspace = true, features = ["client"] }
 hyle-smt-token = { workspace = true, features = ["client"] }
 hyle-modules = { workspace = true }
 # Remove features if you want reproducible builds with docker
-contracts = { workspace = true, features = ["nonreproducible", "all"] }
+contracts = { workspace = true, features = ["all"] }
 
 config = { version = "0.15.11", default-features = false, features = ["toml"] }
 borsh = "1.5.7"
