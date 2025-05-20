@@ -7,10 +7,10 @@ members = ["contracts", "contracts/wallet", "server"]
 # client-sdk = { default-features = false, package = "hyle-client-sdk", version = "0.13.0-rc.4" }
 # hyle = { version = "0.13.0-rc.4" }
 
-sdk = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-contract-sdk", branch = "main" }
-client-sdk = { git = "https://github.com/Hyle-org/hyle.git", default-features = false, package = "hyle-client-sdk", branch = "main" }
-hyle-smt-token = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-smt-token", branch = "main" }
-hyle-modules = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-modules", branch = "main" }
+sdk = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-contract-sdk", branch = "fix/batching_smt" }
+client-sdk = { git = "https://github.com/Hyle-org/hyle.git", default-features = false, package = "hyle-client-sdk", branch = "fix/batching_smt" }
+hyle-smt-token = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-smt-token", branch = "fix/batching_smt" }
+hyle-modules = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-modules", branch = "fix/batching_smt" }
 
 contracts = { path = "contracts", default-features = false, package = "contracts" }
 wallet = { path = "contracts/wallet", package = "wallet" }
