@@ -1,9 +1,8 @@
 // useWallet hook and WalletProvider implementation
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
-import { storeWallet, type Wallet, type SessionKey, type TransactionCallback } from "../types/wallet";
-import type { AuthCredentials } from "../providers/BaseAuthProvider";
+import { storeWallet, type Wallet, type SessionKey, type TransactionCallback, WalletEventCallback, WalletErrorCallback } from "../types/wallet";
+import type { AuthCredentials, AuthResult } from "../providers/BaseAuthProvider";
 import { authProviderManager } from "../providers/AuthProviderManager";
-import { AuthStage } from "../types/login";
 import * as WalletOperations from "../services/WalletOperations";
 import { Blob } from "hyli";
 import { ConfigService } from "../services/ConfigService";
@@ -11,23 +10,33 @@ import { NodeService } from "../services/NodeService";
 
 export type ProviderOption = "password" | "google" | "github" | "x";
 
+
 interface WalletContextType {
     wallet: Wallet | null;
-    isLoading: boolean;
-    error: string | null;
-    stage: AuthStage;
-    login: (provider: ProviderOption, credentials: AuthCredentials) => Promise<void>;
-    registerAccount: (provider: ProviderOption, credentials: AuthCredentials) => Promise<void>;
+    login: (
+        provider: ProviderOption, 
+        credentials: AuthCredentials,
+        onWalletEvent?: WalletEventCallback,
+        onError?: WalletErrorCallback,
+    ) => Promise<void>;
+    registerAccount: (
+        provider: ProviderOption, 
+        credentials: AuthCredentials,
+        onWalletEvent?: WalletEventCallback,
+        onError?: WalletErrorCallback,
+    ) => Promise<void>;
     registerSessionKey: (
         password: string,
         expiration: number,
         whitelist: string[],
-        onTransaction?: TransactionCallback
+        onWalletEvent?: WalletEventCallback,
+        onError?: WalletErrorCallback,
     ) => Promise<{ sessionKey: SessionKey; txHashes: [string, string] }>;
     removeSessionKey: (
         password: string,
         publicKey: string,
-        onTransaction?: TransactionCallback
+        onWalletEvent?: WalletEventCallback,
+        onError?: WalletErrorCallback,
     ) => Promise<{ txHashes: [string, string] }>;
     cleanExpiredSessionKey: () => void;
     createIdentityBlobs: () => [Blob, Blob];
@@ -46,32 +55,20 @@ interface WalletProviderProps {
 }
 
 export const WalletProvider: React.FC<WalletProviderProps> = ({ children, config }) => {
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [wallet, setWallet] = useState<Wallet | null>(() => {
         const storedWallet = localStorage.getItem("wallet");
         return storedWallet ? JSON.parse(storedWallet) : null;
     });
-    const [stage, setStage] = useState<AuthStage>("idle");
 
     // Initialize config and services on mount
     useEffect(() => {
         const initConfig = async () => {
-            try {
-                ConfigService.initialize(config);
-                NodeService.initialize(config.nodeBaseUrl);
-                setIsLoading(false);
-            } catch (err) {
-                setError(err instanceof Error ? err.message : "Failed to load configuration");
-                setIsLoading(false);
-            }
+            ConfigService.initialize(config);
+            NodeService.initialize(config.nodeBaseUrl);
         };
 
         initConfig();
     }, [config]);
-
-    // Block wallet operations if config isn't loaded
-    const isWalletReady = !isLoading && !error;
 
     // Persist wallet when updated
     useEffect(() => {
@@ -81,182 +78,103 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children, config
     }, [wallet]);
 
     const login = useCallback(
-        async (provider: ProviderOption, credentials: AuthCredentials) => {
-            if (!isWalletReady) {
-                setError("Wallet configuration is not ready");
-                return;
-            }
+        async (
+            provider: ProviderOption,
+            credentials: AuthCredentials,
+            onWalletEvent?: WalletEventCallback,
+            onError?: WalletErrorCallback
+        ): Promise<void> => {
+
             const authProvider = authProviderManager.getProvider(provider);
             if (!authProvider) {
-                setError(`Provider ${provider} not found`);
-                return;
+                const error = new Error(`Provider ${provider} not found`);
+                onError?.(error);
+                throw error;
             }
-            try {
-                setIsLoading(true);
-                setError(null);
-                setStage("submitting");
+            let result = await authProvider.login(credentials as any, onWalletEvent, onError);
 
-                const resultPromise = authProvider.login(credentials as any, {
-                    onTransaction: (txHash: string, type: string) => {
-                        if (type === "blob") {
-                            setStage("blobSent");
-                        }
-                    },
-                });
-
-                const result = await resultPromise;
-
-                if (result.success && result.wallet) {
-                    // Settlement achieved
-                    setWallet(result.wallet);
-                    setStage("settled");
-                } else {
-                    setStage("error");
-                    setError(result.error ?? "Login failed");
-                    setWallet(null);
-                }
-            } catch (e) {
-                setStage("error");
-                setError(e instanceof Error ? e.message : "Login failed");
-                setWallet(null);
-            } finally {
-                setIsLoading(false);
-            }
+            setWallet(result.wallet ?? null);
         },
-        [isWalletReady]
+        [wallet]
     );
 
     const registerAccount = useCallback(
-        async (provider: ProviderOption, credentials: AuthCredentials) => {
-            if (!isWalletReady) {
-                setError("Wallet configuration is not ready");
-                return;
-            }
+        async (
+            provider: ProviderOption,
+            credentials: AuthCredentials,
+            onWalletEvent?: WalletEventCallback,
+            onError?: WalletErrorCallback
+        ): Promise<void> => {
+
             const authProvider = authProviderManager.getProvider(provider);
             if (!authProvider) {
-                setError(`Provider ${provider} not found`);
-                return;
+                const error = new Error(`Provider ${provider} not found`);
+                onError?.(error);
+                throw error;
             }
-            try {
-                setIsLoading(true);
-                setError(null);
-                setStage("submitting");
+            let result = await authProvider.register(credentials as any, onWalletEvent, onError);
 
-                const resultPromise = authProvider.register(credentials as any, {
-                    onTransaction: (txHash: string, type: string) => {
-                        if (type === "blob") {
-                            setStage("blobSent");
-                        }
-                    },
-                });
-
-                const result = await resultPromise;
-
-                if (result.success && result.wallet) {
-                    setWallet(result.wallet);
-                    setStage("settled");
-                } else {
-                    setStage("error");
-                    setError(result.error ?? "Registration failed");
-                    setWallet(null);
-                }
-            } catch (e) {
-                setStage("error");
-                setError(e instanceof Error ? e.message : "Registration failed");
-                setWallet(null);
-            } finally {
-                setIsLoading(false);
-            }
+            setWallet(result.wallet ?? null);
         },
-        [isWalletReady]
+        [wallet]
     );
 
     const logout = useCallback(() => {
         localStorage.removeItem("wallet");
         setWallet(null);
-        setError(null);
-        setStage("idle");
     }, []);
 
-    // Add wallet operations
     const registerSessionKey = useCallback(
-        async (password: string, expiration: number, whitelist: string[], onTransaction?: TransactionCallback) => {
+        async (
+            password: string, 
+            expiration: number, 
+            whitelist: string[],
+            onWalletEvent?: WalletEventCallback,
+            onError?: WalletErrorCallback,
+        ) => {
             if (!wallet) {
-                setError("No wallet available");
                 throw new Error("No wallet available");
             }
 
-            try {
-                setIsLoading(true);
-                setError(null);
-                setStage("submitting");
+            const result = await WalletOperations.registerSessionKey(
+                wallet,
+                password,
+                expiration,
+                whitelist,
+                onWalletEvent,
+                onError,
+            );
 
-                const result = await WalletOperations.registerSessionKey(
-                    wallet,
-                    password,
-                    expiration,
-                    whitelist,
-                    (txHash: string, type: string) => {
-                        onTransaction?.(txHash, type);
-                        if (type === "blob") {
-                            setStage("blobSent");
-                        }
-                    }
-                );
-
-                // Mise à jour du wallet après la confirmation blockchain
-                setWallet(result.updatedWallet);
-                setStage("settled");
-                return {
-                    sessionKey: result.sessionKey,
-                    txHashes: result.txHashes,
-                };
-            } catch (e) {
-                setError(e instanceof Error ? e.message : "Failed to register session key");
-                setStage("error");
-                throw e;
-            } finally {
-                setIsLoading(false);
-            }
+            setWallet(result.updatedWallet);
+            return {
+                sessionKey: result.sessionKey,
+                txHashes: result.txHashes,
+            };
         },
         [wallet]
     );
 
     const removeSessionKey = useCallback(
-        async (password: string, publicKey: string, onTransaction?: TransactionCallback) => {
+        async (
+            password: string, 
+            publicKey: string, 
+            onWalletEvent?: WalletEventCallback,
+            onError?: WalletErrorCallback,
+        ) => {
             if (!wallet) {
-                setError("No wallet available");
                 throw new Error("No wallet available");
             }
 
-            try {
-                setIsLoading(true);
-                setError(null);
-                setStage("submitting");
+            const result = await WalletOperations.removeSessionKey(
+                wallet,
+                password,
+                publicKey,
+                onWalletEvent,
+                onError,
+            );
 
-                const result = await WalletOperations.removeSessionKey(
-                    wallet,
-                    password,
-                    publicKey,
-                    (txHash: string, type: string) => {
-                        onTransaction?.(txHash, type);
-                        if (type === "blob") {
-                            setStage("blobSent");
-                        }
-                    }
-                );
-
-                // Mise à jour du wallet après la confirmation blockchain
-                setWallet(result.updatedWallet);
-                setStage("settled");
-                return { txHashes: result.txHashes };
-            } catch (e) {
-                setError(e instanceof Error ? e.message : "Failed to remove session key");
-                setStage("error");
-                throw e;
-            } finally {
-                setIsLoading(false);
-            }
+            setWallet(result.updatedWallet);
+            return { txHashes: result.txHashes };
         },
         [wallet]
     );
@@ -268,7 +186,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children, config
             const updatedWallet = WalletOperations.cleanExpiredSessionKeys(wallet);
             setWallet(updatedWallet);
         } catch (e) {
-            setError(e instanceof Error ? e.message : "Failed to clean expired session keys");
+            // Silent fail, as this is a cleanup operation
         }
     }, [wallet]);
 
@@ -280,7 +198,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children, config
         try {
             return WalletOperations.createIdentityBlobs(wallet);
         } catch (e) {
-            setError(e instanceof Error ? e.message : "Failed to create identity blobs");
             throw e;
         }
     }, [wallet]);
@@ -289,9 +206,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children, config
         <WalletContext.Provider
             value={{
                 wallet,
-                isLoading,
-                error,
-                stage,
                 login,
                 registerAccount,
                 registerSessionKey,

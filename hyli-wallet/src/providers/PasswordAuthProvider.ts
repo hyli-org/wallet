@@ -1,6 +1,6 @@
 import { Buffer } from "buffer";
 import { AuthProvider, AuthCredentials, AuthResult, AuthEvents } from "./BaseAuthProvider";
-import { Wallet, registerBlob, verifyIdentityBlob, walletContractName } from "../types/wallet";
+import { Wallet, WalletErrorCallback, WalletEventCallback, registerBlob, verifyIdentityBlob, walletContractName } from "../types/wallet";
 import { NodeService } from "../services/NodeService";
 import { webSocketService } from "../services/WebSocketService";
 import { build_proof_transaction, build_blob as check_secret_blob, register_contract } from "hyli-check-secret";
@@ -19,11 +19,14 @@ export class PasswordAuthProvider implements AuthProvider {
         return true;
     }
 
-    async login(credentials: PasswordAuthCredentials, events: AuthEvents): Promise<AuthResult> {
+    async login(
+        credentials: PasswordAuthCredentials,
+        onWalletEvent?: WalletEventCallback,
+        onError?: WalletErrorCallback
+    ): Promise<AuthResult> {
         const nodeService = NodeService.getInstance();
         try {
             const { username, password } = credentials;
-            const { onTransaction } = events;
 
             if (!username || !password) {
                 return { success: false, error: "Please fill in all fields" };
@@ -38,7 +41,9 @@ export class PasswordAuthProvider implements AuthProvider {
                 blobs: [blob0, blob1],
             };
 
-            const tx_hash = await nodeService.client.sendBlobTx(blobTx);
+            const txHash = await nodeService.client.sendBlobTx(blobTx);
+            onWalletEvent?.({ account: identity, event: `Blob transaction sent: ${txHash}` });
+
 
             // Create initial wallet state
             const wallet: Wallet = {
@@ -46,20 +51,17 @@ export class PasswordAuthProvider implements AuthProvider {
                 address: identity,
             };
 
-            // Notification avec le wallet pour mise à jour optimiste
-            onTransaction?.(tx_hash, "blob");
-
             // Build and send the proof transaction
-            const proofTx = await build_proof_transaction(identity, password, tx_hash, 0, blobTx.blobs.length);
+            const proofTx = await build_proof_transaction(identity, password, txHash, 0, blobTx.blobs.length);
 
             const proofTxHash = await nodeService.client.sendProofTx(proofTx);
-            onTransaction?.(proofTxHash, "proof");
+            onWalletEvent?.({ account: identity, event: `Proof transaction sent: ${proofTxHash}` });
 
-            // Wait for on-chain settlement
+            // Wait for on-chain settlement with event handling
             await new Promise((resolve, reject) => {
                 const timeout = setTimeout(() => {
                     webSocketService.unsubscribeFromWalletEvents();
-                    reject(new Error("Identity verification timed out"));
+                    reject(new Error("Login timed out"));
                 }, 30000);
 
                 webSocketService.connect(identity);
@@ -74,26 +76,32 @@ export class PasswordAuthProvider implements AuthProvider {
                         clearTimeout(timeout);
                         unsubscribeWalletEvents();
                         webSocketService.disconnect();
-                        reject(new Error(event.event));
+                        reject(new Error(`${event.event}: ${txHash})`));
                     }
                 });
             });
 
             // After on-chain settlement and cleaning, we update the wallet state
             return { success: true, wallet };
-        } catch (error) {
+        } catch (errorMessage) {
+            const error = errorMessage instanceof Error ? errorMessage.message : "Invalid credentials or wallet does not exist"
+            console.log("Login error:", errorMessage);
+            onError?.(new Error(error));
             return {
                 success: false,
-                error: error instanceof Error ? error.message : "Invalid credentials or wallet does not exist",
+                error: error,
             };
         }
     }
 
-    async register(credentials: PasswordAuthCredentials, events: AuthEvents): Promise<AuthResult> {
+    async register(
+        credentials: PasswordAuthCredentials,
+        onWalletEvent?: WalletEventCallback,
+        onError?: WalletErrorCallback
+    ): Promise<AuthResult> {
         const nodeService = NodeService.getInstance();
         try {
             const { username, password, confirmPassword } = credentials;
-            const { onTransaction } = events;
 
             if (!username || !password || !confirmPassword) {
                 return { success: false, error: "Please fill in all fields" };
@@ -121,7 +129,8 @@ export class PasswordAuthProvider implements AuthProvider {
             };
 
             await register_contract(nodeService.client as any);
-            const tx_hash = await nodeService.client.sendBlobTx(blobTx);
+            const txHash = await nodeService.client.sendBlobTx(blobTx);
+            onWalletEvent?.({ account: identity, event: `Blob transaction sent: ${txHash}` });
 
             // Create initial wallet state
             const wallet: Wallet = {
@@ -129,14 +138,12 @@ export class PasswordAuthProvider implements AuthProvider {
                 address: identity,
             };
 
-            // Notification avec le wallet pour mise à jour optimiste
-            onTransaction?.(tx_hash, "blob");
 
             // Build and send the proof transaction
-            const proofTx = await build_proof_transaction(identity, password, tx_hash, 0, blobTx.blobs.length);
+            const proofTx = await build_proof_transaction(identity, password, txHash, 0, blobTx.blobs.length);
 
             const proofTxHash = await nodeService.client.sendProofTx(proofTx);
-            onTransaction?.(proofTxHash, "proof");
+            onWalletEvent?.({ account: identity, event: `Proof transaction sent: ${proofTxHash}` });
 
             // Wait for on-chain settlement
             await new Promise((resolve, reject) => {
@@ -157,7 +164,7 @@ export class PasswordAuthProvider implements AuthProvider {
                         clearTimeout(timeout);
                         unsubscribeWalletEvents();
                         webSocketService.disconnect();
-                        reject(new Error(event.event));
+                        reject(new Error(`${event.event}: ${txHash})`));
                     }
                 });
             });
@@ -165,10 +172,13 @@ export class PasswordAuthProvider implements AuthProvider {
             // Create clean wallet state after registration
             const cleanedWallet = WalletOperations.cleanExpiredSessionKeys(wallet);
             return { success: true, wallet: cleanedWallet };
-        } catch (error) {
+        } catch (errorMessage) {
+            const error = errorMessage instanceof Error ? errorMessage.message : "Failed to register wallet"
+            console.log("Registration error:", errorMessage);
+            onError?.(new Error(error));
             return {
                 success: false,
-                error: error instanceof Error ? error.message : "Failed to create wallet",
+                error: error,
             };
         }
     }

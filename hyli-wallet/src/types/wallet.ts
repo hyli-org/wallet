@@ -80,8 +80,22 @@ export type WalletAction =
           };
       };
 
-// Callback pour les transactions
+// Callbacks
 export type TransactionCallback = (txHash: string, type: string) => void;
+export type WalletErrorCallback = (error: Error) => void;
+export type TxEventCallback = (event: AppEvent["TxEvent"]) => void;
+export type WalletEventCallback = (event: AppEvent["WalletEvent"]) => void;
+
+export interface AppEvent {
+    TxEvent: {
+        account: string;
+        tx: Transaction;
+    };
+    WalletEvent: {
+        account: string;
+        event: string; // TODO: Type this field to handle events properly
+    };
+}
 
 //
 // Builders

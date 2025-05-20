@@ -76,7 +76,7 @@ export const HyliWallet = ({ button, providers }: HyliWalletProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const [selectedProvider, setSelectedProvider] = useState<ProviderOption | null>(null);
     const [showLogin, setShowLogin] = useState(true); // true = login (default), false = create/sign-up
-    const { wallet, logout, isLoading, error } = useWallet();
+    const { wallet, logout } = useWallet();
 
     const handleButtonClick = () => {
         if (wallet) {

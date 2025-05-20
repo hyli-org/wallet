@@ -8,6 +8,8 @@ import {
     serializeIdentityAction,
     removeSessionKeyBlob,
     SessionKey,
+    WalletEventCallback,
+    WalletErrorCallback,
 } from "../types/wallet";
 import { sessionKeyService } from "./SessionKeyService";
 import { build_proof_transaction, build_blob as check_secret_blob } from "hyli-check-secret";
@@ -27,7 +29,8 @@ export const registerSessionKey = async (
     password: string,
     expiration: number,
     whitelist: string[],
-    onTransaction?: TransactionCallback
+    onWalletEvent?: WalletEventCallback,
+    onError?: WalletErrorCallback,
 ): Promise<{
     sessionKey: SessionKey;
     txHashes: [string, string];
@@ -53,13 +56,13 @@ export const registerSessionKey = async (
         // Send transaction to add session key
         const blobTxHash = await nodeService.client.sendBlobTx(blobTx);
         // Notify of blob transaction
-        onTransaction?.(blobTxHash, "blob");
+        onWalletEvent?.({ account: identity, event: `Blob transaction sent: ${blobTxHash}` });
 
         const proofTx = await build_proof_transaction(identity, password, blobTxHash, 0, blobTx.blobs.length);
 
         const proofTxHash = await nodeService.client.sendProofTx(proofTx);
         // Notify of proof transaction
-        onTransaction?.(proofTxHash, "proof");
+        onWalletEvent?.({ account: identity, event: `Proof transaction sent: ${proofTxHash}` });
 
         // Create optimistic wallet update
         const updatedWallet = {
@@ -67,13 +70,17 @@ export const registerSessionKey = async (
             sessionKey: newSessionKey,
         };
 
+        // TODO(?): Add a websocket listener to confirm the transaction
+
         return {
             sessionKey: newSessionKey,
             txHashes: [blobTxHash, proofTxHash],
             updatedWallet,
         };
-    } catch (error) {
-        console.error("Failed to initialize session key:", error);
+    } catch (errorMessage) {
+        const error = errorMessage instanceof Error ? errorMessage.message : "Failed to register session key"
+        onError?.(new Error(error));
+        console.error("Failed to initialize session key:", errorMessage);
         throw error;
     }
 };
@@ -89,7 +96,8 @@ export const removeSessionKey = async (
     wallet: Wallet,
     password: string,
     publicKey: string,
-    onTransaction?: TransactionCallback
+    onWalletEvent?: WalletEventCallback,
+    onError?: WalletErrorCallback,
 ): Promise<{
     txHashes: [string, string];
     updatedWallet: Wallet;
@@ -113,13 +121,13 @@ export const removeSessionKey = async (
         // Send transaction to remove session key
         const blobTxHash = await nodeService.client.sendBlobTx(blobTx);
         // Notify of blob transaction
-        onTransaction?.(blobTxHash, "blob");
+        onWalletEvent?.({ account: identity, event: `Blob transaction sent: ${blobTxHash}` });
 
         const proofTx = await build_proof_transaction(identity, password, blobTxHash, 0, blobTx.blobs.length);
 
         const proofTxHash = await nodeService.client.sendProofTx(proofTx);
         // Notify of proof transaction
-        onTransaction?.(proofTxHash, "proof");
+        onWalletEvent?.({ account: identity, event: `Proof transaction sent: ${proofTxHash}` });
 
         // Create optimistic wallet update
         let updatedWallet: Wallet;
@@ -132,12 +140,20 @@ export const removeSessionKey = async (
             updatedWallet = { ...wallet };
         }
 
+        // TODO(?): Add a websocket listener to confirm the transaction
+
         return {
             txHashes: [blobTxHash, proofTxHash],
             updatedWallet,
         };
-    } catch (error) {
-        console.error("Failed to remove session key:", error);
+    // } catch (error) {
+    //     console.error("Failed to remove session key:", error);
+    //     throw error;
+    // }
+    } catch (errorMessage) {
+        const error = errorMessage instanceof Error ? errorMessage.message : "Failed to remove session key";
+        onError?.(new Error(error));
+        console.error("Failed to remove session key:", errorMessage);
         throw error;
     }
 };
