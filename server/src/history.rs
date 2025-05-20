@@ -7,6 +7,7 @@ use hyle_smt_token::SmtTokenAction;
 use sdk::BlobIndex;
 use sdk::Calldata;
 use sdk::Hashed;
+use sdk::RegisterContractEffect;
 use std::collections::BTreeMap;
 
 use client_sdk::contract_indexer::axum;
@@ -95,12 +96,19 @@ impl HyllarHistory {
 }
 
 impl TxExecutorHandler for HyllarHistory {
-    fn handle(&mut self, calldata: &sdk::Calldata) -> anyhow::Result<sdk::HyleOutput, String> {
+    fn handle(&mut self, calldata: &sdk::Calldata) -> anyhow::Result<sdk::HyleOutput> {
         self.oranj.handle(calldata)
     }
 
-    fn build_commitment_metadata(&self, blob: &sdk::Blob) -> anyhow::Result<Vec<u8>, String> {
+    fn build_commitment_metadata(&self, blob: &sdk::Blob) -> anyhow::Result<Vec<u8>> {
         self.oranj.build_commitment_metadata(blob)
+    }
+
+    fn construct_state(
+        _register_blob: &RegisterContractEffect,
+        _metadata: &Option<Vec<u8>>,
+    ) -> anyhow::Result<Self> {
+        Ok(Default::default())
     }
 }
 

@@ -47,7 +47,7 @@ async fn init_contract(
                 program_id: ProgramId(contract.program_id.to_vec()),
                 state_commitment: contract.initial_state,
                 contract_name: contract.name.clone(),
-                timeout_window: None,
+                ..Default::default()
             })
             .await?;
             wait_contract_state(indexer, &contract.name).await?;
