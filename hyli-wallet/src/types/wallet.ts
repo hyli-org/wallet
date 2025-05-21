@@ -38,11 +38,8 @@ export type Secp256k1Blob = {
     signature: Uint8Array;
 };
 
-export type AuthMethod = {
-    Password: {
-        hash: string;
-    };
-};
+export type AuthMethod =
+    | { Password: { hash: string } };
 
 export type WalletAction =
     | {

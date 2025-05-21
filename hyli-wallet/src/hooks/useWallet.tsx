@@ -7,6 +7,7 @@ import * as WalletOperations from "../services/WalletOperations";
 import { Blob } from "hyli";
 import { ConfigService } from "../services/ConfigService";
 import { NodeService } from "../services/NodeService";
+import { IndexerService } from "../services/IndexerService";
 
 export type ProviderOption = "password" | "google" | "github" | "x";
 
@@ -65,6 +66,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children, config
         const initConfig = async () => {
             ConfigService.initialize(config);
             NodeService.initialize(config.nodeBaseUrl);
+            IndexerService.initialize(config.walletServerBaseUrl);
         };
 
         initConfig();

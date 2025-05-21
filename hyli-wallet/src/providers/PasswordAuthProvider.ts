@@ -1,11 +1,12 @@
 import { Buffer } from "buffer";
 import { AuthProvider, AuthCredentials, AuthResult, AuthEvents } from "./BaseAuthProvider";
-import { Wallet, WalletErrorCallback, WalletEventCallback, registerBlob, verifyIdentityBlob, walletContractName } from "../types/wallet";
+import { Wallet, WalletErrorCallback, WalletEventCallback, addSessionKeyBlob, registerBlob, verifyIdentityBlob, walletContractName } from "../types/wallet";
 import { NodeService } from "../services/NodeService";
 import { webSocketService } from "../services/WebSocketService";
-import { build_proof_transaction, build_blob as check_secret_blob, register_contract } from "hyli-check-secret";
+import { build_proof_transaction, build_blob as check_secret_blob, register_contract, sha256, stringToBytes } from "hyli-check-secret";
 import { BlobTransaction } from "hyli";
 import * as WalletOperations from "../services/WalletOperations";
+import { IndexerService } from "../services/IndexerService";
 
 export interface PasswordAuthCredentials extends AuthCredentials {
     password: string;
@@ -24,74 +25,42 @@ export class PasswordAuthProvider implements AuthProvider {
         onWalletEvent?: WalletEventCallback,
         onError?: WalletErrorCallback
     ): Promise<AuthResult> {
-        const nodeService = NodeService.getInstance();
+        const indexerService = IndexerService.getInstance();
+        const { username, password } = credentials;
+        const identity = `${username}@${walletContractName}`;
         try {
-            const { username, password } = credentials;
-
             if (!username || !password) {
                 return { success: false, error: "Please fill in all fields" };
             }
+            const userAccountInfo = await indexerService.getAccountInfo(username);
+            let storedHash = userAccountInfo.auth_method.Password.hash;
+            
+            const hashed_password_bytes = await sha256(stringToBytes(password));
+            let encoder = new TextEncoder();
+            let id_prefix = encoder.encode(`${identity}:`);
+            let extended_id = new Uint8Array([...id_prefix, ...hashed_password_bytes]);
+            const computedHash = await sha256(extended_id);
+            const computedHashHex = Buffer.from(computedHash).toString("hex");
 
-            const identity = `${username}@${walletContractName}`;
-            const blob0 = await check_secret_blob(identity, password);
-            const blob1 = verifyIdentityBlob(username, Date.now());
-
-            const blobTx: BlobTransaction = {
-                identity,
-                blobs: [blob0, blob1],
-            };
-
-            const txHash = await nodeService.client.sendBlobTx(blobTx);
-            onWalletEvent?.({ account: identity, event: `Blob transaction sent: ${txHash}` });
-
-
-            // Create initial wallet state
-            const wallet: Wallet = {
-                username,
-                address: identity,
-            };
-
-            // Build and send the proof transaction
-            const proofTx = await build_proof_transaction(identity, password, txHash, 0, blobTx.blobs.length);
-
-            const proofTxHash = await nodeService.client.sendProofTx(proofTx);
-            onWalletEvent?.({ account: identity, event: `Proof transaction sent: ${proofTxHash}` });
-
-            // Wait for on-chain settlement with event handling
-            await new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                    webSocketService.unsubscribeFromWalletEvents();
-                    reject(new Error("Login timed out"));
-                }, 30000);
-
-                webSocketService.connect(identity);
-                const unsubscribeWalletEvents = webSocketService.subscribeToWalletEvents((event) => {
-                    const msg = event.event.toLowerCase();
-                    if (msg.includes("identity verified")) {
-                        clearTimeout(timeout);
-                        unsubscribeWalletEvents();
-                        webSocketService.disconnect();
-                        resolve(event);
-                    } else if (msg.includes("failed") || msg.includes("error")) {
-                        clearTimeout(timeout);
-                        unsubscribeWalletEvents();
-                        webSocketService.disconnect();
-                        reject(new Error(`${event.event}: ${txHash})`));
-                    }
-                });
-            });
-
-            // After on-chain settlement and cleaning, we update the wallet state
-            return { success: true, wallet };
+            if (computedHashHex != storedHash) {
+                onError?.(new Error("Invalid password"));
+                return { success: false, error: "Invalid password" };
+            }
         } catch (errorMessage) {
             const error = errorMessage instanceof Error ? errorMessage.message : "Invalid credentials or wallet does not exist"
-            console.log("Login error:", errorMessage);
             onError?.(new Error(error));
             return {
                 success: false,
                 error: error,
             };
         }
+
+        // Create initial wallet state
+        const wallet: Wallet = {
+            username,
+            address: identity,
+        };
+        return { success: true, wallet };
     }
 
     async register(
