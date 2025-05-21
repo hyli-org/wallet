@@ -1,23 +1,23 @@
-.auth-form {
+.hyli-auth-form {
     display: flex;
     flex-direction: column;
     gap: 16px;
     width: 100%;
 }
 
-.form-group {
+.hyli-form-group {
     display: flex;
     flex-direction: column;
     gap: 6px;
 }
 
-.form-group label {
+.hyli-form-group label {
     font-size: 14px;
     font-weight: 500;
     color: #333;
 }
 
-.form-group input {
+.hyli-form-group input {
     padding: 12px 16px;
     border-radius: 8px;
     border: 1px solid #e0e0e0;
@@ -25,22 +25,22 @@
     transition: border-color 0.2s ease;
 }
 
-.form-group input:focus {
+.hyli-form-group input:focus {
     border-color: #007bff;
     outline: none;
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 
-.form-group input::placeholder {
+.hyli-form-group input::placeholder {
     color: #aaa;
 }
 
-.form-group input:disabled {
+.hyli-form-group input:disabled {
     background-color: #f5f5f5;
     cursor: not-allowed;
 }
 
-.error-message {
+.hyli-error-message {
     color: #dc3545;
     font-size: 14px;
     padding: 8px;
@@ -48,12 +48,12 @@
     background-color: rgba(220, 53, 69, 0.1);
 }
 
-.status-message {
+.hyli-status-message {
     color: #0077ff;
     font-size: 14px;
 }
 
-.auth-submit-button {
+.hyli-auth-submit-button {
     margin-top: 8px;
     padding: 14px 20px;
     background-color: #0077ff;
@@ -67,19 +67,19 @@
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
-.auth-submit-button:hover {
+.hyli-auth-submit-button:hover {
     background-color: #0066dd;
     transform: translateY(-1px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
-.auth-submit-button:active {
+.hyli-auth-submit-button:active {
     background-color: #0055cc;
     transform: translateY(1px);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
-.auth-submit-button:disabled {
+.hyli-auth-submit-button:disabled {
     background-color: #cccccc;
     cursor: not-allowed;
     transform: none;

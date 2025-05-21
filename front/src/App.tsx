@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import './App.css';
 import { WalletShowcase } from './components/WalletShowcase';
@@ -7,11 +6,10 @@ import { useWalletTransactions } from './hooks/useWalletTransactions';
 import { useWebSocketConnection } from './hooks/useWebSocketConnection';
 import { getPublicRoutes, getProtectedRoutes, ROUTES } from './routes/routes';
 import { WalletProvider, useWallet } from 'hyli-wallet';
-import { LoadingErrorState } from './components/common/LoadingErrorState';
 import { WebSocketProvider } from './providers/WebSocketProvider';
 
 function AppContent() {
-  const { wallet, logout, stage, error } = useWallet();
+  const { wallet, logout } = useWallet();
   const navigate = useNavigate();
   
   // Use custom hooks
@@ -30,21 +28,10 @@ function AppContent() {
     }
   });
 
-  // Redirect back to root on auth settlement error and show message via state
-  useEffect(() => {
-    if (stage === 'error') {
-      navigate(ROUTES.ROOT, { state: { authError: error } });
-    }
-  }, [stage, error, navigate]);
-
   const handleLogout = () => {
     logout();
     navigate(ROUTES.ROOT);
   };
-
-  if (error) {
-    return <LoadingErrorState isLoading={false} error={error} />;
-  }
 
   // If wallet is not connected, show the showcase screen
   if (!wallet) {

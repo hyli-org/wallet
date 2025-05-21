@@ -1,23 +1,10 @@
-import { Transaction } from "../types/wallet";
+import { AppEvent, Transaction, TxEventCallback, WalletEventCallback } from "../types/wallet";
 import { ConfigService } from "./ConfigService";
-
-export interface AppEvent {
-    TxEvent: {
-        account: string;
-        tx: Transaction;
-    };
-    WalletEvent: {
-        account: string;
-        event: string;
-    };
-}
 
 interface RegisterTopicMessage {
     RegisterTopic: string;
 }
 
-type TxEventCallback = (event: AppEvent["TxEvent"]) => void;
-type WalletEventCallback = (event: AppEvent["WalletEvent"]) => void;
 
 export class WebSocketService {
     private static instance: WebSocketService | null = null;

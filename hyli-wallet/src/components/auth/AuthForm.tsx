@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { AuthCredentials, AuthProvider } from "../../providers/BaseAuthProvider";
 import { useWallet, ProviderOption } from "../../hooks/useWallet";
 import { AuthStage } from "../../types/login";
@@ -7,10 +7,14 @@ import "./AuthForm.css";
 interface AuthFormProps {
     provider: AuthProvider;
     mode: "login" | "register";
+    /**
+     * CSS class prefix for styling overrides. Default is 'hyli'
+     */
+    classPrefix?: string;
 }
 
-export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode }) => {
-    const { login, registerAccount: registerWallet, stage } = useWallet();
+export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode, classPrefix }) => {
+    const { login, registerAccount: registerWallet } = useWallet();
     const [credentials, setCredentials] = useState<AuthCredentials>({
         username: "bob",
         password: "password123",
@@ -18,16 +22,14 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode }) => {
     });
     const [error, setError] = useState<string>("");
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+    const [stage, setStage] = useState<AuthStage>("idle");
 
-    // Derive UI messaging from stage
     const deriveStatusMessage = (stage: AuthStage): string => {
         switch (stage) {
             case "submitting":
                 return "Sending transaction...";
             case "blobSent":
                 return "Waiting for transaction confirmation...";
-            case "settled":
-                return "Success!";
             case "error":
                 return "Error occurred";
             default:
@@ -37,26 +39,39 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode }) => {
 
     const statusMessage = deriveStatusMessage(stage);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
         setIsSubmitting(true);
+        setStage("submitting");
 
         const authAction = mode === "login" ? login : registerWallet;
 
-        authAction(provider.type as ProviderOption, credentials).catch((err) => {
-            const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
-            setError(errorMessage);
-            setIsSubmitting(false);
-        });
-    };
-
-    // Reset local submitting flag whenever stage transitions away from 'submitting'
-    useEffect(() => {
-        if (stage !== "submitting") {
+        try {
+            await authAction(
+                provider.type as ProviderOption,
+                credentials,
+                (event) => {
+                    if (event.event) {
+                        if (event.event.includes("Blob transaction sent")) {
+                            setStage("blobSent");
+                        } else if (event.event.includes("Proof transaction sent")) {
+                            setStage("submitting");
+                        }
+                    }
+                },
+                (error) => {
+                    setError(error.message);
+                    setStage("idle");
+                    setIsSubmitting(false);
+                }
+            );
+        } catch (err) {
+            setError((err as Error).message);
+            setStage("idle");
             setIsSubmitting(false);
         }
-    }, [stage]);
+    };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -67,8 +82,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode }) => {
     };
 
     return (
-        <form onSubmit={handleSubmit} className="auth-form">
-            <div className="form-group">
+        <form onSubmit={handleSubmit} className={`${classPrefix}-auth-form`}>
+            <div className={`${classPrefix}-form-group`}>
                 <label htmlFor="username">Username</label>
                 <input
                     id="username"
@@ -77,11 +92,11 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode }) => {
                     value={credentials.username}
                     onChange={handleInputChange}
                     placeholder="Enter your username"
-                    disabled={isSubmitting || stage === "submitting" || stage === "blobSent"}
+                    disabled={isSubmitting}
                 />
             </div>
 
-            <div className="form-group">
+            <div className={`${classPrefix}-form-group`}>
                 <label htmlFor="password">Password</label>
                 <input
                     id="password"
@@ -90,12 +105,12 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode }) => {
                     value={credentials.password}
                     onChange={handleInputChange}
                     placeholder="Enter your password"
-                    disabled={isSubmitting || stage === "submitting" || stage === "blobSent"}
+                    disabled={isSubmitting}
                 />
             </div>
 
             {mode === "register" && (
-                <div className="form-group">
+                <div className={`${classPrefix}-form-group`}>
                     <label htmlFor="confirmPassword">Confirm Password</label>
                     <input
                         id="confirmPassword"
@@ -104,23 +119,23 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode }) => {
                         value={credentials.confirmPassword}
                         onChange={handleInputChange}
                         placeholder="Confirm your password"
-                        disabled={isSubmitting || stage === "submitting" || stage === "blobSent"}
+                        disabled={isSubmitting}
                     />
                 </div>
             )}
 
-            {error && <div className="error-message">{error}</div>}
-            {statusMessage && <div className="status-message">{statusMessage}</div>}
+            {error && <div className={`${classPrefix}-error-message`}>{error}</div>}
+            {statusMessage && <div className={`${classPrefix}-status-message`}>{statusMessage}</div>}
 
             <button
                 type="submit"
-                className="auth-submit-button"
-                disabled={isSubmitting || stage === "submitting" || stage === "blobSent"}
+                className={`${classPrefix}-auth-submit-button`}
+                disabled={isSubmitting}
             >
-                {stage === "submitting"
-                    ? "Processing..."
-                    : stage === "blobSent"
-                    ? "Pending…"
+                {isSubmitting
+                    ? stage === "submitting"
+                        ? "Processing..."
+                        : "Pending..."
                     : mode === "login"
                     ? "Login"
                     : "Create Account"}

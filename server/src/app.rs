@@ -43,7 +43,7 @@ pub enum AppWsInMessage {}
 #[derive(Debug, Clone, Serialize)]
 pub enum AppOutWsEvent {
     TxEvent(HistoryEvent),
-    WalletEvent { account: String, event: String },
+    WalletEvent { account: String, event: String }, // TODO: Type event for better error handling in frontend
 }
 
 module_bus_client! {
