@@ -7,9 +7,13 @@ import "./AuthForm.css";
 interface AuthFormProps {
     provider: AuthProvider;
     mode: "login" | "register";
+    /**
+     * CSS class prefix for styling overrides. Default is 'hyli'
+     */
+    classPrefix?: string;
 }
 
-export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode }) => {
+export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode, classPrefix }) => {
     const { login, registerAccount: registerWallet } = useWallet();
     const [credentials, setCredentials] = useState<AuthCredentials>({
         username: "bob",
@@ -78,8 +82,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode }) => {
     };
 
     return (
-        <form onSubmit={handleSubmit} className="auth-form">
-            <div className="form-group">
+        <form onSubmit={handleSubmit} className={`${classPrefix}-auth-form`}>
+            <div className={`${classPrefix}-form-group`}>
                 <label htmlFor="username">Username</label>
                 <input
                     id="username"
@@ -92,7 +96,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode }) => {
                 />
             </div>
 
-            <div className="form-group">
+            <div className={`${classPrefix}-form-group`}>
                 <label htmlFor="password">Password</label>
                 <input
                     id="password"
@@ -106,7 +110,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode }) => {
             </div>
 
             {mode === "register" && (
-                <div className="form-group">
+                <div className={`${classPrefix}-form-group`}>
                     <label htmlFor="confirmPassword">Confirm Password</label>
                     <input
                         id="confirmPassword"
@@ -120,12 +124,12 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode }) => {
                 </div>
             )}
 
-            {error && <div className="error-message">{error}</div>}
-            {statusMessage && <div className="status-message">{statusMessage}</div>}
+            {error && <div className={`${classPrefix}-error-message`}>{error}</div>}
+            {statusMessage && <div className={`${classPrefix}-status-message`}>{statusMessage}</div>}
 
             <button
                 type="submit"
-                className="auth-submit-button"
+                className={`${classPrefix}-auth-submit-button`}
                 disabled={isSubmitting}
             >
                 {isSubmitting

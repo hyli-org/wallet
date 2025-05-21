@@ -70,13 +70,89 @@ interface HyliWalletProps {
      * Optional explicit provider list (e.g., ["password", "google"]). If omitted, available providers will be detected automatically.
      */
     providers?: ProviderOption[];
+    /**
+     * UNTESTED: Optional render prop for customizing the modal content.
+     * If not supplied, the default modal UI will be used.
+     */
+    modalContent?: (props: {
+        selectedProvider: ProviderOption | null;
+        setSelectedProvider: (provider: ProviderOption | null) => void;
+        showLogin: boolean;
+        setShowLogin: (show: boolean) => void;
+        onClose: () => void;
+    }) => React.ReactNode;
+    /**
+     * CSS class prefix for styling overrides. Default is 'hyli'
+     */
+    classPrefix?: string;
 }
 
-export const HyliWallet = ({ button, providers }: HyliWalletProps) => {
+export const HyliWallet = ({ 
+    button, 
+    providers,
+    modalContent,
+    classPrefix = "hyli",
+}: HyliWalletProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const [selectedProvider, setSelectedProvider] = useState<ProviderOption | null>(null);
-    const [showLogin, setShowLogin] = useState(true); // true = login (default), false = create/sign-up
+    const [showLogin, setShowLogin] = useState(true);
+    const [position, setPosition] = useState({ x: 0, y: 0 });
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
     const { wallet, logout } = useWallet();
+
+    // Centre la fenêtre au chargement
+    useEffect(() => {
+        if (isOpen) {
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
+            const modalWidth = 400;
+            const modalHeight = 500;
+
+            setPosition({
+                x: (windowWidth - modalWidth) / 2,
+                y: (windowHeight - modalHeight) / 2
+            });
+        }
+    }, [isOpen]);
+
+    useEffect(() => {
+        if (isDragging) {
+            const handleMouseMove = (e: MouseEvent) => {
+                const dx = e.clientX - dragStart.x;
+                const dy = e.clientY - dragStart.y;
+
+                // Limiter le déplacement aux bords de l'écran
+                const maxX = window.innerWidth - 400;
+                const maxY = window.innerHeight - 500;
+
+                setPosition({
+                    x: Math.max(0, Math.min(maxX, position.x + dx)),
+                    y: Math.max(0, Math.min(maxY, position.y + dy))
+                });
+                setDragStart({ x: e.clientX, y: e.clientY });
+            };
+
+            const handleMouseUp = () => {
+                setIsDragging(false);
+            };
+
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+
+            return () => {
+                window.removeEventListener('mousemove', handleMouseMove);
+                window.removeEventListener('mouseup', handleMouseUp);
+            };
+        }
+    }, [isDragging, dragStart, position]);
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        if (e.target instanceof HTMLElement && !e.target.closest(`.${classPrefix}-modal-close`)) {
+            setIsDragging(true);
+            setDragStart({ x: e.clientX, y: e.clientY });
+        }
+    };
 
     const handleButtonClick = () => {
         if (wallet) {
@@ -130,72 +206,93 @@ export const HyliWallet = ({ button, providers }: HyliWalletProps) => {
         );
     };
 
-    const ModalContent = (
-        <div className="-overlay" onClick={closeModal}>
-            <div className="-modal" onClick={(e) => e.stopPropagation()}>
-                <div className="modal-header">
-                    <div className="modal-logo">
-                        <svg
-                            width="120"
-                            height="28"
-                            viewBox="0 0 931 218"
-                            fill="none"
-                            xmlns="http://www.w3.org/2000/svg"
-                        >
-                            <path
-                                d="M438.309 64.7635C438.265 64.8332 438.222 64.9034 438.178 64.9733C433.718 72.0845 423.337 71.9325 419.169 64.646C419.13 64.5764 419.09 64.506 419.05 64.4361L379.267 0H314.541L374.846 99.1073C377.373 103.033 382.212 110.013 389.37 120.042C395.261 128.984 398.946 135.742 400.422 140.32V156.022L400.106 217.186H456.938V156.022C456.938 152.536 456.829 149.592 456.622 147.19V140.32C457.885 135.962 461.566 129.2 467.674 120.042L471.461 114.808C472.724 113.065 474.51 110.556 476.83 107.285C479.144 104.013 480.934 101.29 482.197 99.1073L542.502 0H477.462L438.309 64.7635Z"
-                                fill="#FFFFFF"
-                            />
-                            <path
-                                d="M636.271 0H579.756V217.187H805.769V164.853H647.325C641.22 164.853 636.271 159.905 636.271 153.8V0Z"
-                                fill="#FFFFFF"
-                            />
-                            <path d="M930.193 0H873.678V217.187H930.193V0Z" fill="#FFFFFF" />
-                            <path
-                                d="M216.082 82.4269H68.1538C62.0491 82.4269 57.1002 77.4778 57.1002 71.3733V0H0.609375V217.187H57.1002V145.814C57.1002 139.709 62.0492 134.76 68.1538 134.76H216.082C222.187 134.76 227.136 139.709 227.136 145.814V217.187H283.916V0H227.136V71.3733C227.136 77.4779 222.187 82.4269 216.082 82.4269Z"
-                                fill="#FFFFFF"
-                            />
-                        </svg>
-                    </div>
-                    <button className="hyli-modal-close" onClick={closeModal}>
-                        &times;
-                    </button>
+    const defaultModalContent = (
+        <div 
+            className={`${classPrefix}-modal`}
+            onClick={(e) => e.stopPropagation()} 
+        >
+            <div className={`${classPrefix}-modal-header`} onMouseDown={handleMouseDown}>
+                <div className={`${classPrefix}-modal-logo`}>
+                    <svg
+                        width="120"
+                        height="28"
+                        viewBox="0 0 931 218"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                    >
+                        <path
+                            d="M438.309 64.7635C438.265 64.8332 438.222 64.9034 438.178 64.9733C433.718 72.0845 423.337 71.9325 419.169 64.646C419.13 64.5764 419.09 64.506 419.05 64.4361L379.267 0H314.541L374.846 99.1073C377.373 103.033 382.212 110.013 389.37 120.042C395.261 128.984 398.946 135.742 400.422 140.32V156.022L400.106 217.186H456.938V156.022C456.938 152.536 456.829 149.592 456.622 147.19V140.32C457.885 135.962 461.566 129.2 467.674 120.042L471.461 114.808C472.724 113.065 474.51 110.556 476.83 107.285C479.144 104.013 480.934 101.29 482.197 99.1073L542.502 0H477.462L438.309 64.7635Z"
+                            fill="#FFFFFF"
+                        />
+                        <path
+                            d="M636.271 0H579.756V217.187H805.769V164.853H647.325C641.22 164.853 636.271 159.905 636.271 153.8V0Z"
+                            fill="#FFFFFF"
+                        />
+                        <path d="M930.193 0H873.678V217.187H930.193V0Z" fill="#FFFFFF" />
+                        <path
+                            d="M216.082 82.4269H68.1538C62.0491 82.4269 57.1002 77.4778 57.1002 71.3733V0H0.609375V217.187H57.1002V145.814C57.1002 139.709 62.0492 134.76 68.1538 134.76H216.082C222.187 134.76 227.136 139.709 227.136 145.814V217.187H283.916V0H227.136V71.3733C227.136 77.4779 222.187 82.4269 216.082 82.4269Z"
+                            fill="#FFFFFF"
+                        />
+                    </svg>
                 </div>
-
-                {selectedProvider === null && (
-                    <div className="provider-selection">
-                        <h2>Sign in</h2>
-                        <div className="provider-list">
-                            {(providers ?? availableProviders).map(renderProviderButton)}
-                        </div>
-                    </div>
-                )}
-
-                {selectedProvider && (
-                    <div className="password-provider-flow">
-                        {showLogin ? (
-                            <>
-                                <h2 className="auth-title">Log in</h2>
-                                <AuthForm provider={authProviderManager.getProvider(selectedProvider)!} mode="login" />
-                                <button className="switch-auth-button" onClick={() => setShowLogin(false)}>
-                                    Don't have an account? Sign up
-                                </button>
-                            </>
-                        ) : (
-                            <>
-                                <h2 className="auth-title">Create account</h2>
-                                <AuthForm
-                                    provider={authProviderManager.getProvider(selectedProvider)!}
-                                    mode="register"
-                                />
-                                <button className="switch-auth-button" onClick={() => setShowLogin(true)}>
-                                    Already have an account? Log in
-                                </button>
-                            </>
-                        )}
-                    </div>
-                )}
+                <button className={`${classPrefix}-modal-close`} onClick={closeModal}>
+                    &times;
+                </button>
             </div>
+
+            {selectedProvider === null && (
+                <div className={`${classPrefix}-provider-selection`}>
+                    <h2 className={`${classPrefix}-section-title`}>Sign in</h2>
+                    <div className={`${classPrefix}-provider-list`}>
+                        {(providers ?? availableProviders).map(renderProviderButton)}
+                    </div>
+                </div>
+            )}
+
+            {selectedProvider && (
+                <div className={`${classPrefix}-password-provider-flow`}>
+                    {showLogin ? (
+                        <>
+                            <h2 className={`${classPrefix}-auth-title`}>Log in</h2>
+                            <AuthForm 
+                                provider={authProviderManager.getProvider(selectedProvider)!} 
+                                mode="login" 
+                                classPrefix={classPrefix}
+                            />
+                            <button className={`${classPrefix}-switch-auth-button`} onClick={() => setShowLogin(false)}>
+                                Don't have an account? Sign up
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <h2 className={`${classPrefix}-auth-title`}>Create account</h2>
+                            <AuthForm
+                                provider={authProviderManager.getProvider(selectedProvider)!}
+                                mode="register"
+                                classPrefix={classPrefix}
+                            />
+                            <button className={`${classPrefix}-switch-auth-button`} onClick={() => setShowLogin(true)}>
+                                Already have an account? Log in
+                            </button>
+                        </>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+
+    const ModalContent = (
+        <div className={`${classPrefix}-overlay`} onClick={closeModal}>
+            {modalContent ? 
+                modalContent({
+                    selectedProvider,
+                    setSelectedProvider,
+                    showLogin,
+                    setShowLogin,
+                    onClose: closeModal
+                }) : 
+                defaultModalContent
+            }
         </div>
     );
 
@@ -204,7 +301,7 @@ export const HyliWallet = ({ button, providers }: HyliWalletProps) => {
             {button ? (
                 button({ onClick: handleButtonClick })
             ) : (
-                <button className="-btn" onClick={handleButtonClick}>
+                <button className={`${classPrefix}-btn`} onClick={handleButtonClick}>
                     {wallet ? "Log Out" : "Connect Wallet"}
                 </button>
             )}

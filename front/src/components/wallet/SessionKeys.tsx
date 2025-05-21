@@ -65,13 +65,19 @@ export const SessionKeys = () => {
         password,
         expiration,
         ["oranj"],
-        (txHash: string, type: string) => {
-          if (type === 'blob') {
-            setStatus('Verifying identity...');
-            setTransactionHash(txHash);
-          } else if (type === 'proof') {
-            setStatus('Proof transaction sent, waiting for confirmation...');
+        (event) => {
+          if (event.event) {
+            if (event.event.includes('Blob transaction sent:')) {
+              const txHash = event.event.split(':')[1].trim();
+              setStatus('Verifying identity...');
+              setTransactionHash(txHash);
+            } else if (event.event.includes('Proof transaction sent:')) {
+              setStatus('Proof transaction sent, waiting for confirmation...');
+            }
           }
+        },
+        (error) => {
+          setError(error.message);
         }
       );
 
@@ -111,13 +117,19 @@ export const SessionKeys = () => {
       await removeSessionKey(
         password,
         publicKey,
-        (txHash: string, type: string) => {
-          if (type === 'blob') {
-            setStatus('Verifying identity...');
-            setTransactionHash(txHash);
-          } else if (type === 'proof') {
-            setStatus('Proof transaction sent, waiting for confirmation...');
+        (event) => {
+          if (event.event) {
+            if (event.event.includes('Blob transaction sent:')) {
+              const txHash = event.event.split(':')[1].trim();
+              setStatus('Verifying identity...');
+              setTransactionHash(txHash);
+            } else if (event.event.includes('Proof transaction sent:')) {
+              setStatus('Proof transaction sent, waiting for confirmation...');
+            }
           }
+        },
+        (error) => {
+          setError(error.message);
         }
       );
 
