@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { serializeIdentityAction, serializeSecp256k1Blob, sessionKeyService, useWallet, WalletAction, walletContractName } from 'hyli-wallet';
-import { webSocketService } from '../../services/WebSocketService';
+import { webSocketService, type AppEvent } from '../../services/WebSocketService';
 import { Blob, BlobTransaction } from 'hyli';
 import { indexerService } from '../../services/IndexerService';
 import './SessionKeys.css';
@@ -41,6 +41,22 @@ export const SessionKeys = () => {
     fetchSessionKeys();
   }, [wallet.username]);
 
+  const handleWalletEvent = (event: AppEvent["WalletEvent"]) => {
+    // TODO: Make properly typed events
+    const eventText = event.event;
+    if (eventText.includes('Blob transaction sent:')) {
+      const txHash = eventText.split(':')[1].trim();
+      setStatus('Verifying identity...');
+      setTransactionHash(txHash);
+    } else if (eventText.includes('Proof transaction sent:')) {
+      setStatus('Proof transaction sent, waiting for confirmation...');
+    }
+  };
+
+  const handleError = (error: Error) => {
+    setError(error.message);
+  };
+
   const handleAddKey = async () => {
     if (!password) {
       setError('Please enter your password');
@@ -60,39 +76,27 @@ export const SessionKeys = () => {
 
     try {
       const expiration = Date.now() + (days * 24 * 60 * 60 * 1000);
-
+      
       const { sessionKey } = await registerSessionKey(
         password,
         expiration,
         ["oranj"],
-        (event) => {
-          if (event.event) {
-            if (event.event.includes('Blob transaction sent:')) {
-              const txHash = event.event.split(':')[1].trim();
-              setStatus('Verifying identity...');
-              setTransactionHash(txHash);
-            } else if (event.event.includes('Proof transaction sent:')) {
-              setStatus('Proof transaction sent, waiting for confirmation...');
-            }
-          }
-        },
-        (error) => {
-          setError(error.message);
-        }
+        handleWalletEvent,
+        handleError
       );
 
-      await new Promise((resolve, reject) => {
+      await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => {
           webSocketService.unsubscribeFromWalletEvents();
           reject(new Error('Operation timed out'));
         }, 30000);
 
-        const unsubscribe = webSocketService.subscribeToWalletEvents((event) => {
-          if (event.event === 'Session key added') {
+        const unsubscribe = webSocketService.subscribeToWalletEvents((wsEvent) => {
+          if (wsEvent.event === 'Session key added') {
             localStorage.setItem(sessionKey.publicKey, sessionKey.privateKey);
             clearTimeout(timeout);
             unsubscribe();
-            resolve(event);
+            resolve();
           }
         });
       });
@@ -117,37 +121,24 @@ export const SessionKeys = () => {
       await removeSessionKey(
         password,
         publicKey,
-        (event) => {
-          if (event.event) {
-            if (event.event.includes('Blob transaction sent:')) {
-              const txHash = event.event.split(':')[1].trim();
-              setStatus('Verifying identity...');
-              setTransactionHash(txHash);
-            } else if (event.event.includes('Proof transaction sent:')) {
-              setStatus('Proof transaction sent, waiting for confirmation...');
-            }
-          }
-        },
-        (error) => {
-          setError(error.message);
-        }
+        handleWalletEvent,
+        handleError
       );
 
-
-      await new Promise((resolve, reject) => {
+      await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => {
           webSocketService.unsubscribeFromWalletEvents();
           reject(new Error('Operation timed out'));
         }, 30000);
 
         webSocketService.connect(wallet.address);
-        const unsubscribe = webSocketService.subscribeToWalletEvents((event) => {
-          if (event.event === 'Session key removed') {
+        const unsubscribe = webSocketService.subscribeToWalletEvents((wsEvent) => {
+          if (wsEvent.event === 'Session key removed') {
             localStorage.removeItem(publicKey);
             clearTimeout(timeout);
             unsubscribe();
             webSocketService.disconnect();
-            resolve(event);
+            resolve();
           }
         });
       });
@@ -168,7 +159,6 @@ export const SessionKeys = () => {
     setTransactionHash('');
 
     try {
-
       const identity = wallet.address;
       const privateKey = localStorage.getItem(publicKey);
       if (!privateKey) {
@@ -176,6 +166,7 @@ export const SessionKeys = () => {
       }
 
       let nonce = Date.now();
+
       const secp256k1Blob = sessionKeyService.getSignedBlob(wallet.address, nonce, privateKey);
 
       const blob0: Blob = {
@@ -205,20 +196,19 @@ export const SessionKeys = () => {
 
       setStatus('Waiting for transaction confirmation...');
 
-      await new Promise((resolve, reject) => {
+      await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => {
           webSocketService.unsubscribeFromWalletEvents();
           reject(new Error('Transaction timed out'));
         }, 30000);
 
         webSocketService.connect(wallet.address);
-        const unsubscribe = webSocketService.subscribeToWalletEvents((event) => {
-          // TODO: Handle events in a more generic way
-          if (event.event === 'Session key is valid') {
+        const unsubscribe = webSocketService.subscribeToWalletEvents((wsEvent) => {
+          if (wsEvent.event === 'Session key is valid') {
             clearTimeout(timeout);
             unsubscribe();
             webSocketService.disconnect();
-            resolve(event);
+            resolve();
           }
         });
       });
@@ -249,19 +239,19 @@ export const SessionKeys = () => {
 
       setStatus('Waiting for transaction confirmation...');
 
-      await new Promise((resolve, reject) => {
+      await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => {
           webSocketService.unsubscribeFromWalletEvents();
           reject(new Error('Transaction timed out'));
         }, 30000);
 
         webSocketService.connect(wallet.address);
-        const unsubscribe = webSocketService.subscribeToWalletEvents((event) => {
-          if (event.event === 'Session key is valid') {
+        const unsubscribe = webSocketService.subscribeToWalletEvents((wsEvent) => {
+          if (wsEvent.event === 'Session key is valid') {
             clearTimeout(timeout);
             unsubscribe();
             webSocketService.disconnect();
-            resolve(event);
+            resolve();
           }
         });
       });
