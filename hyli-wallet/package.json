@@ -1,9 +1,12 @@
 {
     "name": "hyli-wallet",
-    "version": "0.2.1",
+    "version": "0.2.2",
     "type": "module",
     "license": "MIT",
-    "repository": "hyli-org/wallet",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/hyli-org/wallet.git"
+    },
     "description": "A reusable wallet component",
     "main": "./dist/hyli-wallet.cjs.js",
     "types": "dist/hyli-wallet.d.ts",
