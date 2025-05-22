@@ -13,6 +13,6 @@ export {
     serializeIdentityAction,
     deserializeIdentityAction,
 } from "./types/wallet";
-export type { ProviderOption, WalletContextType } from "./hooks/useWallet";
+export type { ProviderOption, WalletContextType, WalletProviderProps } from "./hooks/useWallet";
 export { WalletProvider, useWallet } from "./hooks/useWallet";
 export { sessionKeyService } from "./services/SessionKeyService";

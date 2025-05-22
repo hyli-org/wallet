@@ -60,8 +60,7 @@ interface WalletInternalType extends WalletContextType {
 }
 const WalletInternalContext = createContext<WalletInternalType | undefined>(undefined);
 
-interface WalletProviderProps {
-    children: React.ReactNode;
+export interface WalletProviderProps {
     config: {
         nodeBaseUrl: string;
         walletServerBaseUrl: string;
@@ -75,7 +74,7 @@ interface WalletProviderProps {
     onError?: WalletErrorCallback;
 }
 
-export const WalletProvider: React.FC<WalletProviderProps> = ({ children, config, sessionKeyConfig, onWalletEvent, onError }) => {
+export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProps>> = ({ children, config, sessionKeyConfig, onWalletEvent, onError }) => {
     const [wallet, setWallet] = useState<Wallet | null>(() => {
         const storedWallet = localStorage.getItem("wallet");
         return storedWallet ? JSON.parse(storedWallet) : null;
