@@ -4,7 +4,7 @@ use axum::Router;
 use clap::Parser;
 use client_sdk::{
     helpers::risc0::Risc0Prover,
-    rest_client::{IndexerApiHttpClient, NodeApiHttpClient},
+    rest_client::{IndexerApiHttpClient, NodeApiClient, NodeApiHttpClient},
 };
 use conf::Conf;
 use history::{HistoryEvent, HyllarHistory};
