@@ -87,12 +87,7 @@ interface HyliWalletProps {
     classPrefix?: string;
 }
 
-export const HyliWallet = ({ 
-    button, 
-    providers,
-    modalContent,
-    classPrefix = "hyli",
-}: HyliWalletProps) => {
+export const HyliWallet = ({ button, providers, modalContent, classPrefix = "hyli" }: HyliWalletProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const [selectedProvider, setSelectedProvider] = useState<ProviderOption | null>(null);
     const [showLogin, setShowLogin] = useState(true);
@@ -111,7 +106,7 @@ export const HyliWallet = ({
 
             setPosition({
                 x: (windowWidth - modalWidth) / 2,
-                y: (windowHeight - modalHeight) / 2
+                y: (windowHeight - modalHeight) / 2,
             });
         }
     }, [isOpen]);
@@ -128,7 +123,7 @@ export const HyliWallet = ({
 
                 setPosition({
                     x: Math.max(0, Math.min(maxX, position.x + dx)),
-                    y: Math.max(0, Math.min(maxY, position.y + dy))
+                    y: Math.max(0, Math.min(maxY, position.y + dy)),
                 });
                 setDragStart({ x: e.clientX, y: e.clientY });
             };
@@ -137,12 +132,12 @@ export const HyliWallet = ({
                 setIsDragging(false);
             };
 
-            window.addEventListener('mousemove', handleMouseMove);
-            window.addEventListener('mouseup', handleMouseUp);
+            window.addEventListener("mousemove", handleMouseMove);
+            window.addEventListener("mouseup", handleMouseUp);
 
             return () => {
-                window.removeEventListener('mousemove', handleMouseMove);
-                window.removeEventListener('mouseup', handleMouseUp);
+                window.removeEventListener("mousemove", handleMouseMove);
+                window.removeEventListener("mouseup", handleMouseUp);
             };
         }
     }, [isDragging, dragStart, position]);
@@ -164,13 +159,6 @@ export const HyliWallet = ({
 
     // Get available providers dynamically
     const availableProviders = authProviderManager.getAvailableProviders() as ProviderOption[];
-
-    // Close the modal automatically when the user is connected
-    useEffect(() => {
-        if (wallet && isOpen) {
-            setIsOpen(false);
-        }
-    }, [wallet, isOpen]);
 
     const closeModal = () => {
         setIsOpen(false);
@@ -207,19 +195,10 @@ export const HyliWallet = ({
     };
 
     const defaultModalContent = (
-        <div 
-            className={`${classPrefix}-modal`}
-            onClick={(e) => e.stopPropagation()} 
-        >
+        <div className={`${classPrefix}-modal`} onClick={(e) => e.stopPropagation()}>
             <div className={`${classPrefix}-modal-header`} onMouseDown={handleMouseDown}>
                 <div className={`${classPrefix}-modal-logo`}>
-                    <svg
-                        width="120"
-                        height="28"
-                        viewBox="0 0 931 218"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                    >
+                    <svg width="120" height="28" viewBox="0 0 931 218" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path
                             d="M438.309 64.7635C438.265 64.8332 438.222 64.9034 438.178 64.9733C433.718 72.0845 423.337 71.9325 419.169 64.646C419.13 64.5764 419.09 64.506 419.05 64.4361L379.267 0H314.541L374.846 99.1073C377.373 103.033 382.212 110.013 389.37 120.042C395.261 128.984 398.946 135.742 400.422 140.32V156.022L400.106 217.186H456.938V156.022C456.938 152.536 456.829 149.592 456.622 147.19V140.32C457.885 135.962 461.566 129.2 467.674 120.042L471.461 114.808C472.724 113.065 474.51 110.556 476.83 107.285C479.144 104.013 480.934 101.29 482.197 99.1073L542.502 0H477.462L438.309 64.7635Z"
                             fill="#FFFFFF"
@@ -254,10 +233,11 @@ export const HyliWallet = ({
                     {showLogin ? (
                         <>
                             <h2 className={`${classPrefix}-auth-title`}>Log in</h2>
-                            <AuthForm 
-                                provider={authProviderManager.getProvider(selectedProvider)!} 
-                                mode="login" 
+                            <AuthForm
+                                provider={authProviderManager.getProvider(selectedProvider)!}
+                                mode="login"
                                 classPrefix={classPrefix}
+                                closeModal={closeModal}
                             />
                             <button className={`${classPrefix}-switch-auth-button`} onClick={() => setShowLogin(false)}>
                                 Don't have an account? Sign up
@@ -270,6 +250,7 @@ export const HyliWallet = ({
                                 provider={authProviderManager.getProvider(selectedProvider)!}
                                 mode="register"
                                 classPrefix={classPrefix}
+                                closeModal={closeModal}
                             />
                             <button className={`${classPrefix}-switch-auth-button`} onClick={() => setShowLogin(true)}>
                                 Already have an account? Log in
@@ -282,17 +263,16 @@ export const HyliWallet = ({
     );
 
     const ModalContent = (
-        <div className={`${classPrefix}-overlay`} onClick={closeModal}>
-            {modalContent ? 
-                modalContent({
-                    selectedProvider,
-                    setSelectedProvider,
-                    showLogin,
-                    setShowLogin,
-                    onClose: closeModal
-                }) : 
-                defaultModalContent
-            }
+        <div className={`${classPrefix}-overlay`}>
+            {modalContent
+                ? modalContent({
+                      selectedProvider,
+                      setSelectedProvider,
+                      showLogin,
+                      setShowLogin,
+                      onClose: closeModal,
+                  })
+                : defaultModalContent}
         </div>
     );
 
