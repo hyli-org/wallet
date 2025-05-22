@@ -45,6 +45,19 @@ function App() {
                 walletServerBaseUrl: "WALLET_SERVER_URL",
                 applicationWsUrl: "WEBSOCKET_URL",
             }}
+            // Optional: session key config
+            sessionKeyConfig={{
+                duration: 24 * 60 * 60 * 1000, // Session key duration in ms (default: 72h)
+                whitelist: [], // Required: contracts allowed for session key
+            }}
+            // Optional: global wallet event handler
+            onWalletEvent={(event) => {
+                console.log("Wallet event:", event);
+            }}
+            // Optional: global wallet error handler
+            onError={(error) => {
+                console.error("Wallet error:", error);
+            }}
         >
             <YourApp />
         </WalletProvider>
@@ -83,6 +96,7 @@ function WalletFeatures() {
         logout, // Logout function
         registerSessionKey, // Create new session key
         removeSessionKey, // Remove existing session key
+        signMessageWithSessionKey, // Sign a message with the current session key
     } = useWallet();
 
     return (
@@ -178,6 +192,25 @@ const { removeSessionKey } = useWallet();
 // Remove the session key using the wallet password
 await removeSessionKey("your_password", "session_key_public_key");
 ```
+
+### Signing Arbitrary Messages with a Session Key
+
+You can sign any message using the current session key:
+
+```typescript
+import { useWallet } from "hyli-wallet";
+
+const { signMessageWithSessionKey } = useWallet();
+
+const message = "Hello, Hyli!";
+const { hash, signature } = signMessageWithSessionKey(message);
+
+console.log("Message hash (Uint8Array):", hash);
+console.log("Signature (Uint8Array):", signature);
+```
+
+-   `signMessageWithSessionKey(message: string)` will throw if there is no session key in the wallet.
+-   Returns the raw hash and signature as `Uint8Array`.
 
 ## WebSocket Integration
 

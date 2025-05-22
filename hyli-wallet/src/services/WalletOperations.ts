@@ -15,6 +15,7 @@ import { sessionKeyService } from "./SessionKeyService";
 import { build_proof_transaction, build_blob as check_secret_blob } from "hyli-check-secret";
 import { Blob, BlobTransaction } from "hyli";
 import { NodeService } from "./NodeService";
+import { IndexerService } from "./IndexerService";
 
 /**
  * Registers a new session key in the wallet and sends transactions to register it.
@@ -30,7 +31,7 @@ export const registerSessionKey = async (
     expiration: number,
     whitelist: string[],
     onWalletEvent?: WalletEventCallback,
-    onError?: WalletErrorCallback,
+    onError?: WalletErrorCallback
 ): Promise<{
     sessionKey: SessionKey;
     txHashes: [string, string];
@@ -78,7 +79,7 @@ export const registerSessionKey = async (
             updatedWallet,
         };
     } catch (errorMessage) {
-        const error = errorMessage instanceof Error ? errorMessage.message : "Failed to register session key"
+        const error = errorMessage instanceof Error ? errorMessage.message : "Failed to register session key";
         onError?.(new Error(error));
         console.error("Failed to initialize session key:", errorMessage);
         throw error;
@@ -97,7 +98,7 @@ export const removeSessionKey = async (
     password: string,
     publicKey: string,
     onWalletEvent?: WalletEventCallback,
-    onError?: WalletErrorCallback,
+    onError?: WalletErrorCallback
 ): Promise<{
     txHashes: [string, string];
     updatedWallet: Wallet;
@@ -146,10 +147,10 @@ export const removeSessionKey = async (
             txHashes: [blobTxHash, proofTxHash],
             updatedWallet,
         };
-    // } catch (error) {
-    //     console.error("Failed to remove session key:", error);
-    //     throw error;
-    // }
+        // } catch (error) {
+        //     console.error("Failed to remove session key:", error);
+        //     throw error;
+        // }
     } catch (errorMessage) {
         const error = errorMessage instanceof Error ? errorMessage.message : "Failed to remove session key";
         onError?.(new Error(error));
@@ -214,4 +215,49 @@ export const cleanExpiredSessionKeys = (wallet: Wallet): Wallet => {
         return updatedWallet;
     }
     return wallet;
+};
+
+export const getOrReuseSessionKey = async (
+    wallet: Wallet,
+    checkBackend: boolean = false
+): Promise<{
+    sessionKey?: SessionKey;
+    updatedWallet: Wallet;
+    reused: boolean;
+}> => {
+    // Check if a session key exists and is not expired
+    const now = Date.now();
+    if (wallet.sessionKey && wallet.sessionKey.expiration > now) {
+        // Optionally check with backend if the session key is still valid
+        if (checkBackend) {
+            try {
+                const indexer = IndexerService.getInstance();
+                const accountInfo = await indexer.getAccountInfo(wallet.address);
+                const backendKey = accountInfo.session_keys.find(
+                    (k) => k.key === wallet.sessionKey!.publicKey && k.expiration_date > now
+                );
+                if (backendKey) {
+                    return {
+                        sessionKey: wallet.sessionKey,
+                        updatedWallet: wallet,
+                        reused: true,
+                    };
+                }
+            } catch (e) {
+                // fallback to not reused
+            }
+        } else {
+            return {
+                sessionKey: wallet.sessionKey,
+                updatedWallet: wallet,
+                reused: true,
+            };
+        }
+    }
+    // No valid session key available
+    return {
+        sessionKey: undefined,
+        updatedWallet: wallet,
+        reused: false,
+    };
 };
