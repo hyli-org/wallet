@@ -25,7 +25,7 @@ impl sdk::ZkContract for Wallet {
             _ => self.handle_authenticated_action(action, calldata)?,
         };
 
-        Ok((res, ctx, vec![]))
+        Ok((res.into_bytes(), ctx, vec![]))
     }
 
     /// In this example, we serialize the full state on-chain.
@@ -133,7 +133,10 @@ impl Wallet {
         };
 
         // Verify identity before executing the action
-        let stored_info = self.identities.get(account).ok_or(format!("Identity not found: {account}, identities: {:?}", self.identities))?;
+        let stored_info = self.identities.get(account).ok_or(format!(
+            "Identity not found: {account}, identities: {:?}",
+            self.identities
+        ))?;
         stored_info.auth_method.verify(calldata)?;
 
         match action {
