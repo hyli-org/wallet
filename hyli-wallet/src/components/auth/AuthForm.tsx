@@ -14,8 +14,18 @@ interface AuthFormProps {
 }
 
 export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode, classPrefix }) => {
-    const { login, registerAccount: registerWallet, registerSessionKey, sessionKeyConfig, onWalletEvent, onError, getOrReuseSessionKey } = useWalletInternal();
-    const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    const {
+        login,
+        registerAccount: registerWallet,
+        registerSessionKey,
+        sessionKeyConfig,
+        onWalletEvent,
+        onError,
+        getOrReuseSessionKey,
+    } = useWalletInternal();
+    const isLocalhost =
+        typeof window !== "undefined" &&
+        (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
     const [credentials, setCredentials] = useState<AuthCredentials>({
         username: isLocalhost ? "bob" : "",
         password: isLocalhost ? "hylisecure" : "",
@@ -31,13 +41,17 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode, classPrefix 
     useEffect(() => {
         let isMounted = true;
         if (mode === "login") {
-            getOrReuseSessionKey().then(result => {
-                if (isMounted) setHasSessionKey(!!result.sessionKey);
-            }).catch(err => {
-                if (isMounted) setHasSessionKey(false);
-            });
+            getOrReuseSessionKey()
+                .then((result) => {
+                    if (isMounted) setHasSessionKey(!!result);
+                })
+                .catch((err) => {
+                    if (isMounted) setHasSessionKey(false);
+                });
         }
-        return () => { isMounted = false; };
+        return () => {
+            isMounted = false;
+        };
     }, [getOrReuseSessionKey, mode]);
 
     const deriveStatusMessage = (stage: AuthStage): string => {
@@ -82,12 +96,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode, classPrefix 
         const authAction = mode === "login" ? login : registerWallet;
 
         try {
-            await authAction(
-                provider.type as ProviderOption,
-                credentials,
-                onWalletEventWithStage,
-                onErrorWithStage
-            );
+            await authAction(provider.type as ProviderOption, credentials, onWalletEventWithStage, onErrorWithStage);
             // If auto session key is enabled, create it after login/register
             if (autoSessionKey) {
                 setSessionKeyStatus("Creating session key for this website...");
@@ -110,7 +119,9 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode, classPrefix 
                     );
                     setSessionKeyStatus("Session key created for this website.");
                 } catch (err) {
-                    setSessionKeyStatus("Session key creation failed: " + (err instanceof Error ? err.message : String(err)));
+                    setSessionKeyStatus(
+                        "Session key creation failed: " + (err instanceof Error ? err.message : String(err))
+                    );
                 }
             }
         } catch (err) {
@@ -174,19 +185,20 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode, classPrefix 
             )}
 
             {(mode === "register" || (mode === "login" && hasSessionKey === false)) && (
-                <div className={`${classPrefix}-form-group`} style={{ display: "flex", flexDirection: "row", alignItems: "center" }}>
+                <div
+                    className={`${classPrefix}-form-group`}
+                    style={{ display: "flex", flexDirection: "row", alignItems: "center" }}
+                >
                     <input
                         id="autoSessionKey"
                         name="autoSessionKey"
                         type="checkbox"
                         checked={autoSessionKey}
-                        onChange={e => setAutoSessionKey(e.target.checked)}
+                        onChange={(e) => setAutoSessionKey(e.target.checked)}
                         disabled={isSubmitting}
                         style={{ marginRight: 8, height: "1.4em", width: "1.4em" }}
                     />
-                    <label htmlFor="autoSessionKey">
-                        Create a session key for this website
-                    </label>
+                    <label htmlFor="autoSessionKey">Create a session key for this website</label>
                 </div>
             )}
 
@@ -194,11 +206,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode, classPrefix 
             {statusMessage && <div className={`${classPrefix}-status-message`}>{statusMessage}</div>}
             {sessionKeyStatus && <div className={`${classPrefix}-status-message`}>{sessionKeyStatus}</div>}
 
-            <button
-                type="submit"
-                className={`${classPrefix}-auth-submit-button`}
-                disabled={isSubmitting}
-            >
+            <button type="submit" className={`${classPrefix}-auth-submit-button`} disabled={isSubmitting}>
                 {isSubmitting
                     ? stage === "submitting"
                         ? "Processing..."

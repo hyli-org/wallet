@@ -220,11 +220,7 @@ export const cleanExpiredSessionKeys = (wallet: Wallet): Wallet => {
 export const getOrReuseSessionKey = async (
     wallet: Wallet,
     checkBackend: boolean = false
-): Promise<{
-    sessionKey?: SessionKey;
-    updatedWallet: Wallet;
-    reused: boolean;
-}> => {
+): Promise<SessionKey | undefined> => {
     // Check if a session key exists and is not expired
     const now = Date.now();
     if (wallet.sessionKey && wallet.sessionKey.expiration > now) {
@@ -237,27 +233,15 @@ export const getOrReuseSessionKey = async (
                     (k) => k.key === wallet.sessionKey!.publicKey && k.expiration_date > now
                 );
                 if (backendKey) {
-                    return {
-                        sessionKey: wallet.sessionKey,
-                        updatedWallet: wallet,
-                        reused: true,
-                    };
+                    return wallet.sessionKey;
                 }
             } catch (e) {
                 // fallback to not reused
             }
         } else {
-            return {
-                sessionKey: wallet.sessionKey,
-                updatedWallet: wallet,
-                reused: true,
-            };
+            return wallet.sessionKey;
         }
     }
     // No valid session key available
-    return {
-        sessionKey: undefined,
-        updatedWallet: wallet,
-        reused: false,
-    };
+    return undefined;
 };
