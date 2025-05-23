@@ -95,7 +95,12 @@ async fn main() -> Result<()> {
         node_client,
         wallet_cn: wallet_cn.clone(),
     });
-    let start_height = app_ctx.node_client.get_block_height().await?;
+    let start_height = indexer_client
+        .get_indexer_contract(&wallet_cn)
+        .await
+        .context("getting contract")?
+        .earliest_unsettled
+        .unwrap_or(app_ctx.node_client.get_block_height().await?);
 
     handler.build_module::<AppModule>(app_ctx.clone()).await?;
 
