@@ -1,6 +1,6 @@
 {
     "name": "hyli-wallet",
-    "version": "0.2.7",
+    "version": "0.2.9",
     "type": "module",
     "license": "MIT",
     "repository": {
@@ -22,10 +22,10 @@
         }
     },
     "peerDependencies": {
-        "hyli-check-secret": "^0.3.3",
         "react": "^19.1.0",
         "react-dom": "^19.1.0",
-        "react-router-dom": "^7.6.0"
+        "react-router-dom": "^7.6.0",
+        "hyli-check-secret": "^0.3.4"
     },
     "scripts": {
         "clean": "rm -rf dist",

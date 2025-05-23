@@ -32,7 +32,7 @@
         "vite-plugin-dts": "^4.5.4",
       },
       "peerDependencies": {
-        "hyli-check-secret": "^0.3.3",
+        "hyli-check-secret": "^0.3.4",
         "react": "^19.1.0",
         "react-dom": "^19.1.0",
         "react-router-dom": "^7.6.0",
@@ -474,7 +474,7 @@
 
     "hyli": ["hyli@0.3.0", "", { "dependencies": { "borsher": "^3.6.0" } }, "sha512-0KHTLjDC1dtgmhemMk1xN4/aq/hYRWp8N7kgjp0MRnrWB4E0tQkDqWt8fBfpTUEkW/Ai4VIVF/0JIByacZ3NiA=="],
 
-    "hyli-check-secret": ["hyli-check-secret@0.3.3", "", { "dependencies": { "hyli": "^0.3.0" }, "peerDependencies": { "@aztec/bb.js": "0.82.2", "@noir-lang/noir_js": "1.0.0-beta.2", "@noir-lang/noir_wasm": "1.0.0-beta.2" } }, "sha512-Fd488yw9pm/kOQuTEpQaORBFP4qrz5yHOTr33yyOKJajjq8q2HvZFm/MQjADed8kNurWjUrSYl9km7hlGZlpEg=="],
+    "hyli-check-secret": ["hyli-check-secret@0.3.4", "", { "dependencies": { "hyli": "^0.3.0" }, "peerDependencies": { "@aztec/bb.js": "0.82.2", "@noir-lang/noir_js": "1.0.0-beta.2", "@noir-lang/noir_wasm": "1.0.0-beta.2" } }, "sha512-RdS6FH08K3BwJZhIeOxcVpAnff6GWgn7fCA9KimMl+KQzXdo3INGYWTYS2SaPbBMdW5JivrgadmEE+g3u+Gdvw=="],
 
     "ieee754": ["ieee754@1.2.1", "", {}, "sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA=="],
 
