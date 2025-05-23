@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import dts from "vite-plugin-dts";
 import cssInjectedByJsPlugin from "vite-plugin-css-injected-by-js";
+//import analyzer from "vite-bundle-analyzer";
 
 export default defineConfig({
     build: {
@@ -12,7 +13,7 @@ export default defineConfig({
             formats: ["es", "cjs"],
         },
         rollupOptions: {
-            external: ["react", "react-dom", "hyli-check-secret", "barretenberg", "barretenberg/threads"],
+            external: ["react", "react-dom", "hyli-check-secret"],
             output: {
                 globals: {
                     react: "React",
@@ -21,6 +22,8 @@ export default defineConfig({
             },
         },
         outDir: "dist",
+        sourcemap: true,
+        minify: true,
     },
     plugins: [
         react(),
@@ -29,5 +32,6 @@ export default defineConfig({
             insertTypesEntry: true,
         }),
         cssInjectedByJsPlugin(),
+        //analyzer(),
     ],
 });
