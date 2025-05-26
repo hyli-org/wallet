@@ -1,7 +1,7 @@
 export { HyliWallet } from "./components/HyliWallet";
 export { PasswordAuthProvider } from "./providers/PasswordAuthProvider";
 export type { AuthProvider, AuthCredentials } from "./types/auth";
-export type { AuthMethod, Wallet, WalletAction, Transaction } from "./types/wallet";
+export type { AuthMethod, Wallet, WalletAction } from "./types/wallet";
 export { walletContractName } from "./types/wallet";
 export type { WalletConfig } from "./services/ConfigService";
 export {

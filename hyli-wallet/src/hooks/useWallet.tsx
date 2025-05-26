@@ -25,13 +25,15 @@ export interface WalletContextType {
         provider: ProviderOption,
         credentials: AuthCredentials,
         onWalletEvent?: WalletEventCallback,
-        onError?: WalletErrorCallback
+        onError?: WalletErrorCallback,
+        extraParams?: LoginExtras
     ) => Promise<Wallet | undefined>;
     registerAccount: (
         provider: ProviderOption,
         credentials: AuthCredentials,
         onWalletEvent?: WalletEventCallback,
-        onError?: WalletErrorCallback
+        onError?: WalletErrorCallback,
+        extraParams?: RegisterAccountExtras
     ) => Promise<Wallet | undefined>;
     getOrReuseSessionKey: (checkBackend?: boolean) => Promise<SessionKey | undefined>;
     registerSessionKey: (
@@ -56,15 +58,6 @@ export interface WalletContextType {
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 interface WalletInternalType extends WalletContextType {
-    registerSessionKeyWithWallet: (
-        wallet: Wallet,
-        password: string,
-        expiration?: number,
-        whitelist?: string[],
-        onWalletEvent?: WalletEventCallback,
-        onError?: WalletErrorCallback
-    ) => Promise<{ sessionKey: SessionKey; txHashes: [string, string] }>;
-
     sessionKeyConfig?: {
         duration: number;
         whitelist: string[];
@@ -86,6 +79,23 @@ export interface WalletProviderProps {
     };
     onWalletEvent?: WalletEventCallback;
     onError?: WalletErrorCallback;
+}
+
+export interface LoginExtras {
+    registerSessionKey?:
+        | boolean
+        | {
+              duration?: number; // ms
+              whitelist?: string[];
+          };
+}
+export interface RegisterAccountExtras {
+    registerSessionKey?:
+        | boolean
+        | {
+              duration?: number; // ms
+              whitelist?: string[];
+          };
 }
 
 export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProps>> = ({
@@ -124,12 +134,35 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
     const internalOnWalletEvent = onWalletEvent;
     const internalOnError = onError;
 
+    const getRegSessKey = (
+        registerSessionKey: boolean | { duration?: number; whitelist?: string[] } | undefined
+    ):
+        | undefined
+        | {
+              duration: number;
+              whitelist: string[];
+          } => {
+        if (registerSessionKey === true) {
+            return {
+                duration: effectiveSessionKeyConfig.duration,
+                whitelist: effectiveSessionKeyConfig.whitelist,
+            };
+        } else if (registerSessionKey) {
+            return {
+                duration: registerSessionKey.duration ?? effectiveSessionKeyConfig.duration,
+                whitelist: registerSessionKey.whitelist ?? effectiveSessionKeyConfig.whitelist,
+            };
+        }
+        return undefined;
+    };
+
     const login = useCallback(
         async (
             provider: ProviderOption,
             credentials: AuthCredentials,
             onWalletEvent?: WalletEventCallback,
-            onError?: WalletErrorCallback
+            onError?: WalletErrorCallback,
+            extraParams?: LoginExtras
         ): Promise<Wallet | undefined> => {
             const authProvider = authProviderManager.getProvider(provider);
             if (!authProvider) {
@@ -137,14 +170,19 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
                 (onError ?? internalOnError)?.(error);
                 throw error;
             }
-            let result = await authProvider.login(
-                credentials as any,
-                onWalletEvent ?? internalOnWalletEvent,
-                onError ?? internalOnError
-            );
+            let result = await authProvider.login({
+                credentials,
+                onWalletEvent: onWalletEvent ?? internalOnWalletEvent,
+                onError: onError ?? internalOnError,
+                registerSessionKey: getRegSessKey(extraParams?.registerSessionKey),
+            });
             setWallet(result.wallet ?? null);
             if (result.wallet)
-                (onWalletEvent ?? internalOnWalletEvent)?.({ account: result.wallet.address, event: `Logged in.` });
+                (onWalletEvent ?? internalOnWalletEvent)?.({
+                    account: result.wallet.address,
+                    type: "logged_in",
+                    message: `Logged in.`,
+                });
             return result.wallet;
         },
         [wallet, internalOnWalletEvent, internalOnError]
@@ -155,7 +193,8 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
             provider: ProviderOption,
             credentials: AuthCredentials,
             onWalletEvent?: WalletEventCallback,
-            onError?: WalletErrorCallback
+            onError?: WalletErrorCallback,
+            extraParams?: RegisterAccountExtras
         ): Promise<Wallet | undefined> => {
             const authProvider = authProviderManager.getProvider(provider);
             if (!authProvider) {
@@ -163,14 +202,19 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
                 (onError ?? internalOnError)?.(error);
                 throw error;
             }
-            let result = await authProvider.register(
-                credentials as any,
-                onWalletEvent ?? internalOnWalletEvent,
-                onError ?? internalOnError
-            );
+            let result = await authProvider.register({
+                credentials,
+                onWalletEvent: onWalletEvent ?? internalOnWalletEvent,
+                onError: onError ?? internalOnError,
+                registerSessionKey: getRegSessKey(extraParams?.registerSessionKey),
+            });
             setWallet(result.wallet ?? null);
             if (result.wallet)
-                (onWalletEvent ?? internalOnWalletEvent)?.({ account: result.wallet.address, event: `Logged in.` });
+                (onWalletEvent ?? internalOnWalletEvent)?.({
+                    account: result.wallet.address,
+                    type: "logged_in",
+                    message: `Logged in.`,
+                });
             return result.wallet;
         },
         [wallet, internalOnWalletEvent, internalOnError]
@@ -181,9 +225,8 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
         setWallet(null);
     }, []);
 
-    const registerSessionKeyWithWallet = useCallback(
+    const registerSessionKey = useCallback(
         async (
-            wallet: Wallet,
             password: string,
             expiration?: number,
             whitelist?: string[],
@@ -212,29 +255,6 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
             };
         },
         [wallet, effectiveSessionKeyConfig, onWalletEvent, onError]
-    );
-
-    const registerSessionKey = useCallback(
-        async (
-            password: string,
-            expiration?: number,
-            whitelist?: string[],
-            onWalletEventOverride?: WalletEventCallback,
-            onErrorOverride?: WalletErrorCallback
-        ) => {
-            if (!wallet) {
-                throw new Error("No wallet available");
-            }
-            return await registerSessionKeyWithWallet(
-                wallet,
-                password,
-                expiration,
-                whitelist,
-                onWalletEventOverride,
-                onErrorOverride
-            );
-        },
-        [wallet, registerSessionKeyWithWallet]
     );
 
     const removeSessionKey = useCallback(
@@ -317,7 +337,6 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
     const internalValue: WalletInternalType = {
         ...publicValue,
         sessionKeyConfig: effectiveSessionKeyConfig,
-        registerSessionKeyWithWallet,
         onWalletEvent,
         onError,
     };

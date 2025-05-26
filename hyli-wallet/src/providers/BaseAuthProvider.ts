@@ -15,9 +15,28 @@ export interface AuthResult {
     error?: string;
 }
 
+export interface LoginParams {
+    credentials: AuthCredentials;
+    onWalletEvent?: WalletEventCallback;
+    onError?: WalletErrorCallback;
+    registerSessionKey?: {
+        duration: number; // ms
+        whitelist: string[];
+    };
+}
+export interface RegisterAccountParams {
+    credentials: AuthCredentials;
+    onWalletEvent?: WalletEventCallback;
+    onError?: WalletErrorCallback;
+    registerSessionKey?: {
+        duration: number; // ms
+        whitelist: string[];
+    };
+}
+
 export interface AuthProvider {
     type: string;
-    login(credentials: AuthCredentials, onWalletEvent?: WalletEventCallback, onError?: WalletErrorCallback): Promise<AuthResult>;
-    register(credentials: AuthCredentials, onWalletEvent?: WalletEventCallback, onError?: WalletErrorCallback): Promise<AuthResult>;
+    login(params: LoginParams): Promise<AuthResult>;
+    register(params: RegisterAccountParams): Promise<AuthResult>;
     isEnabled(): boolean;
 }

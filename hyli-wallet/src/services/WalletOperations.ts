@@ -46,6 +46,13 @@ export const registerSessionKey = async (
     // Register the session key with the service
     try {
         const identity = `${accountName}@${walletContractName}`;
+
+        onWalletEvent?.({
+            account: identity,
+            type: "custom",
+            message: `Making sure contract is registered`,
+        });
+
         const blob0 = await check_secret_blob(identity, password);
         const blob1 = addSessionKeyBlob(accountName, newSessionKey.publicKey, expiration, whitelist);
 
@@ -54,16 +61,21 @@ export const registerSessionKey = async (
             blobs: [blob0, blob1],
         };
 
+        onWalletEvent?.({ account: identity, type: "sending_blob", message: `Sending blob transaction` });
         // Send transaction to add session key
         const blobTxHash = await nodeService.client.sendBlobTx(blobTx);
         // Notify of blob transaction
-        onWalletEvent?.({ account: identity, event: `Blob transaction sent: ${blobTxHash}` });
+        onWalletEvent?.({ account: identity, type: "blob_sent", message: `Blob transaction sent: ${blobTxHash}` });
+
+        onWalletEvent?.({ account: identity, type: "custom", message: `Generating proof of password` });
 
         const proofTx = await build_proof_transaction(identity, password, blobTxHash, 0, blobTx.blobs.length);
 
+        onWalletEvent?.({ account: identity, type: "sending_proof", message: `Sending proof transaction` });
+
         const proofTxHash = await nodeService.client.sendProofTx(proofTx);
         // Notify of proof transaction
-        onWalletEvent?.({ account: identity, event: `Proof transaction sent: ${proofTxHash}` });
+        onWalletEvent?.({ account: identity, type: "proof_sent", message: `Proof transaction sent: ${proofTxHash}` });
 
         // Create optimistic wallet update
         const updatedWallet = {
@@ -122,13 +134,13 @@ export const removeSessionKey = async (
         // Send transaction to remove session key
         const blobTxHash = await nodeService.client.sendBlobTx(blobTx);
         // Notify of blob transaction
-        onWalletEvent?.({ account: identity, event: `Blob transaction sent: ${blobTxHash}` });
+        onWalletEvent?.({ account: identity, type: "blob_sent", message: `Blob transaction sent: ${blobTxHash}` });
 
         const proofTx = await build_proof_transaction(identity, password, blobTxHash, 0, blobTx.blobs.length);
 
         const proofTxHash = await nodeService.client.sendProofTx(proofTx);
         // Notify of proof transaction
-        onWalletEvent?.({ account: identity, event: `Proof transaction sent: ${proofTxHash}` });
+        onWalletEvent?.({ account: identity, type: "proof_sent", message: `Proof transaction sent: ${proofTxHash}` });
 
         // Create optimistic wallet update
         let updatedWallet: Wallet;

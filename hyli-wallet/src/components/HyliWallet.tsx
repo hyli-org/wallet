@@ -263,7 +263,7 @@ export const HyliWallet = ({ button, providers, modalContent, classPrefix = "hyl
     );
 
     const ModalContent = (
-        <div className={`${classPrefix}-overlay`}>
+        <div className={`${classPrefix}-overlay`} onClick={closeModal}>
             {modalContent
                 ? modalContent({
                       selectedProvider,

@@ -1,4 +1,4 @@
-import { AuthProvider, AuthCredentials, AuthResult } from "./BaseAuthProvider";
+import { AuthProvider, AuthCredentials, AuthResult, RegisterAccountParams, LoginParams } from "./BaseAuthProvider";
 // import { Wallet } from '../types/wallet';
 
 export interface GoogleAuthCredentials extends AuthCredentials {
@@ -12,12 +12,12 @@ export class GoogleAuthProvider implements AuthProvider {
         return false;
     }
 
-    async login(_credentials: GoogleAuthCredentials): Promise<AuthResult> {
+    async login(_params: LoginParams): Promise<AuthResult> {
         // À implémenter avec l'authentification Google
         throw new Error("Google authentication not implemented yet");
     }
 
-    async register(_credentials: GoogleAuthCredentials): Promise<AuthResult> {
+    async register(_params: RegisterAccountParams): Promise<AuthResult> {
         // À implémenter avec l'authentification Google
         throw new Error("Google authentication not implemented yet");
     }

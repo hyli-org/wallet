@@ -1,9 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { AuthCredentials, AuthProvider } from "../../providers/BaseAuthProvider";
 import { ProviderOption, useWalletInternal } from "../../hooks/useWallet";
-import { AuthStage } from "../../types/login";
-import { WalletErrorCallback, WalletEventCallback } from "../../types/wallet";
+import { RegistrationStage, WalletErrorCallback, WalletEvent, WalletEventCallback } from "../../types/wallet";
 import "./AuthForm.css";
+
+type AuthStage =
+    | "idle" // Initial state, no authentication in progress
+    | RegistrationStage
+    | "generating_proof" // Generating proof of password
+    | "logged_in"
+    | "error"; // An error occurred during authentication
 
 interface AuthFormProps {
     provider: AuthProvider;
@@ -18,15 +24,29 @@ interface AuthFormProps {
     closeModal?: () => void;
 }
 
+const ZK_FUN_FACTS = [
+    "ZKPs were invented in 1989 by Shafi Goldwasser, Silvio Micali, and Charles Rackoff.",
+    "In 2024, zero-knowledge proofs are critical for privacy in blockchain and cryptocurrencies.",
+    "You can prove you’re over 18 with a ZKP, without telling anyone your actual birthdate.",
+    "ZKPs power privacy coins like Zcash, hiding transaction details from everyone except participants.",
+    "zk-SNARKs (“succinct non-interactive arguments of knowledge”) are one of the most popular ZKP types.",
+    "In 2022, Ethereum’s Vitalik Buterin called ZKPs “the future of Ethereum scaling.”",
+    "Noir is the programming language we use for these client-side proofs",
+    "Reticulating splines.",
+    "ZKPs are used for secure voting, to let people prove they voted (and voted once) without revealing who they voted for.",
+    "ZKPs are pure math: no AI or machine learning involved, just logic and cryptography.",
+    "The security of many ZKP systems relies on the hardness of mathematical problems, like factoring big numbers.",
+    "Zero-knowledge proofs can be recursive—proving you proved something, without redoing the whole proof.",
+    "The “zero-knowledge” part doesn’t mean “no information”—it means “no extra information.”",
+    "How many times can you recursively prove you proved something?",
+];
+
+function getRandomFact() {
+    return ZK_FUN_FACTS[Math.floor(Math.random() * ZK_FUN_FACTS.length)];
+}
+
 export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode, classPrefix = "hyli", closeModal }) => {
-    const {
-        login,
-        registerAccount: registerWallet,
-        registerSessionKeyWithWallet,
-        sessionKeyConfig,
-        onWalletEvent,
-        onError,
-    } = useWalletInternal();
+    const { login, registerAccount: registerWallet, sessionKeyConfig, onWalletEvent, onError } = useWalletInternal();
     const isLocalhost =
         typeof window !== "undefined" &&
         (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
@@ -38,12 +58,11 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode, classPrefix 
     const [error, setError] = useState<string>("");
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [stage, setStage] = useState<AuthStage>("idle");
-    const [autoSessionKey, setAutoSessionKey] = useState<boolean>(false);
-    const [sessionKeyStatus, setSessionKeyStatus] = useState<string>("");
+    const [autoSessionKey, setAutoSessionKey] = useState<boolean>(true);
+    const [funFact, setFunFact] = useState<string>(getRandomFact());
 
-    // Call closeModal after 1s on successful login
     useEffect(() => {
-        if (stage === "settled" && closeModal) {
+        if (stage === "logged_in" && closeModal) {
             const timer = setTimeout(() => {
                 closeModal();
             }, 2000);
@@ -51,15 +70,30 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode, classPrefix 
         }
     }, [stage, closeModal]);
 
+    useEffect(() => {
+        let timer: NodeJS.Timeout | undefined;
+        if (isSubmitting) {
+            setFunFact(getRandomFact());
+            timer = setInterval(() => {
+                setFunFact(getRandomFact());
+            }, 2000);
+        }
+        return () => {
+            if (timer) clearInterval(timer);
+        };
+    }, [isSubmitting]);
+
     const deriveStatusMessage = (stage: AuthStage): string => {
         switch (stage) {
-            case "submitting":
+            case "sending_blob":
                 return "Sending transaction...";
-            case "blobSent":
+            case "generating_proof":
+                return "Generating client-side ZK proof of password...";
+            case "sending_proof":
+                return "Sending proof of password...";
+            case "proof_sent":
                 return "Waiting for transaction confirmation...";
-            case "sessionKey":
-                return "Creating session key...";
-            case "settled":
+            case "logged_in":
                 return "Logged on successfully!";
             case "error":
                 return "Error occurred";
@@ -70,14 +104,12 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode, classPrefix 
 
     const statusMessage = deriveStatusMessage(stage);
 
-    const onWalletEventWithStage = (event: any) => {
-        if (event.event) {
-            if (event.event.includes("Blob transaction sent")) {
-                setStage("blobSent");
-            } else if (event.event.includes("Proof transaction sent")) {
-                setStage("submitting");
-            } else if (event.event.includes("Logged in")) {
-                setStage("settled");
+    const onWalletEventWithStage = (event: WalletEvent) => {
+        if (event.message) {
+            if (event.type === "custom" && event.message.includes("Generating proof of password")) {
+                setStage("generating_proof");
+            } else if (["sending_proof", "proof_sent", "logged_in"].includes(event.type)) {
+                setStage(event.type as AuthStage);
             }
         }
         if (onWalletEvent) onWalletEvent(event);
@@ -92,44 +124,28 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode, classPrefix 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
+        // Password match check for registration
+        if (mode === "register" && credentials.password !== credentials.confirmPassword) {
+            setError("Passwords do not match.");
+            return;
+        }
         setIsSubmitting(true);
-        setStage("submitting");
+        setStage("sending_blob");
 
-        const authAction = async (
-            provider: ProviderOption,
-            credentials: AuthCredentials,
-            onWalletEvent?: WalletEventCallback,
-            onError?: WalletErrorCallback
-        ) => {
-            const wallet = await (mode === "login" ? login : registerWallet)(
-                provider,
-                credentials,
-                onWalletEvent,
-                onError
-            );
-            // If auto session key is enabled, create it after login/register
-            if (autoSessionKey && wallet) {
-                setStage("sessionKey");
-                const duration = sessionKeyConfig?.duration ?? 24 * 60 * 60 * 1000;
-                const whitelist = sessionKeyConfig?.whitelist ?? [];
-                if (!whitelist || whitelist.length === 0) {
-                    throw new Error("Session key whitelist must be provided via WalletProvider");
-                }
-                const expiration = Date.now() + duration;
-                await registerSessionKeyWithWallet(
-                    wallet,
-                    credentials.password,
-                    expiration,
-                    whitelist,
-                    onWalletEventWithStage,
-                    onErrorWithStage
-                );
+        const authAction = async (provider: ProviderOption, credentials: AuthCredentials) => {
+            if (mode === "login") {
+                await login(provider, credentials, onWalletEventWithStage, onErrorWithStage, {
+                    registerSessionKey: true,
+                });
+            } else if (mode === "register") {
+                await registerWallet(provider, credentials, onWalletEventWithStage, onErrorWithStage, {
+                    registerSessionKey: true,
+                });
             }
-            if (wallet) setStage("settled");
         };
 
         try {
-            await authAction(provider.type as ProviderOption, credentials, onWalletEventWithStage, onErrorWithStage);
+            await authAction(provider.type as ProviderOption, credentials);
         } catch (err) {
             setError((err as Error).message);
             setStage("idle");
@@ -148,8 +164,39 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode, classPrefix 
     };
 
     return (
-        <div className={`${classPrefix}-auth-form-container`}>
-            {stage === "settled" ? (
+        <div className={`${classPrefix}-auth-form-container`} style={{ position: "relative" }}>
+            {/* Loading Modal-Within-Modal */}
+            {["sending_blob", "generating_proof", "sending_proof", "proof_sent"].includes(stage) && (
+                <div className={`${classPrefix}-loading-modal-overlay`}>
+                    <div style={{ marginBottom: 24 }}>
+                        <div
+                            className={`${classPrefix}-spinner`}
+                            style={{
+                                border: "4px solid #eee",
+                                borderTop: `4px solid #0077ff`,
+                                borderRadius: "50%",
+                                width: 48,
+                                height: 48,
+                                animation: "spin 1s linear infinite",
+                                margin: "0 auto 16px auto",
+                            }}
+                        />
+                        <div style={{ textAlign: "center", fontWeight: 600, fontSize: 18, marginBottom: 8 }}>
+                            {statusMessage || "Processing..."}
+                        </div>
+                        <div style={{ textAlign: "center", color: "#666", fontSize: 14, marginBottom: 8 }}>
+                            Please wait while we work our ZK magic...
+                        </div>
+                    </div>
+                    <div className={`${classPrefix}-zk-fun-fact`}>
+                        <span role="img" aria-label="lightbulb" style={{ marginRight: 6 }}>
+                            💡
+                        </span>
+                        {funFact}
+                    </div>
+                </div>
+            )}
+            {stage === "logged_in" ? (
                 <div
                     className={`${classPrefix}-success-message`}
                     style={{ textAlign: "center", padding: 32 }}
@@ -203,20 +250,22 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode, classPrefix 
                     )}
 
                     {
-                        <div
-                            className={`${classPrefix}-form-group`}
-                            style={{ display: "flex", flexDirection: "row", alignItems: "center" }}
-                        >
-                            <input
-                                id="autoSessionKey"
-                                name="autoSessionKey"
-                                type="checkbox"
-                                checked={autoSessionKey}
-                                onChange={(e) => setAutoSessionKey(e.target.checked)}
-                                disabled={isSubmitting}
-                                style={{ marginRight: 8, height: "1.4em", width: "1.4em" }}
-                            />
-                            <label htmlFor="autoSessionKey">Create a session key for this website</label>
+                        <div className={`${classPrefix}-form-group`}>
+                            <label
+                                htmlFor="autoSessionKey"
+                                style={{ display: "flex", flexDirection: "row", alignItems: "center" }}
+                            >
+                                <input
+                                    id="autoSessionKey"
+                                    name="autoSessionKey"
+                                    type="checkbox"
+                                    checked={autoSessionKey}
+                                    onChange={(e) => setAutoSessionKey(e.target.checked)}
+                                    disabled={isSubmitting}
+                                    style={{ marginRight: 8, height: "1.4em", width: "1.4em" }}
+                                />
+                                Create a session key for this website
+                            </label>
                         </div>
                     }
 
@@ -224,13 +273,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode, classPrefix 
                     {statusMessage && <div className={`${classPrefix}-status-message`}>{statusMessage}</div>}
 
                     <button type="submit" className={`${classPrefix}-auth-submit-button`} disabled={isSubmitting}>
-                        {isSubmitting
-                            ? stage === "submitting"
-                                ? "Processing..."
-                                : "Pending..."
-                            : mode === "login"
-                            ? "Login"
-                            : "Create Account"}
+                        {isSubmitting ? "Processing..." : mode === "login" ? "Login" : "Create Account"}
                     </button>
                 </form>
             )}

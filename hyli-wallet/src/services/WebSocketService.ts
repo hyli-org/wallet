@@ -1,17 +1,35 @@
-import { AppEvent, Transaction, TxEventCallback, WalletEventCallback } from "../types/wallet";
+import { OnchainWalletEventCallback } from "../types/wallet";
 import { ConfigService } from "./ConfigService";
 
 interface RegisterTopicMessage {
     RegisterTopic: string;
 }
 
+export interface Transaction {
+    id: string;
+    type: string;
+    amount: number;
+    address: string;
+    status: string;
+    timestamp: number;
+}
+
+interface AppEvent {
+    TxEvent: {
+        account: string;
+        tx: Transaction;
+    };
+    WalletEvent: {
+        account: string;
+        event: string;
+    };
+}
 
 export class WebSocketService {
     private static instance: WebSocketService | null = null;
     // private applicationWsUrl: string;
     private ws: WebSocket | null = null;
-    private txEventCallbacks: TxEventCallback[] = [];
-    private walletEventCallbacks: WalletEventCallback[] = [];
+    private walletEventCallbacks: OnchainWalletEventCallback[] = [];
     private reconnectAttempts: number = 0;
     private maxReconnectAttempts: number = 5;
     private reconnectTimeout: number = 1000; // Base timeout for exponential backoff
@@ -88,9 +106,6 @@ export class WebSocketService {
             try {
                 // Assuming JSON messages are sent as strings. For binary, further handling is needed.
                 const data: AppEvent = JSON.parse(event.data as string);
-                if (data.TxEvent) {
-                    this.txEventCallbacks.forEach((callback) => callback(data.TxEvent));
-                }
                 if (data.WalletEvent) {
                     this.walletEventCallbacks.forEach((callback) => callback(data.WalletEvent));
                 }
@@ -148,22 +163,11 @@ export class WebSocketService {
         }
     }
 
-    subscribeToTxEvents(callback: TxEventCallback): () => void {
-        this.txEventCallbacks.push(callback);
-        return () => {
-            this.txEventCallbacks = this.txEventCallbacks.filter((cb) => cb !== callback);
-        };
-    }
-
-    subscribeToWalletEvents(callback: WalletEventCallback): () => void {
+    subscribeToWalletEvents(callback: OnchainWalletEventCallback): () => void {
         this.walletEventCallbacks.push(callback);
         return () => {
             this.walletEventCallbacks = this.walletEventCallbacks.filter((cb) => cb !== callback);
         };
-    }
-
-    unsubscribeFromTxEvents() {
-        this.txEventCallbacks = [];
     }
 
     unsubscribeFromWalletEvents() {
@@ -175,7 +179,6 @@ export class WebSocketService {
             this.ws.close();
             this.ws = null;
             this.currentAccount = null;
-            this.txEventCallbacks = [];
             this.walletEventCallbacks = [];
         }
     }

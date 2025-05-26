@@ -261,12 +261,6 @@
     display: none;
 }
 
-/* === Auth Components Styling === */
-.hyli-password-provider-flow .wallet-login-container,
-.hyli-password-provider-flow .wallet-creation-container {
-    /* Already hides h1 */
-}
-
 .hyli-password-provider-flow .form-group {
     margin-bottom: 10px;
 }
@@ -389,31 +383,6 @@
 
 .hyli-password-provider-flow .transaction-hash a:hover {
     text-decoration: underline;
-}
-
-/* Animation for form fields */
-@keyframes formFieldAppear {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.hyli-password-provider-flow .form-group:nth-child(1) {
-    animation: formFieldAppear 0.3s var(--anim-ease) 0.1s backwards;
-}
-.hyli-password-provider-flow .form-group:nth-child(2) {
-    animation: formFieldAppear 0.3s var(--anim-ease) 0.2s backwards;
-}
-.hyli-password-provider-flow .form-group:nth-child(3) {
-    animation: formFieldAppear 0.3s var(--anim-ease) 0.3s backwards;
-}
-.hyli-password-provider-flow button {
-    animation: formFieldAppear 0.3s var(--anim-ease) 0.4s backwards;
 }
 
 .hyli-password-provider-flow {

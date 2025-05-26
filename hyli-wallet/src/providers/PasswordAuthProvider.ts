@@ -1,12 +1,34 @@
 import { Buffer } from "buffer";
-import { AuthProvider, AuthCredentials, AuthResult, AuthEvents } from "./BaseAuthProvider";
-import { Wallet, WalletErrorCallback, WalletEventCallback, addSessionKeyBlob, registerBlob, verifyIdentityBlob, walletContractName } from "../types/wallet";
+import {
+    AuthProvider,
+    AuthCredentials,
+    AuthResult,
+    AuthEvents,
+    RegisterAccountParams,
+    LoginParams,
+} from "./BaseAuthProvider";
+import {
+    Wallet,
+    WalletErrorCallback,
+    WalletEventCallback,
+    addSessionKeyBlob,
+    registerBlob,
+    verifyIdentityBlob,
+    walletContractName,
+} from "../types/wallet";
 import { NodeService } from "../services/NodeService";
 import { webSocketService } from "../services/WebSocketService";
-import { build_proof_transaction, build_blob as check_secret_blob, register_contract, sha256, stringToBytes } from "hyli-check-secret";
+import {
+    build_proof_transaction,
+    build_blob as check_secret_blob,
+    register_contract,
+    sha256,
+    stringToBytes,
+} from "hyli-check-secret";
 import { BlobTransaction } from "hyli";
 import * as WalletOperations from "../services/WalletOperations";
 import { IndexerService } from "../services/IndexerService";
+import { sessionKeyService } from "../services/SessionKeyService";
 
 export interface PasswordAuthCredentials extends AuthCredentials {
     password: string;
@@ -20,21 +42,26 @@ export class PasswordAuthProvider implements AuthProvider {
         return true;
     }
 
-    async login(
-        credentials: PasswordAuthCredentials,
-        onWalletEvent?: WalletEventCallback,
-        onError?: WalletErrorCallback
-    ): Promise<AuthResult> {
+    async login({ credentials, onWalletEvent, onError, registerSessionKey }: LoginParams): Promise<AuthResult> {
         const indexerService = IndexerService.getInstance();
         const { username, password } = credentials;
         const identity = `${username}@${walletContractName}`;
+        let getSessKey;
+        if (registerSessionKey)
+            getSessKey = WalletOperations.getOrReuseSessionKey({
+                username,
+                address: identity,
+            });
         try {
             if (!username || !password) {
                 return { success: false, error: "Please fill in all fields" };
             }
+
+            onWalletEvent?.({ account: identity, type: "checking_password", message: `Checking password for log in` });
+
             const userAccountInfo = await indexerService.getAccountInfo(username);
             let storedHash = userAccountInfo.auth_method.Password.hash;
-            
+
             const hashed_password_bytes = await sha256(stringToBytes(password));
             let encoder = new TextEncoder();
             let id_prefix = encoder.encode(`${identity}:`);
@@ -47,7 +74,8 @@ export class PasswordAuthProvider implements AuthProvider {
                 return { success: false, error: "Invalid password" };
             }
         } catch (errorMessage) {
-            const error = errorMessage instanceof Error ? errorMessage.message : "Invalid credentials or wallet does not exist"
+            const error =
+                errorMessage instanceof Error ? errorMessage.message : "Invalid credentials or wallet does not exist";
             onError?.(new Error(error));
             return {
                 success: false,
@@ -60,14 +88,34 @@ export class PasswordAuthProvider implements AuthProvider {
             username,
             address: identity,
         };
+
+        if (getSessKey) {
+            try {
+                const sessionKey = await getSessKey;
+                if (sessionKey) wallet.sessionKey = sessionKey;
+                else {
+                    let res = await WalletOperations.registerSessionKey(
+                        wallet,
+                        password,
+                        Date.now() + registerSessionKey!.duration,
+                        registerSessionKey!.whitelist,
+                        onWalletEvent,
+                        onError
+                    );
+                    wallet.sessionKey = res.sessionKey;
+                }
+            } catch (error) {}
+        }
+
         return { success: true, wallet };
     }
 
-    async register(
-        credentials: PasswordAuthCredentials,
-        onWalletEvent?: WalletEventCallback,
-        onError?: WalletErrorCallback
-    ): Promise<AuthResult> {
+    async register({
+        credentials,
+        onWalletEvent,
+        onError,
+        registerSessionKey,
+    }: RegisterAccountParams): Promise<AuthResult> {
         const nodeService = NodeService.getInstance();
         try {
             const { username, password, confirmPassword } = credentials;
@@ -88,6 +136,7 @@ export class PasswordAuthProvider implements AuthProvider {
             }
 
             const identity = `${username}@${walletContractName}`;
+
             const blob0 = await check_secret_blob(identity, password);
             const hash = Buffer.from(blob0.data).toString("hex");
             const blob1 = registerBlob(username, Date.now(), hash);
@@ -97,9 +146,25 @@ export class PasswordAuthProvider implements AuthProvider {
                 blobs: [blob0, blob1],
             };
 
+            let newSessionKey;
+            if (registerSessionKey) {
+                const { duration, whitelist } = registerSessionKey;
+                const expiration = Date.now() + duration; // still in milliseconds
+                newSessionKey = sessionKeyService.generateSessionKey(expiration, whitelist);
+                blobTx.blobs.push(addSessionKeyBlob(username, newSessionKey.publicKey, expiration, whitelist));
+            }
+
+            onWalletEvent?.({
+                account: identity,
+                type: "custom",
+                message: `Making sure contract is registered`,
+            });
+
             await register_contract(nodeService.client as any);
+
+            onWalletEvent?.({ account: identity, type: "sending_blob", message: `Sending blob transaction` });
             const txHash = await nodeService.client.sendBlobTx(blobTx);
-            onWalletEvent?.({ account: identity, event: `Blob transaction sent: ${txHash}` });
+            onWalletEvent?.({ account: identity, type: "blob_sent", message: `Blob transaction sent: ${txHash}` });
 
             // Create initial wallet state
             const wallet: Wallet = {
@@ -107,12 +172,19 @@ export class PasswordAuthProvider implements AuthProvider {
                 address: identity,
             };
 
+            onWalletEvent?.({ account: identity, type: "custom", message: `Generating proof of password` });
 
             // Build and send the proof transaction
             const proofTx = await build_proof_transaction(identity, password, txHash, 0, blobTx.blobs.length);
 
+            onWalletEvent?.({ account: identity, type: "sending_proof", message: `Sending proof transaction` });
+
             const proofTxHash = await nodeService.client.sendProofTx(proofTx);
-            onWalletEvent?.({ account: identity, event: `Proof transaction sent: ${proofTxHash}` });
+            onWalletEvent?.({
+                account: identity,
+                type: "proof_sent",
+                message: `Proof transaction sent: ${proofTxHash}`,
+            });
 
             // Wait for on-chain settlement
             await new Promise((resolve, reject) => {
@@ -138,11 +210,14 @@ export class PasswordAuthProvider implements AuthProvider {
                 });
             });
 
+            if (newSessionKey) {
+                wallet.sessionKey = newSessionKey;
+            }
             // Create clean wallet state after registration
             const cleanedWallet = WalletOperations.cleanExpiredSessionKeys(wallet);
             return { success: true, wallet: cleanedWallet };
         } catch (errorMessage) {
-            const error = errorMessage instanceof Error ? errorMessage.message : "Failed to register wallet"
+            const error = errorMessage instanceof Error ? errorMessage.message : "Failed to register wallet";
             console.log("Registration error:", errorMessage);
             onError?.(new Error(error));
             return {

@@ -1,14 +1,5 @@
 import { Buffer } from "buffer";
 
-export interface Transaction {
-    id: string;
-    type: string;
-    amount: number;
-    address: string;
-    status: string;
-    timestamp: number;
-}
-
 export interface SessionKey {
     publicKey: string;
     privateKey: string;
@@ -38,8 +29,7 @@ export type Secp256k1Blob = {
     signature: Uint8Array;
 };
 
-export type AuthMethod =
-    | { Password: { hash: string } };
+export type AuthMethod = { Password: { hash: string } };
 
 export type WalletAction =
     | {
@@ -80,18 +70,16 @@ export type WalletAction =
 // Callbacks
 export type TransactionCallback = (txHash: string, type: string) => void;
 export type WalletErrorCallback = (error: Error) => void;
-export type TxEventCallback = (event: AppEvent["TxEvent"]) => void;
-export type WalletEventCallback = (event: AppEvent["WalletEvent"]) => void;
+export type WalletEventCallback = (event: WalletEvent) => void;
+export type OnchainWalletEventCallback = (event: { event: string }) => void;
 
-export interface AppEvent {
-    TxEvent: {
-        account: string;
-        tx: Transaction;
-    };
-    WalletEvent: {
-        account: string;
-        event: string; // TODO: Type this field to handle events properly
-    };
+export type LoginStage = "checking_password";
+export type RegistrationStage = "sending_blob" | "blob_sent" | "sending_proof" | "proof_sent";
+
+export interface WalletEvent {
+    account: string;
+    type: LoginStage | RegistrationStage | "logged_in" | "custom";
+    message: string;
 }
 
 //
