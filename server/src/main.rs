@@ -4,7 +4,7 @@ use axum::Router;
 use clap::Parser;
 use client_sdk::{
     helpers::risc0::Risc0Prover,
-    rest_client::{IndexerApiHttpClient, NodeApiClient, NodeApiHttpClient},
+    rest_client::{IndexerApiHttpClient, NodeApiHttpClient},
 };
 use conf::Conf;
 use history::{HistoryEvent, HyllarHistory};
@@ -95,27 +95,6 @@ async fn main() -> Result<()> {
         node_client,
         wallet_cn: wallet_cn.clone(),
     });
-    let wallet_start_height = indexer_client
-        .get_indexer_contract(&wallet_cn)
-        .await
-        .context("getting contract")?
-        .earliest_unsettled
-        .unwrap_or(app_ctx.node_client.get_block_height().await?);
-    let oranj_start_height = indexer_client
-        .get_indexer_contract(&"oranj".into())
-        .await
-        .context("getting contract")?
-        .earliest_unsettled
-        .unwrap_or(app_ctx.node_client.get_block_height().await?);
-
-    info!(
-        "Starting generating proof for wallet from block {}",
-        wallet_start_height
-    );
-    info!(
-        "Starting generating proof for oranj from block {}",
-        oranj_start_height
-    );
 
     handler.build_module::<AppModule>(app_ctx.clone()).await?;
 
@@ -138,7 +117,6 @@ async fn main() -> Result<()> {
 
     handler
         .build_module::<AutoProver<Wallet>>(Arc::new(AutoProverCtx {
-            start_height: wallet_start_height,
             data_directory: config.data_directory.clone(),
             prover: Arc::new(Risc0Prover::new(contracts::WALLET_ELF)),
             contract_name: wallet_cn.clone(),
@@ -148,7 +126,6 @@ async fn main() -> Result<()> {
         .await?;
     handler
         .build_module::<AutoProver<SmtTokenProvableState>>(Arc::new(AutoProverCtx {
-            start_height: oranj_start_height,
             data_directory: config.data_directory.clone(),
             prover: Arc::new(Risc0Prover::new(
                 hyle_smt_token::client::tx_executor_handler::metadata::SMT_TOKEN_ELF,
