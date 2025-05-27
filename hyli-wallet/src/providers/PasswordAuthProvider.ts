@@ -120,6 +120,18 @@ export class PasswordAuthProvider implements AuthProvider {
         try {
             const { username, password, confirmPassword } = credentials;
 
+            const indexerService = IndexerService.getInstance();
+            try {
+                const accountInfo = await indexerService.getAccountInfo(username);
+                if (accountInfo) {
+                    const error = `Account with username "${username}" already exists.`;
+                    onError?.(new Error(error));
+                    return { success: false, error: error };
+                }
+            } catch (error) {
+                // If error, assume account does not exist and continue
+            }
+
             if (!username || !password || !confirmPassword) {
                 return { success: false, error: "Please fill in all fields" };
             }
@@ -186,29 +198,29 @@ export class PasswordAuthProvider implements AuthProvider {
                 message: `Proof transaction sent: ${proofTxHash}`,
             });
 
-            // Wait for on-chain settlement
-            await new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                    webSocketService.unsubscribeFromWalletEvents();
-                    reject(new Error("Wallet creation timed out"));
-                }, 60000);
+            // // Wait for on-chain settlement
+            // await new Promise((resolve, reject) => {
+            //     const timeout = setTimeout(() => {
+            //         webSocketService.unsubscribeFromWalletEvents();
+            //         reject(new Error("Wallet creation timed out"));
+            //     }, 60000);
 
-                webSocketService.connect(identity);
-                const unsubscribeWalletEvents = webSocketService.subscribeToWalletEvents((event) => {
-                    const msg = event.event.toLowerCase();
-                    if (msg.startsWith("successfully registered identity")) {
-                        clearTimeout(timeout);
-                        unsubscribeWalletEvents();
-                        webSocketService.disconnect();
-                        resolve(event);
-                    } else if (msg.includes("failed") || msg.includes("error")) {
-                        clearTimeout(timeout);
-                        unsubscribeWalletEvents();
-                        webSocketService.disconnect();
-                        reject(new Error(`${event.event}: ${txHash})`));
-                    }
-                });
-            });
+            //     webSocketService.connect(identity);
+            //     const unsubscribeWalletEvents = webSocketService.subscribeToWalletEvents((event) => {
+            //         const msg = event.event.toLowerCase();
+            //         if (msg.startsWith("successfully registered identity")) {
+            //             clearTimeout(timeout);
+            //             unsubscribeWalletEvents();
+            //             webSocketService.disconnect();
+            //             resolve(event);
+            //         } else if (msg.includes("failed") || msg.includes("error")) {
+            //             clearTimeout(timeout);
+            //             unsubscribeWalletEvents();
+            //             webSocketService.disconnect();
+            //             reject(new Error(`${event.event}: ${txHash})`));
+            //         }
+            //     });
+            // });
 
             if (newSessionKey) {
                 wallet.sessionKey = newSessionKey;

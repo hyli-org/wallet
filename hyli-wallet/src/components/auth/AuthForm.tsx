@@ -135,11 +135,11 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode, classPrefix 
         const authAction = async (provider: ProviderOption, credentials: AuthCredentials) => {
             if (mode === "login") {
                 await login(provider, credentials, onWalletEventWithStage, onErrorWithStage, {
-                    registerSessionKey: true,
+                    registerSessionKey: autoSessionKey,
                 });
             } else if (mode === "register") {
                 await registerWallet(provider, credentials, onWalletEventWithStage, onErrorWithStage, {
-                    registerSessionKey: true,
+                    registerSessionKey: autoSessionKey,
                 });
             }
         };
