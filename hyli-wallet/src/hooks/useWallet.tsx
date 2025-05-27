@@ -185,7 +185,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
                 });
             return result.wallet;
         },
-        [wallet, internalOnWalletEvent, internalOnError]
+        [wallet, internalOnWalletEvent, internalOnError, sessionKeyConfig]
     );
 
     const registerAccount = useCallback(
@@ -217,7 +217,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
                 });
             return result.wallet;
         },
-        [wallet, internalOnWalletEvent, internalOnError]
+        [wallet, internalOnWalletEvent, internalOnError, sessionKeyConfig]
     );
 
     const logout = useCallback(() => {
