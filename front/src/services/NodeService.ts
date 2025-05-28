@@ -1,11 +1,11 @@
 import { NodeApiHttpClient } from "hyli";
 
 class NodeService {
-  client: NodeApiHttpClient;
+    client: NodeApiHttpClient;
 
-  constructor() {
-    this.client = new NodeApiHttpClient(import.meta.env.VITE_NODE_BASE_URL);
-  }
+    constructor() {
+        this.client = new NodeApiHttpClient(import.meta.env.VITE_NODE_BASE_URL);
+    }
 }
 
 export const nodeService = new NodeService();
