@@ -22,6 +22,7 @@ export interface LoginParams {
     registerSessionKey?: {
         duration: number; // ms
         whitelist: string[];
+        laneId?: string;
     };
 }
 export interface RegisterAccountParams {

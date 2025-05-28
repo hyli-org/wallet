@@ -30,6 +30,7 @@ export const registerSessionKey = async (
     password: string,
     expiration: number,
     whitelist: string[],
+    laneId?: string,
     onWalletEvent?: WalletEventCallback,
     onError?: WalletErrorCallback
 ): Promise<{
@@ -54,7 +55,7 @@ export const registerSessionKey = async (
         });
 
         const blob0 = await check_secret_blob(identity, password);
-        const blob1 = addSessionKeyBlob(accountName, newSessionKey.publicKey, expiration, whitelist);
+        const blob1 = addSessionKeyBlob(accountName, newSessionKey.publicKey, expiration, whitelist, laneId);
 
         const blobTx: BlobTransaction = {
             identity,
@@ -197,7 +198,6 @@ export const createIdentityBlobs = (wallet: Wallet): [Blob, Blob] => {
     const action: WalletAction = {
         UseSessionKey: {
             account: wallet.username,
-            key: sessionKey.publicKey,
             nonce,
         },
     };

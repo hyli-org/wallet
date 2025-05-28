@@ -40,6 +40,7 @@ export interface WalletContextType {
         password: string,
         expiration?: number,
         whitelist?: string[],
+        laneId?: string,
         onWalletEvent?: WalletEventCallback,
         onError?: WalletErrorCallback
     ) => Promise<{ sessionKey: SessionKey; txHashes: [string, string] }>;
@@ -230,6 +231,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
             password: string,
             expiration?: number,
             whitelist?: string[],
+            laneId?: string,
             onWalletEventOverride?: WalletEventCallback,
             onErrorOverride?: WalletErrorCallback
         ) => {
@@ -245,6 +247,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
                 password,
                 exp,
                 wl,
+                laneId,
                 finalOnWalletEvent,
                 finalOnError
             );

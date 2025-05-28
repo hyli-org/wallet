@@ -99,6 +99,7 @@ export class PasswordAuthProvider implements AuthProvider {
                         password,
                         Date.now() + registerSessionKey!.duration,
                         registerSessionKey!.whitelist,
+                        registerSessionKey!.laneId,
                         onWalletEvent,
                         onError
                     );
