@@ -93,7 +93,7 @@ export const SessionKeys = () => {
                 password,
                 expiration,
                 ["oranj"],
-                handleWalletEvent,
+                handleWalletEvent as any,
                 handleError
             );
 
