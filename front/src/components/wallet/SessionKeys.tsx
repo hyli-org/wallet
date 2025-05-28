@@ -6,17 +6,13 @@ import {
     useWallet,
     WalletAction,
     walletContractName,
+    WalletEvent,
 } from "hyli-wallet";
 import { webSocketService } from "../../services/WebSocketService";
 import { Blob, BlobTransaction } from "hyli";
 import { indexerService } from "../../services/IndexerService";
 import "./SessionKeys.css";
 import { nodeService } from "../../services/NodeService";
-
-// TODO: export and laod
-interface WalletEvent {
-    message: string;
-}
 
 interface SessionKey {
     key: string;
@@ -93,7 +89,8 @@ export const SessionKeys = () => {
                 password,
                 expiration,
                 ["oranj"],
-                handleWalletEvent as any,
+                undefined,
+                handleWalletEvent,
                 handleError
             );
 
@@ -186,7 +183,7 @@ export const SessionKeys = () => {
                     account: wallet.username,
                     key: publicKey,
                     nonce,
-                },
+                } as any,
             };
             const blob1: Blob = {
                 contract_name: walletContractName,
