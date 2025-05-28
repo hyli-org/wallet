@@ -3,7 +3,9 @@ use std::collections::BTreeMap;
 use borsh::{io::Error, BorshDeserialize, BorshSerialize};
 #[cfg(feature = "client")]
 use client_sdk::contract_indexer::utoipa;
-use sdk::{hyle_model_utils::TimestampMs, secp256k1::CheckSecp256k1, ContractName, RunResult};
+use sdk::{
+    hyle_model_utils::TimestampMs, secp256k1::CheckSecp256k1, ContractName, LaneId, RunResult,
+};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "client")]
@@ -62,6 +64,7 @@ pub struct SessionKey {
     pub expiration_date: TimestampMs,
     pub nonce: u128,
     pub whitelist: Vec<ContractName>,
+    pub lane_id: Option<LaneId>,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -146,7 +149,8 @@ impl Wallet {
                 key,
                 expiration_date,
                 whitelist,
-            } => self.add_session_key(account, key, expiration_date, whitelist),
+                lane_id,
+            } => self.add_session_key(account, key, expiration_date, whitelist, lane_id),
             WalletAction::RemoveSessionKey { account, key } => {
                 self.remove_session_key(account, key)
             }
@@ -201,6 +205,7 @@ impl Wallet {
         key: String,
         expiration_date: u128,
         whitelist: Vec<ContractName>,
+        lane_id: Option<LaneId>,
     ) -> Result<String, String> {
         let stored_info = self
             .identities
@@ -220,6 +225,7 @@ impl Wallet {
             expiration_date: TimestampMs(expiration_date),
             nonce: 0, // Initialize nonce at 0
             whitelist,
+            lane_id,
         });
         stored_info.nonce += 1;
         Ok("Session key added".to_string())
@@ -279,6 +285,11 @@ impl Wallet {
                             return Err(format!("Blob: {} not whitelisted", blob.contract_name.0));
                         }
                     }
+                    if session_key.lane_id.is_some()
+                        && session_key.lane_id.as_ref() != Some(&tx_ctx.lane_id)
+                    {
+                        return Err("Session key not valid for this lane".to_string());
+                    }
                     if session_key.expiration_date > tx_ctx.timestamp {
                         session_key.nonce = nonce;
                         return Ok("Session key is valid".to_string());
@@ -328,6 +339,7 @@ pub enum WalletAction {
         key: String,
         expiration_date: u128,
         whitelist: Vec<ContractName>,
+        lane_id: Option<LaneId>,
     },
     RemoveSessionKey {
         account: String,

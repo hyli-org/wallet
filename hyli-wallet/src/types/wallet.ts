@@ -5,6 +5,7 @@ export interface SessionKey {
     privateKey: string;
     expiration: number;
     whitelist: string[];
+    laneId?: string;
 }
 
 export interface Wallet {
@@ -48,9 +49,10 @@ export type WalletAction =
     | {
           AddSessionKey: {
               account: string;
-              key: string;
+              key: string;  
               expiration: number;
               whitelist: string[];
+              laneId?: string;
           };
       }
     | {
@@ -62,7 +64,6 @@ export type WalletAction =
     | {
           UseSessionKey: {
               account: string;
-              key: string;
               nonce: number;
           };
       };
@@ -113,9 +114,9 @@ export const verifyIdentityBlob = (account: string, nonce: number): Blob => {
     return blob;
 };
 
-export const addSessionKeyBlob = (account: string, key: string, expiration: number, whitelist: string[]): Blob => {
+export const addSessionKeyBlob = (account: string, key: string, expiration: number, whitelist: string[], laneId?: string): Blob => {
     const action: WalletAction = {
-        AddSessionKey: { account, key, expiration, whitelist },
+        AddSessionKey: { account, key, expiration, whitelist, laneId },
     };
     const blob: Blob = {
         contract_name: walletContractName,
@@ -192,6 +193,7 @@ const schema = BorshSchema.Enum({
         key: BorshSchema.String,
         expiration: BorshSchema.u128,
         whitelist: BorshSchema.Vec(BorshSchema.String),
+        lane_id: BorshSchema.Option(BorshSchema.String),
     }),
     RemoveSessionKey: BorshSchema.Struct({
         account: BorshSchema.String,

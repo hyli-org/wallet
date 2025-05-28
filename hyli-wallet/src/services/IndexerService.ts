@@ -5,6 +5,7 @@ interface SessionKey {
   key: string;
   expiration_date: number;
   nonce: number;
+  laneId?: string;
 }
 
 interface AccountInfo {
