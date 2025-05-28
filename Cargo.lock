@@ -1268,9 +1268,9 @@ dependencies = [
 
 [[package]]
 name = "async-process"
-version = "2.3.1"
+version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cde3f4e40e6021d7acffc90095cbd6dc54cb593903d1de5832f435eb274b85dc"
+checksum = "63255f1dc2381611000436537bbedfe83183faa303a5a0edaf191edef06526bb"
 dependencies = [
  "async-channel 2.3.1",
  "async-io",
@@ -1281,15 +1281,15 @@ dependencies = [
  "cfg-if 1.0.0",
  "event-listener 5.4.0",
  "futures-lite",
- "rustix 1.0.7",
+ "rustix 0.38.44",
  "tracing",
 ]
 
 [[package]]
 name = "async-signal"
-version = "0.2.11"
+version = "0.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7605a4e50d4b06df3898d5a70bf5fde51ed9059b0434b73105193bc27acce0d"
+checksum = "637e00349800c0bdf8bfc21ebbc0b6524abea702b0da4168ac00d070d0c0b9f3"
 dependencies = [
  "async-io",
  "async-lock",
@@ -1297,7 +1297,7 @@ dependencies = [
  "cfg-if 1.0.0",
  "futures-core",
  "futures-io",
- "rustix 1.0.7",
+ "rustix 0.38.44",
  "signal-hook-registry",
  "slab",
  "windows-sys 0.59.0",
@@ -3736,7 +3736,7 @@ dependencies = [
 [[package]]
 name = "hyle-bonsai-runner"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#0a66684860fa446952e7fc3c579f9f2f0816b381"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=main#94bcb3c5a85e2f7df65c1ea5540fe2611645bf0f"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3754,7 +3754,7 @@ dependencies = [
 [[package]]
 name = "hyle-client-sdk"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#0a66684860fa446952e7fc3c579f9f2f0816b381"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=main#94bcb3c5a85e2f7df65c1ea5540fe2611645bf0f"
 dependencies = [
  "anyhow",
  "axum",
@@ -3774,7 +3774,7 @@ dependencies = [
 [[package]]
 name = "hyle-contract-sdk"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#0a66684860fa446952e7fc3c579f9f2f0816b381"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=main#94bcb3c5a85e2f7df65c1ea5540fe2611645bf0f"
 dependencies = [
  "borsh",
  "hyle-model",
@@ -3788,7 +3788,7 @@ dependencies = [
 [[package]]
 name = "hyle-crypto"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#0a66684860fa446952e7fc3c579f9f2f0816b381"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=main#94bcb3c5a85e2f7df65c1ea5540fe2611645bf0f"
 dependencies = [
  "anyhow",
  "blst",
@@ -3801,7 +3801,7 @@ dependencies = [
 [[package]]
 name = "hyle-model"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#0a66684860fa446952e7fc3c579f9f2f0816b381"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=main#94bcb3c5a85e2f7df65c1ea5540fe2611645bf0f"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -3824,7 +3824,7 @@ dependencies = [
 [[package]]
 name = "hyle-modules"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#0a66684860fa446952e7fc3c579f9f2f0816b381"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=main#94bcb3c5a85e2f7df65c1ea5540fe2611645bf0f"
 dependencies = [
  "anyhow",
  "anymap",
@@ -3858,7 +3858,7 @@ dependencies = [
 [[package]]
 name = "hyle-net"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#0a66684860fa446952e7fc3c579f9f2f0816b381"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=main#94bcb3c5a85e2f7df65c1ea5540fe2611645bf0f"
 dependencies = [
  "anyhow",
  "axum",
@@ -3884,7 +3884,7 @@ dependencies = [
 [[package]]
 name = "hyle-smt-token"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#0a66684860fa446952e7fc3c579f9f2f0816b381"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=main#94bcb3c5a85e2f7df65c1ea5540fe2611645bf0f"
 dependencies = [
  "anyhow",
  "borsh",
@@ -3898,7 +3898,7 @@ dependencies = [
 [[package]]
 name = "hyle-verifiers"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#0a66684860fa446952e7fc3c579f9f2f0816b381"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=main#94bcb3c5a85e2f7df65c1ea5540fe2611645bf0f"
 dependencies = [
  "anyhow",
  "borsh",
@@ -4438,9 +4438,9 @@ checksum = "d750af042f7ef4f724306de029d18836c26c1765a54a6a3f094cbd23a7267ffa"
 
 [[package]]
 name = "libloading"
-version = "0.8.8"
+version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07033963ba89ebaf1584d767badaa2e8fcec21aedea6b8c0346d487d49c28667"
+checksum = "6a793df0d7afeac54f95b471d3af7f0d4fb975699f972341a4b76988d49cdf0c"
 dependencies = [
  "cfg-if 1.0.0",
  "windows-targets 0.53.0",
