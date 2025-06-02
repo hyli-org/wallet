@@ -111,23 +111,47 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
         return storedWallet ? JSON.parse(storedWallet) : null;
     });
 
-    // Initialize config and services on mount
-    useEffect(() => {
-        const initConfig = async () => {
-            ConfigService.initialize(config);
-            NodeService.initialize(config.nodeBaseUrl);
-            IndexerService.initialize(config.walletServerBaseUrl);
-        };
-
-        initConfig();
-    }, [config]);
-
     // Persist wallet when updated
     useEffect(() => {
         if (wallet) {
             storeWallet(wallet);
         }
     }, [wallet]);
+
+    const checkWalletExists = () => {
+        if (wallet) {
+            const lastCheck = localStorage.getItem("last_wallet_check");
+            if (!lastCheck || Date.now() > +lastCheck + 5 * 60 * 1000) {
+                // Update last check time
+                localStorage.setItem("last_wallet_check", Date.now().toFixed(0));
+                // Check if the account exists
+                WalletOperations.checkAccountExists(wallet, false)
+                    .then((exists) => {
+                        if (!exists) {
+                            console.warn("Account", wallet, "does not exist, clearing wallet.");
+                            // If the account does not exist, we clear the wallet
+                            setWallet(null);
+                            localStorage.removeItem("wallet");
+                        }
+                    })
+                    .catch((error) => {
+                        console.warn("Error checking account existence:", error);
+                    });
+            }
+        }
+    };
+
+    // Initialize config and services on mount
+    useEffect(() => {
+        const initConfig = async () => {
+            ConfigService.initialize(config);
+            NodeService.initialize(config.nodeBaseUrl);
+            IndexerService.initialize(config.walletServerBaseUrl);
+            checkWalletExists();
+        };
+
+        initConfig();
+    }, [config]);
 
     const defaultSessionKeyConfig: { duration: number; whitelist?: string[] } = { duration: 72 * 60 * 60 * 1000 };
     const effectiveSessionKeyConfig = sessionKeyConfig ?? defaultSessionKeyConfig;

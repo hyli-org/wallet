@@ -240,7 +240,7 @@ export const getOrReuseSessionKey = async (
         if (checkBackend) {
             try {
                 const indexer = IndexerService.getInstance();
-                const accountInfo = await indexer.getAccountInfo(wallet.address);
+                const accountInfo = await indexer.getAccountInfo(wallet.username);
                 const backendKey = accountInfo.session_keys.find(
                     (k) => k.key === wallet.sessionKey!.publicKey && k.expiration_date > now
                 );
@@ -256,4 +256,29 @@ export const getOrReuseSessionKey = async (
     }
     // No valid session key available
     return undefined;
+};
+
+export const checkAccountExists = async (wallet: Wallet, withSessionKey: boolean) => {
+    const indexer = IndexerService.getInstance();
+    try {
+        // Check if a session key exists and is not expired
+        const now = Date.now();
+
+        const accountInfo = await indexer.getAccountInfo(wallet.username);
+        if (!accountInfo) {
+            return false; // Account does not exist
+        }
+        if (withSessionKey) {
+            const backendKey = accountInfo.session_keys.find(
+                (k) => k.key === wallet.sessionKey?.publicKey && k.expiration_date > now
+            );
+            if (!backendKey) {
+                return false;
+            }
+        }
+    } catch (e) {
+        console.error("Error checking account existence:", e);
+        return false;
+    }
+    return true;
 };
