@@ -63,7 +63,7 @@ pub struct SessionKey {
     pub public_key: String,
     pub expiration_date: TimestampMs,
     pub nonce: u128,
-    pub whitelist: Vec<ContractName>,
+    pub whitelist: Option<Vec<ContractName>>,
     pub lane_id: Option<LaneId>,
 }
 
@@ -204,7 +204,7 @@ impl Wallet {
         account: String,
         key: String,
         expiration_date: u128,
-        whitelist: Vec<ContractName>,
+        whitelist: Option<Vec<ContractName>>,
         lane_id: Option<LaneId>,
     ) -> Result<String, String> {
         let stored_info = self
@@ -277,11 +277,14 @@ impl Wallet {
                         if blob.contract_name.0 == "secp256k1" {
                             continue; // Skip the secp256k1 blob
                         }
-                        if !session_key
-                            .whitelist
-                            .iter()
-                            .any(|contract_name| contract_name.0 == blob.contract_name.0)
-                        {
+                        if let Some(ref whitelist) = session_key.whitelist {
+                            if !whitelist.contains(&blob.contract_name) {
+                                return Err(format!(
+                                    "Blob: {} not whitelisted",
+                                    blob.contract_name.0
+                                ));
+                            }
+                        } else {
                             return Err(format!("Blob: {} not whitelisted", blob.contract_name.0));
                         }
                     }
@@ -338,7 +341,7 @@ pub enum WalletAction {
         account: String,
         key: String,
         expiration_date: u128,
-        whitelist: Vec<ContractName>,
+        whitelist: Option<Vec<ContractName>>,
         lane_id: Option<LaneId>,
     },
     RemoveSessionKey {
@@ -349,6 +352,15 @@ pub enum WalletAction {
         account: String,
         nonce: u128,
     },
+}
+
+impl WalletAction {
+    pub fn as_blob(&self, contract_name: sdk::ContractName) -> sdk::Blob {
+        sdk::Blob {
+            contract_name,
+            data: sdk::BlobData(borsh::to_vec(self).expect("Failed to encode WalletAction")),
+        }
+    }
 }
 
 impl Default for Wallet {

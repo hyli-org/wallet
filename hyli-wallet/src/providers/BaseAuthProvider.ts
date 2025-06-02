@@ -21,7 +21,7 @@ export interface LoginParams {
     onError?: WalletErrorCallback;
     registerSessionKey?: {
         duration: number; // ms
-        whitelist: string[];
+        whitelist?: string[];
         laneId?: string;
     };
 }
@@ -31,7 +31,7 @@ export interface RegisterAccountParams {
     onError?: WalletErrorCallback;
     registerSessionKey?: {
         duration: number; // ms
-        whitelist: string[];
+        whitelist?: string[];
     };
 }
 

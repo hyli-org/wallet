@@ -61,7 +61,7 @@ const WalletContext = createContext<WalletContextType | undefined>(undefined);
 interface WalletInternalType extends WalletContextType {
     sessionKeyConfig?: {
         duration: number;
-        whitelist: string[];
+        whitelist?: string[];
     };
     onWalletEvent?: WalletEventCallback;
     onError?: WalletErrorCallback;
@@ -76,7 +76,7 @@ export interface WalletProviderProps {
     };
     sessionKeyConfig?: {
         duration: number; // ms
-        whitelist: string[];
+        whitelist?: string[];
     };
     onWalletEvent?: WalletEventCallback;
     onError?: WalletErrorCallback;
@@ -129,7 +129,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
         }
     }, [wallet]);
 
-    const defaultSessionKeyConfig = { duration: 72 * 60 * 60 * 1000, whitelist: [] };
+    const defaultSessionKeyConfig: { duration: number; whitelist?: string[] } = { duration: 72 * 60 * 60 * 1000 };
     const effectiveSessionKeyConfig = sessionKeyConfig ?? defaultSessionKeyConfig;
 
     const internalOnWalletEvent = onWalletEvent;
@@ -141,7 +141,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
         | undefined
         | {
               duration: number;
-              whitelist: string[];
+              whitelist?: string[];
           } => {
         if (registerSessionKey === true) {
             return {

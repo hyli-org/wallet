@@ -22,14 +22,14 @@ import { IndexerService } from "./IndexerService";
  * @param wallet The wallet to update
  * @param password The password (for signing)
  * @param expiration Key expiration timestamp
- * @param whitelist List of allowed operations for this key
+ * @param whitelist Optional list of allowed operations for this key
  * @returns Object containing transaction hashes and optimistic wallet update
  */
 export const registerSessionKey = async (
     wallet: Wallet,
     password: string,
     expiration: number,
-    whitelist: string[],
+    whitelist?: string[],
     laneId?: string,
     onWalletEvent?: WalletEventCallback,
     onError?: WalletErrorCallback

@@ -10,7 +10,7 @@ export class SessionKeyService {
         this.ec = new EC.ec("secp256k1");
     }
 
-    generateSessionKey(expiration: number, whitelist: string[]): SessionKey {
+    generateSessionKey(expiration: number, whitelist?: string[]): SessionKey {
         const keyPair = this.ec.genKeyPair();
 
         const privateKey = keyPair.getPrivate("hex");
