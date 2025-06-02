@@ -284,8 +284,6 @@ impl Wallet {
                                     blob.contract_name.0
                                 ));
                             }
-                        } else {
-                            return Err(format!("Blob: {} not whitelisted", blob.contract_name.0));
                         }
                     }
                     if session_key.lane_id.is_some()
