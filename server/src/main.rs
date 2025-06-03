@@ -122,6 +122,8 @@ async fn main() -> Result<()> {
             contract_name: wallet_cn.clone(),
             node: app_ctx.node_client.clone(),
             default_state: Default::default(),
+            buffer_blocks: config.buffer_blocks,
+            buffer_max_txs: config.buffer_max_txs,
         }))
         .await?;
     handler
@@ -133,6 +135,8 @@ async fn main() -> Result<()> {
             contract_name: "oranj".into(),
             node: app_ctx.node_client.clone(),
             default_state: Default::default(),
+            buffer_blocks: config.buffer_blocks,
+            buffer_max_txs: config.buffer_max_txs,
         }))
         .await?;
 

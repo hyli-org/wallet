@@ -9,6 +9,9 @@ rest_server_max_body_size = 10_485_760 # 10 MB
 node_url = "http://localhost:4321"
 indexer_url = "http://localhost:4321"
 
+buffer_blocks = 3
+buffer_max_txs = 100
+
 [websocket]
 port = 8081
 ws_path = "/ws"

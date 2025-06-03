@@ -18,6 +18,9 @@ pub struct Conf {
     pub rest_server_port: u16,
     pub rest_server_max_body_size: usize,
 
+    pub buffer_blocks: u32,
+    pub buffer_max_txs: usize,
+
     /// Websocket configuration
     pub websocket: WebSocketConfig,
 }
