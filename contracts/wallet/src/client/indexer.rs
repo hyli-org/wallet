@@ -18,7 +18,7 @@ use client_sdk::{
 use sdk::Hashed;
 use serde::Serialize;
 
-use crate::*;
+use crate::{client::tx_executor_handler::Wallet, *};
 use client_sdk::contract_indexer::axum;
 use client_sdk::contract_indexer::utoipa;
 
@@ -178,10 +178,12 @@ pub async fn get_account_info(
         anyhow!("Contract '{}' not found", store.contract_name),
     ))?;
 
-    let account_info = state.identities.get(&account).ok_or(AppError(
-        StatusCode::NOT_FOUND,
-        anyhow!("Account '{}' not found", account),
-    ))?;
+    let account_info = state.get(&account).map_err(|_e| {
+        AppError(
+            StatusCode::NOT_FOUND,
+            anyhow!("Account '{}' not found", account),
+        )
+    })?;
 
     let session_keys = account_info
         .session_keys
