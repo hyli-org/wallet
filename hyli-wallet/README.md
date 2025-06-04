@@ -50,6 +50,8 @@ function App() {
                 duration: 24 * 60 * 60 * 1000, // Session key duration in ms (default: 72h)
                 whitelist: [], // Required: contracts allowed for session key
             }}
+            // Optional: force ON/OFF session key creation
+            forceSessionKeyCreation={undefined} // Default: undefined, letting user decide
             // Optional: global wallet event handler
             onWalletEvent={(event) => {
                 console.log("Wallet event:", event);

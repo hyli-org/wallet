@@ -22,6 +22,13 @@ interface AuthFormProps {
      * Call to close the modal after successful login or registration.
      */
     closeModal?: () => void;
+    /**
+     * Controls session key checkbox behavior:
+     *  - true: force session key ON (checked, cannot change)
+     *  - false: force session key OFF (do not show checkbox)
+     *  - undefined: allow user to toggle checkbox
+     */
+    forceSessionKey?: boolean;
 }
 
 const ZK_FUN_FACTS = [
@@ -45,7 +52,13 @@ function getRandomFact() {
     return ZK_FUN_FACTS[Math.floor(Math.random() * ZK_FUN_FACTS.length)];
 }
 
-export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode, classPrefix = "hyli", closeModal }) => {
+export const AuthForm: React.FC<AuthFormProps> = ({
+    provider,
+    mode,
+    classPrefix = "hyli",
+    closeModal,
+    forceSessionKey,
+}) => {
     const { login, registerAccount: registerWallet, sessionKeyConfig, onWalletEvent, onError } = useWalletInternal();
     const isLocalhost =
         typeof window !== "undefined" &&
@@ -58,8 +71,15 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode, classPrefix 
     const [error, setError] = useState<string>("");
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [stage, setStage] = useState<AuthStage>("idle");
-    const [autoSessionKey, setAutoSessionKey] = useState<boolean>(true);
+    // Session key checkbox state logic
+    const [autoSessionKey, setAutoSessionKey] = useState<boolean>(forceSessionKey === true ? true : true);
     const [funFact, setFunFact] = useState<string>(getRandomFact());
+
+    // If forceSessionKey changes, update autoSessionKey accordingly
+    useEffect(() => {
+        if (forceSessionKey === true) setAutoSessionKey(true);
+        if (forceSessionKey === false) setAutoSessionKey(false);
+    }, [forceSessionKey]);
 
     useEffect(() => {
         if (stage === "logged_in" && closeModal) {
@@ -252,7 +272,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode, classPrefix 
                         </div>
                     )}
 
-                    {
+                    {/* Session Key Checkbox Logic */}
+                    {forceSessionKey === false ? null : (
                         <div className={`${classPrefix}-form-group`}>
                             <label
                                 htmlFor="autoSessionKey"
@@ -263,14 +284,22 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode, classPrefix 
                                     name="autoSessionKey"
                                     type="checkbox"
                                     checked={autoSessionKey}
-                                    onChange={(e) => setAutoSessionKey(e.target.checked)}
-                                    disabled={isSubmitting}
+                                    onChange={
+                                        forceSessionKey === undefined
+                                            ? (e) => setAutoSessionKey(e.target.checked)
+                                            : undefined
+                                    }
+                                    disabled={isSubmitting || forceSessionKey === true}
                                     style={{ marginRight: 8, height: "1.4em", width: "1.4em" }}
                                 />
-                                Create a session key for this website
+                                {forceSessionKey === true ? (
+                                    <span>Session key will be created (required)</span>
+                                ) : (
+                                    <span>Create a session key for this website</span>
+                                )}
                             </label>
                         </div>
-                    }
+                    )}
 
                     {error && <div className={`${classPrefix}-error-message`}>{error}</div>}
                     {statusMessage && <div className={`${classPrefix}-status-message`}>{statusMessage}</div>}

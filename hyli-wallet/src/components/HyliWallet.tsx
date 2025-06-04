@@ -4,7 +4,7 @@ import { authProviderManager } from "../providers/AuthProviderManager";
 import { AuthForm } from "./auth/AuthForm";
 import "./HyliWallet.css";
 import type { ProviderOption } from "../hooks/useWallet";
-import { useWallet } from "../hooks/useWallet";
+import { useWallet, useWalletInternal } from "../hooks/useWallet";
 
 // SVG Icons for providers
 const ProviderIcons = {
@@ -95,6 +95,7 @@ export const HyliWallet = ({ button, providers, modalContent, classPrefix = "hyl
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
     const { wallet, logout } = useWallet();
+    const { forceSessionKey } = useWalletInternal();
 
     // Centre la fenêtre au chargement
     useEffect(() => {
@@ -238,6 +239,7 @@ export const HyliWallet = ({ button, providers, modalContent, classPrefix = "hyl
                                 mode="login"
                                 classPrefix={classPrefix}
                                 closeModal={closeModal}
+                                forceSessionKey={forceSessionKey}
                             />
                             <button className={`${classPrefix}-switch-auth-button`} onClick={() => setShowLogin(false)}>
                                 Don't have an account? Sign up
@@ -251,6 +253,7 @@ export const HyliWallet = ({ button, providers, modalContent, classPrefix = "hyl
                                 mode="register"
                                 classPrefix={classPrefix}
                                 closeModal={closeModal}
+                                forceSessionKey={forceSessionKey}
                             />
                             <button className={`${classPrefix}-switch-auth-button`} onClick={() => setShowLogin(true)}>
                                 Already have an account? Log in

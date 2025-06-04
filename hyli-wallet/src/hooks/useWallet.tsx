@@ -65,6 +65,7 @@ interface WalletInternalType extends WalletContextType {
     };
     onWalletEvent?: WalletEventCallback;
     onError?: WalletErrorCallback;
+    forceSessionKey?: boolean;
 }
 const WalletInternalContext = createContext<WalletInternalType | undefined>(undefined);
 
@@ -78,6 +79,13 @@ export interface WalletProviderProps {
         duration: number; // ms
         whitelist?: string[];
     };
+    /**
+     * Controls session key checkbox behavior in AuthForm:
+     *  - true: force session key ON (checked, cannot change)
+     *  - false: force session key OFF (do not show checkbox)
+     *  - undefined: allow user to toggle checkbox
+     */
+    forceSessionKey?: boolean;
     onWalletEvent?: WalletEventCallback;
     onError?: WalletErrorCallback;
 }
@@ -103,6 +111,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
     children,
     config,
     sessionKeyConfig,
+    forceSessionKey,
     onWalletEvent,
     onError,
 }) => {
@@ -366,6 +375,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
         sessionKeyConfig: effectiveSessionKeyConfig,
         onWalletEvent,
         onError,
+        forceSessionKey, // Pass forceSessionKey to internal context
     };
 
     return (
