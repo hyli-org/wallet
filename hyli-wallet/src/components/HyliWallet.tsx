@@ -96,6 +96,15 @@ export const HyliWallet = ({ button, providers, modalContent, classPrefix = "hyl
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
     const { wallet, logout } = useWallet();
     const { forceSessionKey } = useWalletInternal();
+    const [isDarkMode, setIsDarkMode] = useState(false);
+
+    useEffect(() => {
+        const mq = window.matchMedia('(prefers-color-scheme: dark)');
+        setIsDarkMode(mq.matches);
+        const handler = (e: MediaQueryListEvent) => setIsDarkMode(e.matches);
+        mq.addEventListener('change', handler);
+        return () => mq.removeEventListener('change', handler);
+    }, []);
 
     // Centre la fenêtre au chargement
     useEffect(() => {
@@ -266,7 +275,7 @@ export const HyliWallet = ({ button, providers, modalContent, classPrefix = "hyl
     );
 
     const ModalContent = (
-        <div className={`${classPrefix}-overlay`} onClick={closeModal}>
+        <div className={`${classPrefix}-overlay${isDarkMode ? ' dark' : ''}`} onClick={closeModal}>
             {modalContent
                 ? modalContent({
                       selectedProvider,

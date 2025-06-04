@@ -159,3 +159,72 @@
     max-width: 320px;
     text-align: center;
 }
+
+.dark .hyli-form-group label,
+.dark .hyli-form-label {
+    color: #f3f3f3;
+}
+
+.dark .hyli-form-group input,
+.dark .hyli-form-input {
+    background: #23232a;
+    color: #f3f3f3;
+    border: 1px solid #333;
+}
+
+.dark .hyli-form-group input:focus,
+.dark .hyli-form-input:focus {
+    border-color: #ff594b;
+    box-shadow: 0 0 0 3px rgba(255, 89, 75, 0.12);
+}
+
+.dark .hyli-form-group input::placeholder,
+.dark .hyli-form-input::placeholder {
+    color: #888;
+}
+
+.dark .hyli-form-group input:disabled,
+.dark .hyli-form-input:disabled {
+    background-color: #18181c;
+    color: #888;
+}
+
+.dark .hyli-error-message {
+    color: #ff8a80;
+    background-color: rgba(255, 89, 75, 0.08);
+}
+
+.dark .hyli-status-message {
+    color: #80bfff;
+}
+
+.dark .hyli-auth-submit-button {
+    background-color: #ff594b;
+    color: #fff;
+}
+
+.dark .hyli-auth-submit-button:hover {
+    background-color: #ff9660;
+}
+
+.dark .hyli-auth-submit-button:active {
+    background-color: #ff594b;
+}
+
+.dark .hyli-auth-submit-button:disabled {
+    background-color: #444;
+    color: #888;
+}
+
+.dark .hyli-loading-modal-overlay {
+    background: rgba(24,24,28,0.98);
+}
+
+.dark .hyli-spinner {
+    border: 4px solid #333;
+    border-top: 4px solid #ff594b;
+}
+
+.dark .hyli-zk-fun-fact {
+    color: #f3f3f3;
+}
