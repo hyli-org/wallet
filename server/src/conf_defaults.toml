@@ -9,8 +9,10 @@ rest_server_max_body_size = 10_485_760 # 10 MB
 node_url = "http://localhost:4321"
 indexer_url = "http://localhost:4321"
 
-buffer_blocks = 3
-max_txs_per_proof = 100
+wallet_buffer_blocks = 0
+wallet_max_txs_per_proof = 100
+smt_buffer_blocks = 0
+smt_max_txs_per_proof = 100
 
 [websocket]
 port = 8081
