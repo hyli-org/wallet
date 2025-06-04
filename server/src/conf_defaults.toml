@@ -10,7 +10,7 @@ node_url = "http://localhost:4321"
 indexer_url = "http://localhost:4321"
 
 buffer_blocks = 3
-buffer_max_txs = 100
+max_txs_per_proof = 100
 
 [websocket]
 port = 8081

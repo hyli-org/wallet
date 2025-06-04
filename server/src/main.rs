@@ -123,7 +123,7 @@ async fn main() -> Result<()> {
             node: app_ctx.node_client.clone(),
             default_state: Default::default(),
             buffer_blocks: config.buffer_blocks,
-            buffer_max_txs: config.buffer_max_txs,
+            max_txs_per_proof: config.max_txs_per_proof,
         }))
         .await?;
     handler
@@ -136,7 +136,7 @@ async fn main() -> Result<()> {
             node: app_ctx.node_client.clone(),
             default_state: Default::default(),
             buffer_blocks: config.buffer_blocks,
-            buffer_max_txs: config.buffer_max_txs,
+            max_txs_per_proof: config.max_txs_per_proof,
         }))
         .await?;
 

@@ -19,7 +19,7 @@ pub struct Conf {
     pub rest_server_max_body_size: usize,
 
     pub buffer_blocks: u32,
-    pub buffer_max_txs: usize,
+    pub max_txs_per_proof: usize,
 
     /// Websocket configuration
     pub websocket: WebSocketConfig,
