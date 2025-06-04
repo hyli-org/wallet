@@ -434,3 +434,20 @@
     color: #2196f3;
     text-decoration: none;
 }
+
+/* Styles pour les spans avec classPrefix pour imposer la couleur #333 */
+.hyli-provider-label {
+    color: #333 !important;
+}
+
+.hyli-provider-icon {
+    color: #333 !important;
+}
+
+.hyli-coming-soon {
+    color: #333 !important;
+}
+
+.hyli-row-arrow {
+    color: #333 !important;
+}

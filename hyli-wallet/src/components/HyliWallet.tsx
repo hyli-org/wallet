@@ -185,11 +185,11 @@ export const HyliWallet = ({ button, providers, modalContent, classPrefix = "hyl
                 className={`provider-row${disabled ? " disabled" : ""}`}
                 onClick={() => !disabled && setSelectedProvider(providerType)}
             >
-                <span className="label">
-                    <span className="provider-icon">{icon}</span>
+                <span className={`label ${classPrefix}-provider-label`}>
+                    <span className={`provider-icon ${classPrefix}-provider-icon`}>{icon}</span>
                     {label}
                 </span>
-                {disabled ? <span className="coming-soon">Soon</span> : <span className="row-arrow">›</span>}
+                {disabled ? <span className={`coming-soon ${classPrefix}-coming-soon`}>Soon</span> : <span className={`row-arrow ${classPrefix}-row-arrow`}>›</span>}
             </button>
         );
     };

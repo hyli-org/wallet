@@ -209,7 +209,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode, classPrefix 
             ) : (
                 <form onSubmit={handleSubmit} className={`${classPrefix}-auth-form`}>
                     <div className={`${classPrefix}-form-group`}>
-                        <label htmlFor="username">Username</label>
+                        <label htmlFor="username" className={`${classPrefix}-form-label`}>Username</label>
                         <input
                             id="username"
                             name="username"
@@ -218,11 +218,12 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode, classPrefix 
                             onChange={handleInputChange}
                             placeholder="Enter your username"
                             disabled={isSubmitting}
+                            className={`${classPrefix}-form-input`}
                         />
                     </div>
 
                     <div className={`${classPrefix}-form-group`}>
-                        <label htmlFor="password">Password</label>
+                        <label htmlFor="password" className={`${classPrefix}-form-label`}>Password</label>
                         <input
                             id="password"
                             name="password"
@@ -231,12 +232,13 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode, classPrefix 
                             onChange={handleInputChange}
                             placeholder="Enter your password"
                             disabled={isSubmitting}
+                            className={`${classPrefix}-form-input`}
                         />
                     </div>
 
                     {mode === "register" && (
                         <div className={`${classPrefix}-form-group`}>
-                            <label htmlFor="confirmPassword">Confirm Password</label>
+                            <label htmlFor="confirmPassword" className={`${classPrefix}-form-label`}>Confirm Password</label>
                             <input
                                 id="confirmPassword"
                                 name="confirmPassword"
@@ -245,6 +247,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ provider, mode, classPrefix 
                                 onChange={handleInputChange}
                                 placeholder="Confirm your password"
                                 disabled={isSubmitting}
+                                className={`${classPrefix}-form-input`}
                             />
                         </div>
                     )}
