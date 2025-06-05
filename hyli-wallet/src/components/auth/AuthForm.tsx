@@ -64,10 +64,11 @@ export const AuthForm: React.FC<AuthFormProps> = ({
     const isLocalhost =
         typeof window !== "undefined" &&
         (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
-    const [credentials, setCredentials] = useState<AuthCredentials>({
+    const [credentials, setCredentials] = useState<AuthCredentials & { inviteCode?: string }>({
         username: isLocalhost ? "bob" : "",
         password: isLocalhost ? "hylisecure" : "",
         confirmPassword: isLocalhost ? "hylisecure" : "",
+        inviteCode: "",
     });
     const [error, setError] = useState<string>("");
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -146,29 +147,30 @@ export const AuthForm: React.FC<AuthFormProps> = ({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
-        
+
         // Validate required fields
         if (!credentials.username || !credentials.password) {
             setError("Please fill in all fields");
             return;
         }
-        
         // Password length validation for both login and register
         if (credentials.password.length < 8) {
             setError("Password must be at least 8 characters long");
             return;
         }
-        
         // Password match check for registration
         if (mode === "register" && credentials.password !== credentials.confirmPassword) {
             setError("Passwords do not match.");
             return;
         }
-        
+        // Invite code required for registration
+        if (mode === "register" && !credentials.inviteCode) {
+            setError("Invite code is required.");
+            return;
+        }
         setIsSubmitting(true);
         setStage("sending_blob");
-
-        const authAction = async (provider: ProviderOption, credentials: AuthCredentials) => {
+        const authAction = async (provider: ProviderOption, credentials: AuthCredentials & { inviteCode?: string }) => {
             if (mode === "login") {
                 await login(provider, credentials, onWalletEventWithStage, onErrorWithStage, {
                     registerSessionKey: autoSessionKey,
@@ -179,7 +181,6 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                 });
             }
         };
-
         try {
             await authAction(provider.type as ProviderOption, credentials);
         } catch (err) {
@@ -246,7 +247,9 @@ export const AuthForm: React.FC<AuthFormProps> = ({
             ) : (
                 <form onSubmit={handleSubmit} className={`${classPrefix}-auth-form`}>
                     <div className={`${classPrefix}-form-group`}>
-                        <label htmlFor="username" className={`${classPrefix}-form-label`}>Username</label>
+                        <label htmlFor="username" className={`${classPrefix}-form-label`}>
+                            Username
+                        </label>
                         <input
                             id="username"
                             name="username"
@@ -260,7 +263,9 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                     </div>
 
                     <div className={`${classPrefix}-form-group`}>
-                        <label htmlFor="password" className={`${classPrefix}-form-label`}>Password</label>
+                        <label htmlFor="password" className={`${classPrefix}-form-label`}>
+                            Password
+                        </label>
                         <input
                             id="password"
                             name="password"
@@ -274,19 +279,38 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                     </div>
 
                     {mode === "register" && (
-                        <div className={`${classPrefix}-form-group`}>
-                            <label htmlFor="confirmPassword" className={`${classPrefix}-form-label`}>Confirm Password</label>
-                            <input
-                                id="confirmPassword"
-                                name="confirmPassword"
-                                type="password"
-                                value={credentials.confirmPassword}
-                                onChange={handleInputChange}
-                                placeholder="Confirm your password (min. 8 characters)"
-                                disabled={isSubmitting}
-                                className={`${classPrefix}-form-input`}
-                            />
-                        </div>
+                        <>
+                            <div className={`${classPrefix}-form-group`}>
+                                <label htmlFor="confirmPassword" className={`${classPrefix}-form-label`}>
+                                    Confirm Password
+                                </label>
+                                <input
+                                    id="confirmPassword"
+                                    name="confirmPassword"
+                                    type="password"
+                                    value={credentials.confirmPassword}
+                                    onChange={handleInputChange}
+                                    placeholder="Confirm your password (min. 8 characters)"
+                                    disabled={isSubmitting}
+                                    className={`${classPrefix}-form-input`}
+                                />
+                            </div>
+                            <div className={`${classPrefix}-form-group`}>
+                                <label htmlFor="inviteCode" className={`${classPrefix}-form-label`}>
+                                    Invite Code
+                                </label>
+                                <input
+                                    id="inviteCode"
+                                    name="inviteCode"
+                                    type="text"
+                                    value={credentials.inviteCode}
+                                    onChange={handleInputChange}
+                                    placeholder="Enter your invite code"
+                                    disabled={isSubmitting}
+                                    className={`${classPrefix}-form-input`}
+                                />
+                            </div>
+                        </>
                     )}
 
                     {/* Session Key Checkbox Logic */}

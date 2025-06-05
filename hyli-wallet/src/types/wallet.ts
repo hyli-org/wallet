@@ -38,6 +38,7 @@ export type WalletAction =
               account: string;
               nonce: number;
               auth_method: AuthMethod;
+              invite_code: string;
           };
       }
     | {
@@ -49,7 +50,7 @@ export type WalletAction =
     | {
           AddSessionKey: {
               account: string;
-              key: string;  
+              key: string;
               expiration_date: number;
               whitelist?: string[];
               laneId?: string;
@@ -87,12 +88,13 @@ export interface WalletEvent {
 // Builders
 //
 
-export const registerBlob = (account: string, nonce: number, hash: string): Blob => {
+export const registerBlob = (account: string, nonce: number, hash: string, invite_code: string): Blob => {
     const action: WalletAction = {
         RegisterIdentity: {
             account,
             nonce,
             auth_method: { Password: { hash } },
+            invite_code,
         },
     };
     const blob: Blob = {
@@ -114,7 +116,13 @@ export const verifyIdentityBlob = (account: string, nonce: number): Blob => {
     return blob;
 };
 
-export const addSessionKeyBlob = (account: string, key: string, expiration_date: number, whitelist?: string[], laneId?: string): Blob => {
+export const addSessionKeyBlob = (
+    account: string,
+    key: string,
+    expiration_date: number,
+    whitelist?: string[],
+    laneId?: string
+): Blob => {
     const action: WalletAction = {
         AddSessionKey: { account, key, expiration_date, whitelist, laneId },
     };
@@ -183,6 +191,7 @@ const schema = BorshSchema.Enum({
                 hash: BorshSchema.String,
             }),
         }),
+        invite_code: BorshSchema.String,
     }),
     VerifyIdentity: BorshSchema.Struct({
         account: BorshSchema.String,

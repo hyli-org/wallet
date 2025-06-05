@@ -32,6 +32,9 @@ mod app;
 mod conf;
 mod history;
 mod init;
+mod invites {
+    pub mod invite;
+}
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -150,6 +153,15 @@ async fn main() -> Result<()> {
             start_block: None,
             data_directory: config.data_directory.clone(),
             da_read_from: config.da_read_from.clone(),
+        })
+        .await?;
+
+    handler
+        .build_module::<invites::invite::InviteModule>(invites::invite::InviteModuleCtx {
+            db_url: config.db_url.clone(),
+            api_ctx: api_ctx.clone(),
+            node_client: app_ctx.node_client.clone(),
+            wallet_cn: wallet_cn.clone(),
         })
         .await?;
 
