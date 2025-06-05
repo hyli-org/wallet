@@ -30,5 +30,16 @@ rand = "0.9.0"
 serde_json = "1.0.140"
 futures = "0.3.31"
 
+# Invite code dependencies
+sha2 = { workspace = true }
+sqlx = { version = "0.8.6", features = [
+    "runtime-tokio-native-tls",
+    "macros",
+    "postgres",
+    "chrono",
+] }
+chrono = "0.4.41"
+secp256k1 = { version = "0.31.0" }
+
 [package.metadata.cargo-machete]
 ignored = ["tracing-subscriber", "opentelemetry", "prometheus", "rand"]

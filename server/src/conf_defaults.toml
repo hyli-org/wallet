@@ -14,6 +14,9 @@ wallet_max_txs_per_proof = 100
 smt_buffer_blocks = 0
 smt_max_txs_per_proof = 100
 
+# Invites
+db_url = "postgres://postgres:postgres@localhost:5432/postgres"
+
 [websocket]
 port = 8081
 ws_path = "/ws"

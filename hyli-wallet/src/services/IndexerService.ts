@@ -2,24 +2,26 @@ import { IndexerApiHttpClient } from "hyli";
 import { AuthMethod, walletContractName } from "../types/wallet";
 
 interface SessionKey {
-  key: string;
-  expiration_date: number;
-  nonce: number;
-  laneId?: string;
+    key: string;
+    expiration_date: number;
+    nonce: number;
+    laneId?: string;
 }
 
 interface AccountInfo {
-  account: string;
-  auth_method: AuthMethod;
-  session_keys: SessionKey[];
-  nonce: number;
+    account: string;
+    auth_method: AuthMethod;
+    session_keys: SessionKey[];
+    nonce: number;
 }
 
 export class IndexerService {
     private static instance: IndexerService | null = null;
     client: IndexerApiHttpClient;
+    url: string;
 
     private constructor(indexerBaseUrl: string) {
+        this.url = indexerBaseUrl;
         this.client = new IndexerApiHttpClient(indexerBaseUrl);
     }
 
@@ -35,13 +37,25 @@ export class IndexerService {
         return IndexerService.instance;
     }
 
+    async getAccountInfo(address: string): Promise<AccountInfo> {
+        const response = await this.client.get<AccountInfo>(
+            `v1/indexer/contract/${walletContractName}/account/${address}`,
+            `Fetching "${address}" account`
+        );
+        return response;
+    }
 
-  async getAccountInfo(address: string): Promise<AccountInfo> {
-    const response = await this.client.get<AccountInfo>(
-      `v1/indexer/contract/${walletContractName}/account/${address}`,
-      `Fetching "${address}" account`
-    );
-
-    return response;
-  }
+    async claimInviteCode(code: string, wallet: string): Promise<any> {
+        const response = await fetch(`${this.url}/consume_invite`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                code,
+                wallet,
+            }),
+        });
+        return await response.json();
+    }
 }
