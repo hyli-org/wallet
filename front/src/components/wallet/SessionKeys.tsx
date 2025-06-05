@@ -13,6 +13,7 @@ import { Blob, BlobTransaction } from "hyli";
 import { indexerService } from "../../services/IndexerService";
 import "./SessionKeys.css";
 import { nodeService } from "../../services/NodeService";
+import { ErrorMessage } from "../ErrorMessage";
 
 interface SessionKey {
     key: string;
@@ -30,7 +31,7 @@ export const SessionKeys = () => {
     const [sessionKeys, setSessionKeys] = useState<SessionKey[]>([]);
     const [password, setPassword] = useState("password123");
     const [expirationDays, setExpirationDays] = useState("7");
-    const [error, setError] = useState("");
+    const [error, setError] = useState<unknown>(null);
     const [status, setStatus] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [transactionHash, setTransactionHash] = useState("");
@@ -41,7 +42,7 @@ export const SessionKeys = () => {
             setSessionKeys(accountInfo.session_keys);
         } catch (error) {
             console.error("Failed to fetch session keys:", error);
-            setError("Failed to load session keys");
+            setError(new Error("Failed to load session keys"));
         }
     };
 
@@ -62,23 +63,23 @@ export const SessionKeys = () => {
     };
 
     const handleError = (error: Error) => {
-        setError(error.message);
+        setError(error);
     };
 
     const handleAddKey = async () => {
         if (!password) {
-            setError("Please enter your password");
+            setError(new Error("Please enter your password"));
             return;
         }
 
         const days = parseInt(expirationDays);
         if (isNaN(days) || days <= 0) {
-            setError("Please enter a valid expiration period");
+            setError(new Error("Please enter a valid expiration period"));
             return;
         }
 
         setIsLoading(true);
-        setError("");
+        setError(null);
         setStatus("Generating new session key...");
         setTransactionHash("");
 
@@ -111,10 +112,11 @@ export const SessionKeys = () => {
             });
 
             setStatus("Session key added successfully");
+            setTimeout(() => setStatus(""), 3000);
             setPassword("password123");
             await fetchSessionKeys();
         } catch (error) {
-            setError("Failed to add session key: " + error);
+            setError(error);
         } finally {
             setIsLoading(false);
         }
@@ -122,7 +124,7 @@ export const SessionKeys = () => {
 
     const handleRemoveKey = async (publicKey: string) => {
         setIsLoading(true);
-        setError("");
+        setError(null);
         setStatus("Removing session key...");
         setTransactionHash("");
 
@@ -148,9 +150,10 @@ export const SessionKeys = () => {
             });
 
             setStatus("Session key removed successfully");
+            setTimeout(() => setStatus(""), 3000);
             await fetchSessionKeys();
         } catch (error) {
-            setError("Failed to remove session key: " + error);
+            setError(error);
         } finally {
             setIsLoading(false);
         }
@@ -158,7 +161,7 @@ export const SessionKeys = () => {
 
     const handleSendTransactionWithSessionKey = async (publicKey: string) => {
         setIsLoading(true);
-        setError("");
+        setError(null);
         setStatus("Sending transaction...");
         setTransactionHash("");
 
@@ -166,7 +169,7 @@ export const SessionKeys = () => {
             const identity = wallet.address;
             const privateKey = localStorage.getItem(publicKey);
             if (!privateKey) {
-                throw new Error("Private key not found in local storage");
+                throw new Error("This session key is not available on this device. The private key may have been lost.");
             }
 
             let nonce = Date.now();
@@ -218,8 +221,9 @@ export const SessionKeys = () => {
             });
 
             setStatus("Transaction completed successfully");
+            setTimeout(() => setStatus(""), 3000);
         } catch (error) {
-            setError("Failed to send transaction: " + error);
+            setError(error);
         } finally {
             setIsLoading(false);
         }
@@ -227,7 +231,7 @@ export const SessionKeys = () => {
 
     const handleSendTransactionWithWallet = async () => {
         setIsLoading(true);
-        setError("");
+        setError(null);
         setStatus("Sending transaction with wallet identity...");
         setTransactionHash("");
 
@@ -261,8 +265,9 @@ export const SessionKeys = () => {
             });
 
             setStatus("Transaction completed successfully");
+            setTimeout(() => setStatus(""), 3000);
         } catch (error) {
-            setError("Failed to send transaction: " + error);
+            setError(error);
         } finally {
             setIsLoading(false);
         }
@@ -314,7 +319,7 @@ export const SessionKeys = () => {
                 </div>
             </div>
 
-            {error && <div className="error-message">{error}</div>}
+            {error !== null && <ErrorMessage error={error} />}
             {status && <div className="status-message">{status}</div>}
             {transactionHash && (
                 <div className="transaction-hash">

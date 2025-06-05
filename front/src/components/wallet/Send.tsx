@@ -4,6 +4,7 @@ import { blob_builder, BlobTransaction } from "hyli";
 import { build_proof_transaction, build_blob as check_secret_blob } from "hyli-check-secret";
 import { nodeService } from "../../services/NodeService";
 import { Transaction, webSocketService } from "../../services/WebSocketService";
+import { ErrorMessage } from "../ErrorMessage";
 
 interface SendProps {
     onSend?: (transaction: Omit<Transaction, "id" | "timestamp">) => void;
@@ -14,24 +15,24 @@ export const Send = ({ wallet, onSend }: SendProps) => {
     const [amount, setAmount] = useState<string>("");
     const [address, setAddress] = useState<string>("");
     const [password, setPassword] = useState<string>("password123");
-    const [error, setError] = useState<string>("");
+    const [error, setError] = useState<unknown>(null);
     const [status, setStatus] = useState<string>("");
     const [transactionHash, setTransactionHash] = useState<string>("");
 
     const handleSend = async () => {
-        setError("");
+        setError(null);
         setStatus("Validating input...");
         const parsedAmount = parseFloat(amount);
         if (isNaN(parsedAmount) || parsedAmount <= 0) {
-            setError("Please enter a valid amount");
+            setError(new Error("Please enter a valid amount"));
             return;
         }
         if (!address) {
-            setError("Please enter a valid address");
+            setError(new Error("Please enter a valid address"));
             return;
         }
         if (!password) {
-            setError("Please enter your password");
+            setError(new Error("Please enter your password"));
             return;
         }
 
@@ -78,7 +79,7 @@ export const Send = ({ wallet, onSend }: SendProps) => {
                     });
                 });
             } catch (error) {
-                setError("" + error);
+                setError(error);
                 setStatus("");
                 console.error("Transaction error:", error);
                 return;
@@ -94,7 +95,8 @@ export const Send = ({ wallet, onSend }: SendProps) => {
             setAmount("");
             setAddress("");
         } catch (error) {
-            setError("Transaction failed or timed out");
+            setError(error);
+            setStatus("");
             console.error("Transaction error:", error);
             return;
         }
@@ -116,7 +118,7 @@ export const Send = ({ wallet, onSend }: SendProps) => {
                     placeholder="Enter your password"
                     onChange={(e) => setPassword(e.target.value)}
                 />
-                {error && <div className="error-message">{error}</div>}
+                {error !== null && <ErrorMessage error={error} />}
                 {status && <div className="status-message">{status}</div>}
                 {transactionHash && (
                     <div className="transaction-hash">

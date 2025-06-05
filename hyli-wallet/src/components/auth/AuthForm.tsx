@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { AuthCredentials, AuthProvider } from "../../providers/BaseAuthProvider";
 import { ProviderOption, useWalletInternal } from "../../hooks/useWallet";
 import { RegistrationStage, WalletErrorCallback, WalletEvent, WalletEventCallback } from "../../types/wallet";
+import { getAuthErrorMessage } from "../../utils/errorMessages";
 import "./AuthForm.css";
 
 type AuthStage =
@@ -135,7 +136,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({
         if (onWalletEvent) onWalletEvent(event);
     };
     const onErrorWithStage = (err: Error) => {
-        setError(err.message);
+        const errorDetails = getAuthErrorMessage(err);
+        setError(errorDetails.userMessage);
         setStage("idle");
         setIsSubmitting(false);
         if (onError) onError(err);
@@ -181,7 +183,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({
         try {
             await authAction(provider.type as ProviderOption, credentials);
         } catch (err) {
-            setError((err as Error).message);
+            const errorDetails = getAuthErrorMessage(err as Error);
+            setError(errorDetails.userMessage);
             setStage("idle");
             setIsSubmitting(false);
         } finally {
