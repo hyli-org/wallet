@@ -56,6 +56,10 @@ export class PasswordAuthProvider implements AuthProvider {
             if (!username || !password) {
                 return { success: false, error: "Please fill in all fields" };
             }
+            
+            if (password.length < 8) {
+                return { success: false, error: "Password must be at least 8 characters long" };
+            }
 
             onWalletEvent?.({ account: identity, type: "checking_password", message: `Checking password for log in` });
 

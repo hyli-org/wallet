@@ -144,11 +144,25 @@ export const AuthForm: React.FC<AuthFormProps> = ({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
+        
+        // Validate required fields
+        if (!credentials.username || !credentials.password) {
+            setError("Please fill in all fields");
+            return;
+        }
+        
+        // Password length validation for both login and register
+        if (credentials.password.length < 8) {
+            setError("Password must be at least 8 characters long");
+            return;
+        }
+        
         // Password match check for registration
         if (mode === "register" && credentials.password !== credentials.confirmPassword) {
             setError("Passwords do not match.");
             return;
         }
+        
         setIsSubmitting(true);
         setStage("sending_blob");
 
@@ -250,7 +264,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                             type="password"
                             value={credentials.password}
                             onChange={handleInputChange}
-                            placeholder="Enter your password"
+                            placeholder="Enter your password (min. 8 characters)"
                             disabled={isSubmitting}
                             className={`${classPrefix}-form-input`}
                         />
@@ -265,7 +279,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                                 type="password"
                                 value={credentials.confirmPassword}
                                 onChange={handleInputChange}
-                                placeholder="Confirm your password"
+                                placeholder="Confirm your password (min. 8 characters)"
                                 disabled={isSubmitting}
                                 className={`${classPrefix}-form-input`}
                             />
