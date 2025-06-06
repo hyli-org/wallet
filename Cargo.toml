@@ -12,6 +12,13 @@ client-sdk = { git = "https://github.com/Hyle-org/hyle.git", default-features = 
 hyle-smt-token = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-smt-token", branch = "main" }
 hyle-modules = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-modules", branch = "main" }
 
+
+# sdk = { path = "/home/bertrand/workspace/hyle/crates/contract-sdk", package = "hyle-contract-sdk" }
+# client-sdk = { path = "/home/bertrand/workspace/hyle/crates/client-sdk", default-features = false, package = "hyle-client-sdk" }
+# hyle-smt-token = { path = "/home/bertrand/workspace/hyle/crates/contracts/smt-token", package = "hyle-smt-token" }
+# hyle-modules = { path = "/home/bertrand/workspace/hyle/crates/hyle-modules", package = "hyle-modules" }
+
+
 contracts = { path = "contracts", default-features = false, package = "contracts" }
 wallet = { path = "contracts/wallet", package = "wallet" }
 
