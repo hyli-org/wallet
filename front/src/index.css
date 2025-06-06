@@ -21,3 +21,42 @@ body {
     min-height: 100vh;
     background-color: #ffffff;
 }
+
+/* Error Message Styles */
+.error-message {
+    background-color: #fee;
+    border: 1px solid #fcc;
+    border-radius: 4px;
+    padding: 12px;
+    margin: 8px 0;
+    color: #c00;
+}
+
+.error-main-message {
+    font-weight: 500;
+}
+
+.error-details-toggle {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    text-decoration: underline;
+    font-size: 0.9em;
+    margin-top: 0.5em;
+    padding: 0;
+}
+
+.error-details-toggle:hover {
+    opacity: 0.8;
+}
+
+.error-technical-details {
+    margin-top: 0.5em;
+    padding: 0.5em;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+    font-size: 0.85em;
+    font-family: monospace;
+    word-break: break-word;
+}
