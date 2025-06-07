@@ -33,6 +33,7 @@ import { sessionKeyService } from "../services/SessionKeyService";
 export interface PasswordAuthCredentials extends AuthCredentials {
     password: string;
     confirmPassword?: string;
+    salt: string;
 }
 
 export class PasswordAuthProvider implements AuthProvider {
@@ -42,16 +43,23 @@ export class PasswordAuthProvider implements AuthProvider {
         return true;
     }
 
-    async login({ credentials, onWalletEvent, onError, registerSessionKey }: LoginParams): Promise<AuthResult> {
+    async login({
+        credentials,
+        onWalletEvent,
+        onError,
+        registerSessionKey,
+    }: LoginParams<PasswordAuthCredentials>): Promise<AuthResult> {
         const indexerService = IndexerService.getInstance();
-        const { username, password } = credentials;
+        const { username, password, salt } = credentials;
         const identity = `${username}@${walletContractName}`;
         let getSessKey;
         if (registerSessionKey)
             getSessKey = WalletOperations.getOrReuseSessionKey({
                 username,
                 address: identity,
+                salt,
             });
+
         try {
             if (!username || !password) {
                 return { success: false, error: "Please fill in all fields" };
@@ -65,8 +73,10 @@ export class PasswordAuthProvider implements AuthProvider {
 
             const userAccountInfo = await indexerService.getAccountInfo(username);
             let storedHash = userAccountInfo.auth_method.Password.hash;
+            let storedSalt = userAccountInfo.salt;
 
-            const hashed_password_bytes = await sha256(stringToBytes(password));
+            let salted_password = `${password}:${storedSalt}`;
+            const hashed_password_bytes = await sha256(stringToBytes(salted_password));
             let encoder = new TextEncoder();
             let id_prefix = encoder.encode(`${identity}:`);
             let extended_id = new Uint8Array([...id_prefix, ...hashed_password_bytes]);
@@ -77,6 +87,34 @@ export class PasswordAuthProvider implements AuthProvider {
                 onError?.(new Error("Invalid password"));
                 return { success: false, error: "Invalid password" };
             }
+
+            // Create initial wallet state
+            const wallet: Wallet = {
+                username,
+                address: identity,
+                salt,
+            };
+
+            if (getSessKey) {
+                try {
+                    const sessionKey = await getSessKey;
+                    if (sessionKey) wallet.sessionKey = sessionKey;
+                    else {
+                        let res = await WalletOperations.registerSessionKey(
+                            wallet,
+                            salted_password,
+                            Date.now() + registerSessionKey!.duration,
+                            registerSessionKey!.whitelist,
+                            registerSessionKey!.laneId,
+                            onWalletEvent,
+                            onError
+                        );
+                        wallet.sessionKey = res.sessionKey;
+                    }
+                } catch (error) {}
+            }
+
+            return { success: true, wallet };
         } catch (errorMessage) {
             const error =
                 errorMessage instanceof Error ? errorMessage.message : "Invalid credentials or wallet does not exist";
@@ -86,33 +124,6 @@ export class PasswordAuthProvider implements AuthProvider {
                 error: error,
             };
         }
-
-        // Create initial wallet state
-        const wallet: Wallet = {
-            username,
-            address: identity,
-        };
-
-        if (getSessKey) {
-            try {
-                const sessionKey = await getSessKey;
-                if (sessionKey) wallet.sessionKey = sessionKey;
-                else {
-                    let res = await WalletOperations.registerSessionKey(
-                        wallet,
-                        password,
-                        Date.now() + registerSessionKey!.duration,
-                        registerSessionKey!.whitelist,
-                        registerSessionKey!.laneId,
-                        onWalletEvent,
-                        onError
-                    );
-                    wallet.sessionKey = res.sessionKey;
-                }
-            } catch (error) {}
-        }
-
-        return { success: true, wallet };
     }
 
     async register({
@@ -120,10 +131,10 @@ export class PasswordAuthProvider implements AuthProvider {
         onWalletEvent,
         onError,
         registerSessionKey,
-    }: RegisterAccountParams): Promise<AuthResult> {
+    }: RegisterAccountParams<PasswordAuthCredentials>): Promise<AuthResult> {
         const nodeService = NodeService.getInstance();
         try {
-            const { username, password, confirmPassword, inviteCode } = credentials;
+            const { username, password, confirmPassword, inviteCode, salt } = credentials;
 
             const indexerService = IndexerService.getInstance();
             try {
@@ -155,9 +166,8 @@ export class PasswordAuthProvider implements AuthProvider {
             let inviteCodeBlob;
             try {
                 inviteCodeBlob = await indexerService.claimInviteCode(inviteCode, username);
-                console.log("Invite code claimed:", inviteCodeBlob);
             } catch (error) {
-                console.error("Failed to claim invite code:", error);
+                console.warn("Failed to claim invite code:", error);
                 return {
                     success: false,
                     error: `Failed to claim invite code.`,
@@ -166,9 +176,10 @@ export class PasswordAuthProvider implements AuthProvider {
 
             const identity = `${username}@${walletContractName}`;
 
-            const blob0 = await check_secret_blob(identity, password);
+            let salted_password = `${password}:${salt}`;
+            const blob0 = await check_secret_blob(identity, salted_password);
             const hash = Buffer.from(blob0.data).toString("hex");
-            const blob1 = registerBlob(username, Date.now(), hash, inviteCode);
+            const blob1 = registerBlob(username, Date.now(), salt, hash, inviteCode);
 
             const blobTx: BlobTransaction = {
                 identity,
@@ -199,12 +210,13 @@ export class PasswordAuthProvider implements AuthProvider {
             const wallet: Wallet = {
                 username,
                 address: identity,
+                salt,
             };
 
             onWalletEvent?.({ account: identity, type: "custom", message: `Generating proof of password` });
 
             // Build and send the proof transaction
-            const proofTx = await build_proof_transaction(identity, password, txHash, 0, blobTx.blobs.length);
+            const proofTx = await build_proof_transaction(identity, salted_password, txHash, 0, blobTx.blobs.length);
 
             onWalletEvent?.({ account: identity, type: "sending_proof", message: `Sending proof transaction` });
 

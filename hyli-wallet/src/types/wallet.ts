@@ -11,6 +11,7 @@ export interface SessionKey {
 export interface Wallet {
     username: string;
     address: string;
+    salt: string;
     sessionKey?: SessionKey;
 }
 
@@ -37,6 +38,7 @@ export type WalletAction =
           RegisterIdentity: {
               account: string;
               nonce: number;
+              salt: string;
               auth_method: AuthMethod;
               invite_code: string;
           };
@@ -88,11 +90,12 @@ export interface WalletEvent {
 // Builders
 //
 
-export const registerBlob = (account: string, nonce: number, hash: string, invite_code: string): Blob => {
+export const registerBlob = (account: string, nonce: number, salt: string, hash: string, invite_code: string): Blob => {
     const action: WalletAction = {
         RegisterIdentity: {
             account,
             nonce,
+            salt,
             auth_method: { Password: { hash } },
             invite_code,
         },
@@ -186,6 +189,7 @@ const schema = BorshSchema.Enum({
     RegisterIdentity: BorshSchema.Struct({
         account: BorshSchema.String,
         nonce: BorshSchema.u128,
+        salt: BorshSchema.String,
         auth_method: BorshSchema.Enum({
             Password: BorshSchema.Struct({
                 hash: BorshSchema.String,

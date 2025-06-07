@@ -91,6 +91,7 @@ impl sdk::ZkContract for WalletZkView {
                 nonce,
                 auth_method,
                 invite_code,
+                salt: _,
             } => {
                 check_for_invite_code(
                     &account,
@@ -179,7 +180,7 @@ pub struct SessionKey {
 )]
 pub enum AuthMethod {
     Password {
-        hash: String,
+        hash: String, // Salted hash of the password
     },
     // Special "0" value to indicate uninitialized wallet - second for retrocomp
     #[default]
@@ -423,6 +424,7 @@ pub enum WalletAction {
     RegisterIdentity {
         account: String,
         nonce: u128,
+        salt: String, // Not actually used in the circuit, provided as DA
         auth_method: AuthMethod,
         invite_code: String,
     },
@@ -492,6 +494,7 @@ mod tests {
                     WalletAction::RegisterIdentity {
                         account: "test_account".to_string(),
                         nonce: 1,
+                        salt: "test_salt".to_string(),
                         auth_method: AuthMethod::Password {
                             hash: hex_encoded_hash.clone(),
                         },
@@ -515,6 +518,7 @@ mod tests {
                     WalletAction::RegisterIdentity {
                         account: "test_account2".to_string(),
                         nonce: 1,
+                        salt: "test_salt".to_string(),
                         auth_method: AuthMethod::Password {
                             hash: hex_encoded_hash.clone(),
                         },
@@ -596,6 +600,7 @@ mod tests {
                     WalletAction::RegisterIdentity {
                         account: "test_account2".to_string(),
                         nonce: 1,
+                        salt: "test_salt".to_string(),
                         auth_method: AuthMethod::Password {
                             hash: hex_encoded_hash.clone(),
                         },
@@ -624,6 +629,7 @@ mod tests {
         let register_blob = WalletAction::RegisterIdentity {
             account: "test_account".to_string(),
             nonce: 1,
+            salt: "test_salt".to_string(),
             auth_method: AuthMethod::Password {
                 hash: hex_encoded_hash.clone(),
             },
@@ -695,6 +701,7 @@ mod tests {
         let register_blob = WalletAction::RegisterIdentity {
             account: "test_account".to_string(),
             nonce: 1,
+            salt: "test_salt".to_string(),
             auth_method: AuthMethod::Password {
                 hash: hex_encoded_hash.clone(),
             },
@@ -761,6 +768,7 @@ mod tests {
         let register_blob = WalletAction::RegisterIdentity {
             account: "test_account".to_string(),
             nonce: 1,
+            salt: "test_salt".to_string(),
             auth_method: AuthMethod::Password {
                 hash: hex_encoded_hash.clone(),
             },
@@ -820,6 +828,7 @@ mod tests {
         let register_blob = WalletAction::RegisterIdentity {
             account: "test_account".to_string(),
             nonce: 1,
+            salt: "test_salt".to_string(),
             auth_method: AuthMethod::Password {
                 hash: hex_encoded_hash.clone(),
             },
