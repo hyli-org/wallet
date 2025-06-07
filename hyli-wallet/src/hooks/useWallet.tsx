@@ -30,7 +30,7 @@ export interface WalletContextType {
     ) => Promise<Wallet | undefined>;
     registerAccount: (
         provider: ProviderOption,
-        credentials: AuthCredentials,
+        credentials: AuthCredentials & { inviteCode: string },
         onWalletEvent?: WalletEventCallback,
         onError?: WalletErrorCallback,
         extraParams?: RegisterAccountExtras
@@ -225,7 +225,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
     const registerAccount = useCallback(
         async (
             provider: ProviderOption,
-            credentials: AuthCredentials,
+            credentials: AuthCredentials & { inviteCode: string },
             onWalletEvent?: WalletEventCallback,
             onError?: WalletErrorCallback,
             extraParams?: RegisterAccountExtras

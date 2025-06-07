@@ -15,7 +15,7 @@ use client_sdk::{
     },
     transaction_builder::TxExecutorHandler,
 };
-use sdk::Hashed;
+use sdk::{tracing, Hashed};
 use serde::Serialize;
 
 use crate::{client::tx_executor_handler::Wallet, *};
@@ -80,15 +80,6 @@ impl Wallet {
 }
 
 impl ContractHandler<WalletEvent> for Wallet {
-    async fn api(store: ContractHandlerStore<Wallet>) -> (Router<()>, OpenApi) {
-        let (router, api) = OpenApiRouter::default()
-            .routes(routes!(get_state))
-            .routes(routes!(get_account_info))
-            .split_for_parts();
-
-        (router.with_state(store), api)
-    }
-
     fn handle_transaction_success(
         &mut self,
         tx: &sdk::BlobTransaction,
@@ -121,6 +112,15 @@ impl ContractHandler<WalletEvent> for Wallet {
             program_outputs: "Transaction timeout".to_string(),
         }))
     }
+
+    async fn api(store: ContractHandlerStore<Wallet>) -> (Router<()>, OpenApi) {
+        let (router, api) = OpenApiRouter::default()
+            .routes(routes!(get_state))
+            .routes(routes!(get_account_info))
+            .split_for_parts();
+
+        (router.with_state(store), api)
+    }
 }
 
 #[utoipa::path(
@@ -142,18 +142,19 @@ pub async fn get_state<S: Serialize + Clone + 'static>(
 }
 
 #[derive(Serialize, ToSchema)]
-struct SessionKey {
+struct ApiSessionKey {
     key: String,
     expiration_date: u128,
     nonce: u128,
 }
 
 #[derive(Serialize, ToSchema)]
-struct AccountInfo {
+struct ApiAccountInfo {
     account: String,
     auth_method: AuthMethod,
-    session_keys: Vec<SessionKey>,
+    session_keys: Vec<ApiSessionKey>,
     nonce: u128,
+    salt: String,
 }
 
 #[utoipa::path(
@@ -161,7 +162,7 @@ struct AccountInfo {
     path = "/account/{account}",
     tag = "Contract",
     responses(
-        (status = OK, description = "Get account information", body = AccountInfo),
+        (status = OK, description = "Get account information", body = ApiAccountInfo),
         (status = NOT_FOUND, description = "Account not found")
     ),
     params(
@@ -178,27 +179,35 @@ pub async fn get_account_info(
         anyhow!("Contract '{}' not found", store.contract_name),
     ))?;
 
-    let account_info = state.get(&account).map_err(|_e| {
-        AppError(
-            StatusCode::NOT_FOUND,
-            anyhow!("Account '{}' not found", account),
-        )
-    })?;
+    let account_info = state.get(&account);
+    let salt = state.get_salt(&account);
+
+    let (account_info, salt) = match (account_info, salt) {
+        (Ok(info), Ok(salt)) => (info, salt),
+        (Err(e), _) | (_, Err(e)) => {
+            tracing::debug!("Error retrieving account info or salt: {}", e);
+            return Err(AppError(
+                StatusCode::NOT_FOUND,
+                anyhow!("Account '{}' not found", account),
+            ));
+        }
+    };
 
     let session_keys = account_info
         .session_keys
         .iter()
-        .map(|sk| SessionKey {
+        .map(|sk| ApiSessionKey {
             key: sk.public_key.clone(),
             expiration_date: sk.expiration_date.0,
             nonce: sk.nonce,
         })
         .collect();
 
-    Ok(Json(AccountInfo {
+    Ok(Json(ApiAccountInfo {
         account,
         auth_method: account_info.auth_method.clone(),
         session_keys,
         nonce: account_info.nonce,
+        salt,
     }))
 }
