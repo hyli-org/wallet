@@ -373,7 +373,7 @@ dependencies = [
  "const-hex",
  "derive_more 2.0.1",
  "foldhash",
- "hashbrown 0.15.3",
+ "hashbrown 0.15.4",
  "indexmap 2.9.0",
  "itoa",
  "k256",
@@ -845,7 +845,7 @@ dependencies = [
  "ark-std 0.5.0",
  "educe",
  "fnv",
- "hashbrown 0.15.3",
+ "hashbrown 0.15.4",
  "itertools 0.13.0",
  "num-bigint 0.4.6",
  "num-integer",
@@ -1006,7 +1006,7 @@ dependencies = [
  "ark-std 0.5.0",
  "educe",
  "fnv",
- "hashbrown 0.15.3",
+ "hashbrown 0.15.4",
 ]
 
 [[package]]
@@ -3539,9 +3539,9 @@ dependencies = [
 
 [[package]]
 name = "hashbrown"
-version = "0.15.3"
+version = "0.15.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84b26c544d002229e640969970a2e74021aadf6e2f96372b9c58eff97de08eb3"
+checksum = "5971ac85611da7067dbfcabef3c70ebb5606018acd9e2a3903a0da507521e0d5"
 dependencies = [
  "allocator-api2",
  "equivalent",
@@ -3731,7 +3731,7 @@ dependencies = [
 [[package]]
 name = "hyle-bonsai-runner"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#a557872de8c45dddfadda64a60427f713bcb518e"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=main#6f7eda9699a3bd774108e035913ff48cb852084c"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3749,7 +3749,7 @@ dependencies = [
 [[package]]
 name = "hyle-client-sdk"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#a557872de8c45dddfadda64a60427f713bcb518e"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=main#6f7eda9699a3bd774108e035913ff48cb852084c"
 dependencies = [
  "anyhow",
  "axum",
@@ -3769,7 +3769,7 @@ dependencies = [
 [[package]]
 name = "hyle-contract-sdk"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#a557872de8c45dddfadda64a60427f713bcb518e"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=main#6f7eda9699a3bd774108e035913ff48cb852084c"
 dependencies = [
  "borsh",
  "hyle-model",
@@ -3783,7 +3783,7 @@ dependencies = [
 [[package]]
 name = "hyle-crypto"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#a557872de8c45dddfadda64a60427f713bcb518e"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=main#6f7eda9699a3bd774108e035913ff48cb852084c"
 dependencies = [
  "anyhow",
  "blst",
@@ -3796,7 +3796,7 @@ dependencies = [
 [[package]]
 name = "hyle-model"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#a557872de8c45dddfadda64a60427f713bcb518e"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=main#6f7eda9699a3bd774108e035913ff48cb852084c"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -3819,7 +3819,7 @@ dependencies = [
 [[package]]
 name = "hyle-modules"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#a557872de8c45dddfadda64a60427f713bcb518e"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=main#6f7eda9699a3bd774108e035913ff48cb852084c"
 dependencies = [
  "anyhow",
  "anymap",
@@ -3853,7 +3853,7 @@ dependencies = [
 [[package]]
 name = "hyle-net"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#a557872de8c45dddfadda64a60427f713bcb518e"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=main#6f7eda9699a3bd774108e035913ff48cb852084c"
 dependencies = [
  "anyhow",
  "axum",
@@ -3879,7 +3879,7 @@ dependencies = [
 [[package]]
 name = "hyle-smt-token"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#a557872de8c45dddfadda64a60427f713bcb518e"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=main#6f7eda9699a3bd774108e035913ff48cb852084c"
 dependencies = [
  "anyhow",
  "borsh",
@@ -3893,7 +3893,7 @@ dependencies = [
 [[package]]
 name = "hyle-verifiers"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#a557872de8c45dddfadda64a60427f713bcb518e"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=main#6f7eda9699a3bd774108e035913ff48cb852084c"
 dependencies = [
  "anyhow",
  "borsh",
@@ -4208,7 +4208,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cea70ddb795996207ad57735b50c5982d8844f38ba9ee5f1aedcfb708a2aa11e"
 dependencies = [
  "equivalent",
- "hashbrown 0.15.3",
+ "hashbrown 0.15.4",
  "serde",
 ]
 
@@ -4515,7 +4515,7 @@ version = "0.12.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "234cf4f4a04dc1f57e24b96cc0cd600cf2af460d4161ac5ecdd0af8e1f3b2a38"
 dependencies = [
- "hashbrown 0.15.3",
+ "hashbrown 0.15.4",
 ]
 
 [[package]]
@@ -4524,7 +4524,7 @@ version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "227748d55f2f0ab4735d87fd623798cb6b664512fe979705f829c9f81c934465"
 dependencies = [
- "hashbrown 0.15.3",
+ "hashbrown 0.15.4",
 ]
 
 [[package]]
