@@ -4,6 +4,7 @@ import { ProviderOption, useWalletInternal } from "../../hooks/useWallet";
 import { RegistrationStage, WalletErrorCallback, WalletEvent, WalletEventCallback } from "../../types/wallet";
 import { getAuthErrorMessage } from "../../utils/errorMessages";
 import "./AuthForm.css";
+import { PasswordAuthCredentials } from "../../providers/PasswordAuthProvider";
 
 type AuthStage =
     | "idle" // Initial state, no authentication in progress
@@ -53,6 +54,12 @@ function getRandomFact() {
     return ZK_FUN_FACTS[Math.floor(Math.random() * ZK_FUN_FACTS.length)];
 }
 
+function getRandomSalt() {
+    const array = new Uint8Array(16); // 16 bytes = 128 bits of randomness
+    crypto.getRandomValues(array);
+    return Array.from(array, byte => byte.toString(36)).join('').substring(0, 18);
+}
+
 export const AuthForm: React.FC<AuthFormProps> = ({
     provider,
     mode,
@@ -64,11 +71,12 @@ export const AuthForm: React.FC<AuthFormProps> = ({
     const isLocalhost =
         typeof window !== "undefined" &&
         (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
-    const [credentials, setCredentials] = useState<AuthCredentials & { inviteCode?: string }>({
+    const [credentials, setCredentials] = useState<PasswordAuthCredentials & { inviteCode: string }>({
         username: isLocalhost ? "bob" : "",
         password: isLocalhost ? "hylisecure" : "",
         confirmPassword: isLocalhost ? "hylisecure" : "",
         inviteCode: "",
+        salt: getRandomSalt(),
     });
     const [error, setError] = useState<string>("");
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -137,6 +145,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
         if (onWalletEvent) onWalletEvent(event);
     };
     const onErrorWithStage = (err: Error) => {
+        console.error("AuthForm error:", err);
         const errorDetails = getAuthErrorMessage(err);
         setError(errorDetails.userMessage);
         setStage("idle");
@@ -170,7 +179,10 @@ export const AuthForm: React.FC<AuthFormProps> = ({
         }
         setIsSubmitting(true);
         setStage("sending_blob");
-        const authAction = async (provider: ProviderOption, credentials: AuthCredentials & { inviteCode?: string }) => {
+        const authAction = async (
+            provider: ProviderOption,
+            credentials: PasswordAuthCredentials & { inviteCode: string }
+        ) => {
             if (mode === "login") {
                 await login(provider, credentials, onWalletEventWithStage, onErrorWithStage, {
                     registerSessionKey: autoSessionKey,

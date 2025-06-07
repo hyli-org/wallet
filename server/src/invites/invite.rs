@@ -134,7 +134,7 @@ impl Module for InviteModule {
         sqlx::query(
             r#"CREATE TABLE IF NOT EXISTS invite_codes (
                 id SERIAL PRIMARY KEY,
-                code TEXT NOT NULL UNIQUE,
+                code TEXT NOT NULL,
                 wallet TEXT,
                 used_at TIMESTAMP NULL
             )"#,
@@ -149,6 +149,20 @@ impl Module for InviteModule {
         .expect("INVITE_CODE_PKEY must be a hex string");
         let secret_key = SecretKey::from_slice(&secret_key).expect("32 bytes, within curve order");
         let public_key = PublicKey::from_secret_key(&secp, &secret_key);
+
+        // If we're using the default private key, add some invite codes.
+        if hex::decode("0000000000000001000000000000000100000000000000010000000000000001").unwrap()
+            == secret_key.secret_bytes()
+        {
+            tracing::warn!("Adding default invite codes, this is not secure for production!");
+            let invite_codes = vec!["TOTO", "TOTO", "TOTO", "HYLI", "GORANGE"];
+            for code in invite_codes {
+                sqlx::query("INSERT INTO invite_codes (code) VALUES ($1)")
+                    .bind(code)
+                    .execute(&db)
+                    .await?;
+            }
+        }
 
         // Always send a TX to update the public key, it'll fail if it's bad.
         ctx.node_client

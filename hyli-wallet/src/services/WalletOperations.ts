@@ -149,6 +149,7 @@ export const removeSessionKey = async (
             updatedWallet = {
                 username: wallet.username,
                 address: wallet.address,
+                salt: wallet.salt,
             };
         } else {
             updatedWallet = { ...wallet };
@@ -223,6 +224,7 @@ export const cleanExpiredSessionKeys = (wallet: Wallet): Wallet => {
         const updatedWallet = {
             username: wallet.username,
             address: wallet.address,
+            salt: wallet.salt,
         };
         return updatedWallet;
     }

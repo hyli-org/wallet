@@ -2,7 +2,6 @@ import { Wallet, WalletErrorCallback, WalletEventCallback } from "../types/walle
 
 export interface AuthCredentials {
     username: string;
-    [key: string]: any;
 }
 
 export interface AuthEvents {
@@ -15,8 +14,8 @@ export interface AuthResult {
     error?: string;
 }
 
-export interface LoginParams {
-    credentials: AuthCredentials;
+export interface LoginParams<K extends AuthCredentials = AuthCredentials> {
+    credentials: K;
     onWalletEvent?: WalletEventCallback;
     onError?: WalletErrorCallback;
     registerSessionKey?: {
@@ -25,8 +24,8 @@ export interface LoginParams {
         laneId?: string;
     };
 }
-export interface RegisterAccountParams {
-    credentials: AuthCredentials;
+export interface RegisterAccountParams<K extends AuthCredentials = AuthCredentials> {
+    credentials: K & { inviteCode: string };
     onWalletEvent?: WalletEventCallback;
     onError?: WalletErrorCallback;
     registerSessionKey?: {
@@ -35,9 +34,9 @@ export interface RegisterAccountParams {
     };
 }
 
-export interface AuthProvider {
+export interface AuthProvider<K extends AuthCredentials = AuthCredentials> {
     type: string;
-    login(params: LoginParams): Promise<AuthResult>;
-    register(params: RegisterAccountParams): Promise<AuthResult>;
+    login(params: LoginParams<K>): Promise<AuthResult>;
+    register(params: RegisterAccountParams<K>): Promise<AuthResult>;
     isEnabled(): boolean;
 }
