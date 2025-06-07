@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anyhow::Context;
 use borsh::{BorshDeserialize, BorshSerialize};
 use client_sdk::transaction_builder::TxExecutorHandler;
@@ -19,6 +21,8 @@ pub struct Wallet {
     #[serde_as(as = "[_; 33]")]
     invite_code_public_key: InviteCodePubKey,
     smt: AccountSMT,
+    // Keep track of salts so users can query them.
+    salts: HashMap<String, String>,
 }
 
 impl Default for Wallet {
@@ -27,6 +31,7 @@ impl Default for Wallet {
             // Default bad pubkey, replaced immediately
             invite_code_public_key: DEFAULT_INVITE_CODE_PUBLIC_KEY,
             smt: AccountSMT::default(),
+            salts: HashMap::new(),
         }
     }
 }
@@ -119,6 +124,13 @@ impl Wallet {
         }
     }
 
+    pub fn get_salt(&self, account: &String) -> anyhow::Result<String> {
+        self.salts
+            .get(account)
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("Salt for account {} not found", account))
+    }
+
     pub fn get_state_commitment(&self) -> StateCommitment {
         get_state_commitment(*self.smt.0.root(), self.invite_code_public_key)
     }
@@ -164,6 +176,7 @@ impl Wallet {
             WalletAction::RegisterIdentity {
                 account,
                 nonce,
+                salt,
                 auth_method,
                 invite_code,
             } => {
@@ -173,7 +186,10 @@ impl Wallet {
                     calldata,
                     &self.invite_code_public_key,
                 )?;
-                account_info.handle_registration(account, nonce, auth_method, calldata)
+                let res =
+                    account_info.handle_registration(account.clone(), nonce, auth_method, calldata);
+                self.salts.insert(account, salt);
+                res
             }
             WalletAction::UseSessionKey { account, nonce } => {
                 account_info.handle_session_key_usage(account, nonce, calldata)

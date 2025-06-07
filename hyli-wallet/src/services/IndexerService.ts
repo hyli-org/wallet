@@ -1,4 +1,4 @@
-import { IndexerApiHttpClient } from "hyli";
+import { Blob, IndexerApiHttpClient } from "hyli";
 import { AuthMethod, walletContractName } from "../types/wallet";
 
 interface SessionKey {
@@ -13,6 +13,7 @@ interface AccountInfo {
     auth_method: AuthMethod;
     session_keys: SessionKey[];
     nonce: number;
+    salt: string;
 }
 
 export class IndexerService {
@@ -45,7 +46,7 @@ export class IndexerService {
         return response;
     }
 
-    async claimInviteCode(code: string, wallet: string): Promise<any> {
+    async claimInviteCode(code: string, wallet: string): Promise<Blob> {
         const response = await fetch(`${this.url}/consume_invite`, {
             method: "POST",
             headers: {
