@@ -56,7 +56,7 @@ export class PasswordAuthProvider implements AuthProvider {
             if (!username || !password) {
                 return { success: false, error: "Please fill in all fields" };
             }
-            
+
             if (password.length < 8) {
                 return { success: false, error: "Password must be at least 8 characters long" };
             }
@@ -123,7 +123,7 @@ export class PasswordAuthProvider implements AuthProvider {
     }: RegisterAccountParams): Promise<AuthResult> {
         const nodeService = NodeService.getInstance();
         try {
-            const { username, password, confirmPassword } = credentials;
+            const { username, password, confirmPassword, inviteCode } = credentials;
 
             const indexerService = IndexerService.getInstance();
             try {
@@ -152,15 +152,27 @@ export class PasswordAuthProvider implements AuthProvider {
                 };
             }
 
+            let inviteCodeBlob;
+            try {
+                inviteCodeBlob = await indexerService.claimInviteCode(inviteCode, username);
+                console.log("Invite code claimed:", inviteCodeBlob);
+            } catch (error) {
+                console.error("Failed to claim invite code:", error);
+                return {
+                    success: false,
+                    error: `Failed to claim invite code.`,
+                };
+            }
+
             const identity = `${username}@${walletContractName}`;
 
             const blob0 = await check_secret_blob(identity, password);
             const hash = Buffer.from(blob0.data).toString("hex");
-            const blob1 = registerBlob(username, Date.now(), hash);
+            const blob1 = registerBlob(username, Date.now(), hash, inviteCode);
 
             const blobTx: BlobTransaction = {
                 identity,
-                blobs: [blob0, blob1],
+                blobs: [blob0, blob1, inviteCodeBlob],
             };
 
             let newSessionKey;

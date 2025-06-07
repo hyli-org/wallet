@@ -8,18 +8,38 @@ use sdk::{
 use serde::Serialize;
 
 use crate::{
-    smt::AccountSMT, AccountInfo, AuthMethod, PartialWalletData, WalletAction, WalletZkView,
+    check_for_invite_code, get_state_commitment, smt::AccountSMT, AccountInfo, AuthMethod,
+    InviteCodePubKey, PartialWalletData, WalletAction, WalletZkView,
+    DEFAULT_INVITE_CODE_PUBLIC_KEY,
 };
 
-#[derive(Debug, Default, Clone, Serialize, BorshSerialize, BorshDeserialize)]
+#[serde_with::serde_as]
+#[derive(Debug, Clone, Serialize, BorshSerialize, BorshDeserialize)]
 pub struct Wallet {
+    #[serde_as(as = "[_; 33]")]
+    invite_code_public_key: InviteCodePubKey,
     smt: AccountSMT,
+}
+
+impl Default for Wallet {
+    fn default() -> Self {
+        Self {
+            // Default bad pubkey, replaced immediately
+            invite_code_public_key: DEFAULT_INVITE_CODE_PUBLIC_KEY,
+            smt: AccountSMT::default(),
+        }
+    }
 }
 
 impl TxExecutorHandler for Wallet {
     fn build_commitment_metadata(&self, blob: &Blob) -> anyhow::Result<Vec<u8>> {
         let wallet_action: WalletAction = WalletAction::from_blob_data(&blob.data)?;
         let zk_view = match wallet_action {
+            WalletAction::UpdateInviteCodePublicKey { .. } => WalletZkView {
+                commitment: get_state_commitment(*self.smt.0.root(), self.invite_code_public_key),
+                invite_code_public_key: self.invite_code_public_key,
+                partial_data: vec![],
+            },
             WalletAction::RegisterIdentity { account, .. }
             | WalletAction::VerifyIdentity { account, .. }
             | WalletAction::UseSessionKey { account, .. }
@@ -28,9 +48,8 @@ impl TxExecutorHandler for Wallet {
                 let mut account_info = self.smt.0.get(&AccountInfo::compute_key(&account))?;
                 account_info.identity = account.clone();
                 WalletZkView {
-                    commitment: StateCommitment(
-                        Into::<[u8; 32]>::into(*self.smt.0.root()).to_vec(),
-                    ),
+                    commitment: self.get_state_commitment(),
+                    invite_code_public_key: self.invite_code_public_key,
                     partial_data: vec![PartialWalletData {
                         proof: BorshableMerkleProof(
                             self.smt
@@ -76,6 +95,15 @@ impl TxExecutorHandler for Wallet {
 }
 
 impl Wallet {
+    pub fn get_smt_root(&self) -> [u8; 32] {
+        self.smt
+            .0
+            .root()
+            .as_slice()
+            .try_into()
+            .expect("SMT root is not 32 bytes")
+    }
+
     pub fn get(&self, account: &String) -> anyhow::Result<AccountInfo> {
         let acc = self
             .smt
@@ -92,21 +120,38 @@ impl Wallet {
     }
 
     pub fn get_state_commitment(&self) -> StateCommitment {
-        StateCommitment(Into::<[u8; 32]>::into(*self.smt.0.root()).to_vec())
+        get_state_commitment(*self.smt.0.root(), self.invite_code_public_key)
     }
 
     fn actual_handle(&mut self, calldata: &Calldata) -> Result<sdk::HyleOutput, String> {
-        let initial_state_commitment =
-            StateCommitment(Into::<[u8; 32]>::into(*self.smt.0.root()).to_vec());
+        let initial_state_commitment = self.get_state_commitment();
 
         let (action, exec_ctx) = sdk::utils::parse_raw_calldata::<WalletAction>(calldata)?;
 
+        if let WalletAction::UpdateInviteCodePublicKey {
+            invite_code_public_key,
+            ..
+        } = action
+        {
+            // Source of trust is trust me bro for this one.
+            if self.invite_code_public_key != DEFAULT_INVITE_CODE_PUBLIC_KEY {
+                return Err("Invite code public key already set".to_string());
+            }
+            self.invite_code_public_key = invite_code_public_key;
+            return Ok(as_hyle_output(
+                initial_state_commitment,
+                self.get_state_commitment(),
+                calldata,
+                &mut Ok(("Updated public key".as_bytes().to_vec(), exec_ctx, vec![])),
+            ));
+        }
         let acc = match action.clone() {
             WalletAction::RegisterIdentity { account, .. }
             | WalletAction::VerifyIdentity { account, .. }
             | WalletAction::UseSessionKey { account, .. }
             | WalletAction::AddSessionKey { account, .. }
             | WalletAction::RemoveSessionKey { account, .. } => account,
+            _ => unreachable!(),
         };
         let mut account_info = self
             .smt
@@ -120,7 +165,16 @@ impl Wallet {
                 account,
                 nonce,
                 auth_method,
-            } => account_info.handle_registration(account, nonce, auth_method, calldata),
+                invite_code,
+            } => {
+                check_for_invite_code(
+                    &account,
+                    &invite_code,
+                    calldata,
+                    &self.invite_code_public_key,
+                )?;
+                account_info.handle_registration(account, nonce, auth_method, calldata)
+            }
             WalletAction::UseSessionKey { account, nonce } => {
                 account_info.handle_session_key_usage(account, nonce, calldata)
             }
@@ -131,8 +185,8 @@ impl Wallet {
             .0
             .update(AccountInfo::compute_key(&acc), account_info)
             .map_err(|e| format!("Failed to update account info in SMT: {}", e))?;
-        let next_state_commitment =
-            StateCommitment(Into::<[u8; 32]>::into(*self.smt.0.root()).to_vec());
+
+        let next_state_commitment = self.get_state_commitment();
 
         let mut res = result.map(|res| (res.into_bytes(), exec_ctx, vec![]));
         Ok(as_hyle_output(

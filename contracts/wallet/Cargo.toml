@@ -18,9 +18,6 @@ serde = { version = "1.0", default-features = false, features = [
 borsh = { version = "1.5.7" }
 hex = { version = "0.4.3" }
 
-risc0-zkvm = { version = "2.1", default-features = false, optional = true, features = [
-  'std',
-] }
 sdk = { workspace = true, features = ["tracing", "smt"] }
 client-sdk = { workspace = true, default-features = false, features = [
   "indexer",
@@ -29,8 +26,9 @@ client-sdk = { workspace = true, default-features = false, features = [
 
 sparse-merkle-tree = "0.6.1"
 sha2 = { workspace = true }
+serde_with = "3.12.0"        # Used in invite codes
 
-risc0-zkvm = { version = "2.0.2", default-features = false, optional = true, features = [
+risc0-zkvm = { version = "2.1", default-features = false, optional = true, features = [
   'std',
 ] }
 
