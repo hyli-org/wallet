@@ -23,10 +23,10 @@ use hyle_modules::{
 
 use hyle_smt_token::client::tx_executor_handler::SmtTokenProvableState;
 use prometheus::Registry;
-use sdk::{api::NodeInfo, info, ContractName, ZkContract};
+use sdk::{api::NodeInfo, info, ContractName};
 use std::sync::{Arc, Mutex};
 use tracing::error;
-use wallet::{client::indexer::WalletEvent, Wallet};
+use wallet::client::{indexer::WalletEvent, tx_executor_handler::Wallet};
 
 mod app;
 mod conf;
@@ -69,7 +69,7 @@ async fn main() -> Result<()> {
     let contracts = vec![init::ContractInit {
         name: wallet_cn.clone(),
         program_id: contracts::WALLET_ID,
-        initial_state: Wallet::default().commit(),
+        initial_state: Wallet::default().get_state_commitment(),
     }];
 
     match init::init_node(node_client.clone(), indexer_client.clone(), contracts).await {
@@ -122,8 +122,8 @@ async fn main() -> Result<()> {
             contract_name: wallet_cn.clone(),
             node: app_ctx.node_client.clone(),
             default_state: Default::default(),
-            buffer_blocks: config.wallet_buffer_blocks,
-            max_txs_per_proof: config.wallet_max_txs_per_proof,
+            buffer_blocks: 1,
+            max_txs_per_proof: 30,
         }))
         .await?;
     handler
@@ -135,8 +135,8 @@ async fn main() -> Result<()> {
             contract_name: "oranj".into(),
             node: app_ctx.node_client.clone(),
             default_state: Default::default(),
-            buffer_blocks: config.smt_buffer_blocks,
-            max_txs_per_proof: config.smt_max_txs_per_proof,
+            buffer_blocks: 1,
+            max_txs_per_proof: 30,
         }))
         .await?;
 

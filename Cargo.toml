@@ -21,6 +21,7 @@ hyle-modules = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-m
 
 contracts = { path = "contracts", default-features = false, package = "contracts" }
 wallet = { path = "contracts/wallet", package = "wallet" }
+sha2 = "0.10.8"
 
 [workspace.package]
 version = "0.4.1"

@@ -7891,6 +7891,8 @@ dependencies = [
  "hyle-contract-sdk",
  "risc0-zkvm",
  "serde",
+ "sha2",
+ "sparse-merkle-tree",
  "tokio",
  "tracing-subscriber 0.3.19",
  "wallet",

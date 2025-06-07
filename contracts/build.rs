@@ -105,7 +105,7 @@ fn main() {
             .unwrap();
     }
 
-    if reproducible {
+    if true || reproducible {
         methods.iter().for_each(|data| {
             std::fs::write(format!("{}/{}.img", data.name, data.name), &data.elf)
                 .expect("failed to write img");
