@@ -19,7 +19,7 @@ serde = { version = "1.0", default-features = false, features = [
 borsh = { version = "1.5.7" }
 hex = { version = "0.4.3" }
 
-risc0-zkvm = { version = "2.0.2", default-features = false, optional = true, features = [
+risc0-zkvm = { version = "2.1", default-features = false, optional = true, features = [
   'std',
 ] }
 client-sdk = { workspace = true, default-features = false, features = [
@@ -33,7 +33,7 @@ wallet = { path = ".", features = ["client"] }
 clap = { version = "4.5.23", features = ["derive"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tokio = { version = "1.44.2", features = ["full", "tracing"] }
-risc0-zkvm = { version = "2.0.2", default-features = false, features = [
+risc0-zkvm = { version = "2.1", default-features = false, features = [
   'std',
   'prove',
 ] }
