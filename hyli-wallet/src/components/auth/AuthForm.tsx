@@ -55,7 +55,9 @@ function getRandomFact() {
 }
 
 function getRandomSalt() {
-    return Math.random().toString(36).substring(2, 20);
+    const array = new Uint8Array(16); // 16 bytes = 128 bits of randomness
+    crypto.getRandomValues(array);
+    return Array.from(array, byte => byte.toString(36)).join('').substring(0, 18);
 }
 
 export const AuthForm: React.FC<AuthFormProps> = ({
