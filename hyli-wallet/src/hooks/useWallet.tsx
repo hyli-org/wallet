@@ -236,12 +236,26 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
                 (onError ?? internalOnError)?.(error);
                 throw error;
             }
-            let result = await authProvider.register({
-                credentials,
-                onWalletEvent: onWalletEvent ?? internalOnWalletEvent,
-                onError: onError ?? internalOnError,
-                registerSessionKey: getRegSessKey(extraParams?.registerSessionKey),
-            });
+            let result: AuthResult;
+            try {
+                result = await authProvider.register({
+                    credentials,
+                    onWalletEvent: onWalletEvent ?? internalOnWalletEvent,
+                    onError: onError ?? internalOnError,
+                    registerSessionKey: getRegSessKey(extraParams?.registerSessionKey),
+                });
+            } catch (error) {
+                (onError ?? internalOnError)?.(error as Error);
+                result = {
+                    success: false,
+                    error: "Unknown error",
+                };
+            }
+            if (!result.success) {
+                const error = new Error(result.error || "Registration failed");
+                (onError ?? internalOnError)?.(error);
+                return undefined;
+            }
             setWallet(result.wallet ?? null);
             if (result.wallet)
                 (onWalletEvent ?? internalOnWalletEvent)?.({

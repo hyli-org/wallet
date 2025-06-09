@@ -1,3 +1,5 @@
+use std::vec;
+
 use borsh::{io::Error, BorshDeserialize, BorshSerialize};
 #[cfg(feature = "client")]
 use client_sdk::contract_indexer::utoipa;
@@ -8,15 +10,44 @@ use sdk::{
     ContractName, LaneId, RunResult, StateCommitment,
 };
 use serde::{Deserialize, Serialize};
-use sparse_merkle_tree::traits::Value;
+use sha2::{Digest, Sha256};
+use sparse_merkle_tree::{traits::Value, H256};
 
 #[cfg(feature = "client")]
 pub mod client;
 pub mod smt;
 
+pub type InviteCodePubKey = [u8; 33];
+pub const DEFAULT_INVITE_CODE_PUBLIC_KEY: InviteCodePubKey = [
+    2, 82, 222, 37, 58, 251, 184, 56, 112, 182, 255, 255, 252, 221, 235, 53, 107, 2, 98, 178, 4,
+    234, 13, 218, 118, 136, 8, 202, 95, 190, 184, 177, 226,
+];
+
+fn get_state_commitment(root: H256, pubkey: InviteCodePubKey) -> StateCommitment {
+    let mut hasher = Sha256::new();
+    hasher.update(root.as_slice());
+    hasher.update(pubkey);
+    let result = hasher.finalize();
+    StateCommitment(result.to_vec())
+}
+
 impl sdk::ZkContract for WalletZkView {
     fn execute(&mut self, calldata: &sdk::Calldata) -> RunResult {
         let (action, ctx) = sdk::utils::parse_raw_calldata::<WalletAction>(calldata)?;
+
+        if let WalletAction::UpdateInviteCodePublicKey {
+            invite_code_public_key,
+            smt_root,
+        } = action
+        {
+            // Source of trust is trust me bro for this one.
+            if self.invite_code_public_key != DEFAULT_INVITE_CODE_PUBLIC_KEY {
+                return Err("Invite code public key already set".to_string());
+            }
+            self.invite_code_public_key = invite_code_public_key;
+            self.commitment = get_state_commitment(H256::from(smt_root), invite_code_public_key);
+            return Ok(("Updated public key".as_bytes().to_vec(), ctx, vec![]));
+        }
 
         // If we don't have state for this calldata, then the proof cannot be generated and we must panic.
         let PartialWalletData {
@@ -30,16 +61,24 @@ impl sdk::ZkContract for WalletZkView {
         let account_key = AccountInfo::compute_key(&account_info.identity);
         let leaves = vec![(account_key, account_info.to_h256())];
 
+        // Validate internal consistency, then check hash.
+        let root = proof
+            .0
+            .clone()
+            .compute_root::<SHA256Hasher>(leaves.clone())
+            .expect("Failed to compute root from proof");
         let verified = proof
             .0
             .clone()
-            .verify::<SHA256Hasher>(
-                &TryInto::<[u8; 32]>::try_into(self.commitment.0.clone())
-                    .unwrap()
-                    .into(),
-                leaves.clone(),
-            )
+            .verify::<SHA256Hasher>(&root, leaves.clone())
             .map_err(|e| format!("Failed to verify proof: {}", e))?;
+        if self.commitment != get_state_commitment(root, self.invite_code_public_key) {
+            panic!(
+                "State commitment mismatch: expected {:?}, got {:?}",
+                self.commitment,
+                get_state_commitment(root, self.invite_code_public_key)
+            );
+        }
 
         if !verified {
             // Proof is invalid and we must panic.
@@ -51,7 +90,16 @@ impl sdk::ZkContract for WalletZkView {
                 account,
                 nonce,
                 auth_method,
-            } => account_info.handle_registration(account, nonce, auth_method, calldata)?,
+                invite_code,
+            } => {
+                check_for_invite_code(
+                    &account,
+                    &invite_code,
+                    calldata,
+                    &self.invite_code_public_key,
+                )?;
+                account_info.handle_registration(account, nonce, auth_method, calldata)?
+            }
             WalletAction::UseSessionKey { account, nonce } => {
                 account_info.handle_session_key_usage(account, nonce, calldata)?
             }
@@ -65,7 +113,7 @@ impl sdk::ZkContract for WalletZkView {
             .compute_root::<SHA256Hasher>(leaves)
             .expect("Failed to compute new root");
 
-        self.commitment = StateCommitment(Into::<[u8; 32]>::into(new_root).to_vec());
+        self.commitment = get_state_commitment(new_root, self.invite_code_public_key);
 
         Ok((res.into_bytes(), ctx, vec![]))
     }
@@ -80,6 +128,7 @@ impl sdk::ZkContract for WalletZkView {
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone)]
 pub struct WalletZkView {
     pub commitment: sdk::StateCommitment,
+    pub invite_code_public_key: InviteCodePubKey,
     pub partial_data: Vec<PartialWalletData>,
 }
 
@@ -162,6 +211,30 @@ impl AuthMethod {
             }
         }
     }
+}
+
+#[allow(dead_code, unused)]
+fn check_for_invite_code(
+    account: &String,
+    invite_code: &String,
+    calldata: &sdk::Calldata,
+    invite_code_public_key: &InviteCodePubKey,
+) -> Result<(), String> {
+    #[cfg(test)]
+    {
+        if invite_code == "test_invite_code" {
+            return Ok(());
+        }
+        return Err("Invalid invite code for testing".to_string());
+    }
+    // Data to sign: "Invite - {invite_code} for {account}"
+    let data = format!("Invite - {} for {}", invite_code, account);
+    // Check if the calldata contains a secp256k1 blob with the expected data
+    let blob = CheckSecp256k1::new(calldata, data.as_bytes()).expect()?;
+    if blob.public_key != *invite_code_public_key {
+        return Err("Invalid public key".to_string());
+    }
+    Ok(())
 }
 
 /// Methods to handle the actions of the Wallet contract
@@ -344,12 +417,14 @@ impl WalletZkView {
 }
 
 /// Enum representing the actions that can be performed by the IdentityVerification contract.
+#[serde_with::serde_as]
 #[derive(Serialize, Deserialize, BorshSerialize, BorshDeserialize, Debug, Clone)]
 pub enum WalletAction {
     RegisterIdentity {
         account: String,
         nonce: u128,
         auth_method: AuthMethod,
+        invite_code: String,
     },
     VerifyIdentity {
         account: String,
@@ -369,6 +444,12 @@ pub enum WalletAction {
     UseSessionKey {
         account: String,
         nonce: u128,
+    },
+    // Last for binary compatibility
+    UpdateInviteCodePublicKey {
+        #[serde_as(as = "[_; 33]")]
+        invite_code_public_key: InviteCodePubKey,
+        smt_root: [u8; 32],
     },
 }
 
@@ -414,6 +495,7 @@ mod tests {
                         auth_method: AuthMethod::Password {
                             hash: hex_encoded_hash.clone(),
                         },
+                        invite_code: "test_invite_code".to_string(),
                     }
                     .as_blob(sdk::ContractName("wallet".to_string())),
                     Blob {
@@ -436,6 +518,7 @@ mod tests {
                         auth_method: AuthMethod::Password {
                             hash: hex_encoded_hash.clone(),
                         },
+                        invite_code: "test_invite_code".to_string(),
                     }
                     .as_blob(sdk::ContractName("wallet".to_string())),
                     Blob {
@@ -516,6 +599,7 @@ mod tests {
                         auth_method: AuthMethod::Password {
                             hash: hex_encoded_hash.clone(),
                         },
+                        invite_code: "test_invite_code".to_string(),
                     }
                     .as_blob(sdk::ContractName("wallet".to_string())),
                     Blob {
@@ -543,6 +627,7 @@ mod tests {
             auth_method: AuthMethod::Password {
                 hash: hex_encoded_hash.clone(),
             },
+            invite_code: "test_invite_code".to_string(),
         }
         .as_blob(sdk::ContractName("wallet".to_string()));
         let register_call = &Calldata {
@@ -613,6 +698,7 @@ mod tests {
             auth_method: AuthMethod::Password {
                 hash: hex_encoded_hash.clone(),
             },
+            invite_code: "test_invite_code".to_string(),
         }
         .as_blob(sdk::ContractName("wallet".to_string()));
         let identity_blob = WalletAction::VerifyIdentity {
@@ -659,5 +745,113 @@ mod tests {
         zk_view
             .execute(&verify_call.clone())
             .expect("Failed to execute zk view");
+    }
+
+    #[test]
+    fn test_merkle_invite_code() {
+        let password_hash = "test_hash".to_string().into_bytes();
+        let hex_encoded_hash = hex::encode(password_hash.clone());
+
+        let change_invite_code_public_key = WalletAction::UpdateInviteCodePublicKey {
+            invite_code_public_key: [4; 33],
+            smt_root: [0; 32],
+        };
+        let pubkey_blob =
+            change_invite_code_public_key.as_blob(sdk::ContractName("wallet".to_string()));
+        let register_blob = WalletAction::RegisterIdentity {
+            account: "test_account".to_string(),
+            nonce: 1,
+            auth_method: AuthMethod::Password {
+                hash: hex_encoded_hash.clone(),
+            },
+            invite_code: "test_invite_code".to_string(),
+        }
+        .as_blob(sdk::ContractName("wallet".to_string()));
+        let blobs = IndexedBlobs::from(vec![
+            pubkey_blob.clone(),
+            register_blob.clone(),
+            Blob {
+                contract_name: sdk::ContractName("check_secret".to_string()),
+                data: sdk::BlobData(password_hash.clone()),
+            },
+        ]);
+        let pubkey_call = &Calldata {
+            blobs: blobs.clone(),
+            index: BlobIndex(0),
+            ..Default::default()
+        };
+        let register_call = &Calldata {
+            blobs: blobs.clone(),
+            index: BlobIndex(1),
+            ..Default::default()
+        };
+
+        let mut wallet = Wallet::default();
+        {
+            let v = wallet.build_commitment_metadata(&pubkey_blob).unwrap();
+            let mut zk_view: WalletZkView = borsh::from_slice(&v).unwrap();
+
+            zk_view.execute(&pubkey_call.clone()).unwrap();
+            wallet.handle(pubkey_call).unwrap();
+            assert_eq!(
+                zk_view.invite_code_public_key, [4; 33],
+                "Public key should be updated"
+            );
+            assert_eq!(zk_view.commitment, wallet.get_state_commitment());
+        }
+        {
+            let v = wallet.build_commitment_metadata(&register_blob).unwrap();
+            let mut zk_view: WalletZkView = borsh::from_slice(&v).unwrap();
+
+            zk_view.execute(&register_call.clone()).unwrap();
+            wallet.handle(register_call).unwrap();
+            wallet
+                .get(&"test_account".to_string())
+                .expect("Account should be registered");
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "State commitment mismatch")]
+    fn test_bad_merkle() {
+        let password_hash = "test_hash".to_string().into_bytes();
+        let hex_encoded_hash = hex::encode(password_hash.clone());
+
+        let register_blob = WalletAction::RegisterIdentity {
+            account: "test_account".to_string(),
+            nonce: 1,
+            auth_method: AuthMethod::Password {
+                hash: hex_encoded_hash.clone(),
+            },
+            invite_code: "test_invite_code".to_string(),
+        }
+        .as_blob(sdk::ContractName("wallet".to_string()));
+        let register_call = &Calldata {
+            blobs: IndexedBlobs::from(vec![
+                register_blob.clone(),
+                Blob {
+                    contract_name: sdk::ContractName("check_secret".to_string()),
+                    data: sdk::BlobData(password_hash.clone()),
+                },
+            ]),
+            index: BlobIndex(0),
+            ..Default::default()
+        };
+
+        let mut wallet = Wallet::default();
+        let v = wallet
+            .build_commitment_metadata(&register_blob)
+            .expect("Failed to build commitment metadata");
+
+        let mut zk_view: WalletZkView =
+            borsh::from_slice(&v).expect("Failed to deserialize zk view");
+        zk_view.commitment = StateCommitment(vec![4; 32]); // Force a bad commitment
+        assert_eq!(zk_view.partial_data.len(), 1);
+        zk_view
+            .execute(&register_call.clone())
+            .expect("Failed to execute zk view");
+        wallet
+            .handle(register_call)
+            .expect("Failed to handle register call");
     }
 }
