@@ -1,3 +1,4 @@
+use sha2::Digest;
 use std::collections::HashMap;
 
 use anyhow::Context;
@@ -25,6 +26,32 @@ pub struct Wallet {
     salts: HashMap<String, String>,
 }
 
+#[serde_with::serde_as]
+#[derive(Debug, Clone, Serialize, BorshSerialize, BorshDeserialize)]
+pub struct WalletConstructor {
+    hyli_password_hash: String,
+    #[serde_as(as = "[_; 33]")]
+    invite_code_public_key: InviteCodePubKey,
+}
+
+impl WalletConstructor {
+    pub fn new(hyli_password: String, invite_code_public_key: InviteCodePubKey) -> Self {
+        let mut d = "hyli@wallet:".as_bytes().to_vec();
+
+        d.extend_from_slice(&sha2::Sha256::digest(format!(
+            "{}:{}",
+            hyli_password, "hyli-random-salt"
+        )));
+        let hash = sha2::Sha256::digest(&d);
+
+        Self {
+            hyli_password_hash: hex::encode(hash),
+            invite_code_public_key,
+        }
+    }
+}
+
+/*
 impl Default for Wallet {
     fn default() -> Self {
         Self {
@@ -35,7 +62,7 @@ impl Default for Wallet {
         }
     }
 }
-
+ */
 impl TxExecutorHandler for Wallet {
     fn build_commitment_metadata(&self, blob: &Blob) -> anyhow::Result<Vec<u8>> {
         let wallet_action: WalletAction = WalletAction::from_blob_data(&blob.data)?;
@@ -93,13 +120,52 @@ impl TxExecutorHandler for Wallet {
 
     fn construct_state(
         _register_blob: &RegisterContractEffect,
-        _metadata: &Option<Vec<u8>>,
+        metadata: &Option<Vec<u8>>,
     ) -> anyhow::Result<Self> {
-        Ok(Self::default())
+        let mut this = Self {
+            // Default bad pubkey, replaced immediately
+            invite_code_public_key: DEFAULT_INVITE_CODE_PUBLIC_KEY,
+            smt: AccountSMT::default(),
+            salts: HashMap::new(),
+        };
+        if let Some(Ok(constructor_data)) = metadata
+            .as_ref()
+            .map(|m| borsh::from_slice::<WalletConstructor>(m))
+        {
+            this.invite_code_public_key = constructor_data.invite_code_public_key;
+            this.smt
+                .0
+                .update(
+                    AccountInfo::compute_key(&"hyli".to_string()),
+                    AccountInfo {
+                        identity: "hyli".to_string(),
+                        auth_method: AuthMethod::Password {
+                            hash: constructor_data.hyli_password_hash.clone(),
+                        },
+                        session_keys: vec![],
+                        nonce: 0,
+                    },
+                )
+                .map_err(|e| anyhow::anyhow!("Failed to update account info in SMT: {}", e))?;
+            this.salts
+                .insert("hyli".to_string(), "hyli-random-salt".to_string());
+        }
+
+        Ok(this)
     }
 }
 
 impl Wallet {
+    pub fn new(constructor: &Option<WalletConstructor>) -> anyhow::Result<Self> {
+        Wallet::construct_state(
+            &RegisterContractEffect::default(),
+            &constructor
+                .as_ref()
+                .map(|c| borsh::to_vec(&c).context("serializing wallet constructor"))
+                .transpose()?,
+        )
+    }
+
     pub fn get_smt_root(&self) -> [u8; 32] {
         self.smt
             .0

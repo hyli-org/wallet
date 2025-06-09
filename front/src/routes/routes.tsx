@@ -21,17 +21,12 @@ export const getPublicRoutes = (): RouteObject[] => [
     { path: "*", element: <Navigate to={ROUTES.ROOT} replace /> },
 ];
 
-export const getProtectedRoutes = (
-    wallet: Wallet | null,
-    balance: number,
-    transactions: any[],
-    onLogout: () => void
-): RouteObject[] => [
+export const getProtectedRoutes = (wallet: Wallet | null, transactions: any[], onLogout: () => void): RouteObject[] => [
     {
         path: ROUTES.WALLET,
         element: <WalletLayout wallet={wallet!} onLogout={onLogout} />,
         children: [
-            { path: "balance", element: <Balance wallet={wallet!} balance={balance} /> },
+            { path: "balance", element: <Balance wallet={wallet!} /> },
             { path: "send", element: <Send wallet={wallet!} /> },
             { path: "history", element: <History transactions={transactions} /> },
             { path: "session-keys", element: <SessionKeys /> },

@@ -13,7 +13,7 @@ function AppContent() {
     const navigate = useNavigate();
 
     // Use custom hooks
-    const { balance, fetchBalance } = useWalletBalance(wallet?.address);
+    const { fetchBalance } = useWalletBalance(wallet?.address);
     const { transactions, handleTxEvent } = useWalletTransactions(wallet?.address);
 
     // Setup WebSocket connection
@@ -32,12 +32,12 @@ function AppContent() {
 
     // Generate routes based on authentication state
     const publicRoutes = getPublicRoutes();
-    const protectedRoutes = getProtectedRoutes(wallet, balance, transactions, handleLogout);
+    const protectedRoutes = getProtectedRoutes(wallet, transactions, handleLogout);
     const allRoutes = [...publicRoutes, ...protectedRoutes];
 
     return (
         <div>
-            <WalletShowcase providers={["password", "google", "github"]} />
+            {!wallet && <WalletShowcase providers={["password", "google", "github"]} />}
             {wallet && (
                 <Routes>
                     {allRoutes.map((route) => (
@@ -71,6 +71,7 @@ export default function App() {
                     duration: 60 * 60 * 1000, // 1 hour
                     whitelist: ["oranj"],
                 }}
+                forceSessionKey={false}
             >
                 <WebSocketProvider>
                     <AppContent />

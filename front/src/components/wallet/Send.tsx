@@ -5,6 +5,7 @@ import { build_proof_transaction, build_blob as check_secret_blob } from "hyli-c
 import { nodeService } from "../../services/NodeService";
 import { Transaction, webSocketService } from "../../services/WebSocketService";
 import { ErrorMessage } from "../ErrorMessage";
+import { indexerService } from "../../services/IndexerService";
 
 interface SendProps {
     onSend?: (transaction: Omit<Transaction, "id" | "timestamp">) => void;
@@ -15,6 +16,7 @@ export const Send = ({ wallet, onSend }: SendProps) => {
     const [amount, setAmount] = useState<string>("");
     const [address, setAddress] = useState<string>("");
     const [password, setPassword] = useState<string>("password123");
+    const [contract, setContract] = useState<string>("oranj");
     const [error, setError] = useState<unknown>(null);
     const [status, setStatus] = useState<string>("");
     const [transactionHash, setTransactionHash] = useState<string>("");
@@ -36,11 +38,14 @@ export const Send = ({ wallet, onSend }: SendProps) => {
             return;
         }
 
+        const accountInfo = await indexerService.getAccountInfo(wallet.username);
+        const salted_password = `${password}:${accountInfo.salt}`;
+
         const blob1 = verifyIdentity(wallet.username, Date.now());
         const identity = `${wallet.username}@${blob1.contract_name}`;
-        const blob0 = await check_secret_blob(identity, password);
+        const blob0 = await check_secret_blob(identity, salted_password);
 
-        const blob2 = blob_builder.smt_token.transfer(identity, address, "oranj", BigInt(parsedAmount), null);
+        const blob2 = blob_builder.smt_token.transfer(identity, address, contract, BigInt(parsedAmount), null);
 
         const blobTx: BlobTransaction = {
             identity,
@@ -52,7 +57,7 @@ export const Send = ({ wallet, onSend }: SendProps) => {
             const tx_hash = await nodeService.client.sendBlobTx(blobTx);
             setTransactionHash(tx_hash);
             setStatus("Building proof transaction (this may take a few moments)...");
-            const proofTx = await build_proof_transaction(identity, password, tx_hash, 0, blobTx.blobs.length);
+            const proofTx = await build_proof_transaction(identity, salted_password, tx_hash, 0, blobTx.blobs.length);
             setStatus("Sending proof transaction...");
             await nodeService.client.sendProofTx(proofTx);
             setStatus("Waiting for transaction confirmation...");
@@ -106,10 +111,15 @@ export const Send = ({ wallet, onSend }: SendProps) => {
         <div className="send-section">
             <div className="send-form">
                 <h2>Send Funds</h2>
+                <select value={contract} onChange={(e) => setContract(e.target.value)} style={{ marginBottom: 8 }}>
+                    <option value="oranj">oranj</option>
+                    <option value="oxygen">oxygen</option>
+                    <option value="vitamin">vitamin</option>
+                </select>
                 <input type="number" placeholder="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} />
                 <input
                     type="text"
-                    placeholder="Recipient Address"
+                    placeholder="Recipient Address (e.g. yourfriend@wallet)"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                 />

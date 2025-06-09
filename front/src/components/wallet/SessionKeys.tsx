@@ -1,19 +1,9 @@
 import { useState, useEffect } from "react";
-import {
-    serializeIdentityAction,
-    serializeSecp256k1Blob,
-    sessionKeyService,
-    useWallet,
-    WalletAction,
-    walletContractName,
-    WalletEvent,
-} from "hyli-wallet";
+import { useWallet, WalletEvent } from "hyli-wallet";
 import { webSocketService } from "../../services/WebSocketService";
-import { Blob, BlobTransaction } from "hyli";
 import { indexerService } from "../../services/IndexerService";
-import "./SessionKeys.css";
-import { nodeService } from "../../services/NodeService";
 import { ErrorMessage } from "../ErrorMessage";
+import "./SessionKeys.css";
 
 interface SessionKey {
     key: string;
@@ -22,14 +12,14 @@ interface SessionKey {
 }
 
 export const SessionKeys = () => {
-    const { wallet, registerSessionKey, removeSessionKey, createIdentityBlobs } = useWallet();
+    const { wallet, registerSessionKey, removeSessionKey } = useWallet();
 
     if (!wallet) {
         return <div>Please connect your wallet first</div>;
     }
 
     const [sessionKeys, setSessionKeys] = useState<SessionKey[]>([]);
-    const [password, setPassword] = useState("password123");
+    const [password, setPassword] = useState("");
     const [expirationDays, setExpirationDays] = useState("7");
     const [error, setError] = useState<unknown>(null);
     const [status, setStatus] = useState("");
@@ -66,6 +56,12 @@ export const SessionKeys = () => {
         setError(error);
     };
 
+    const getSaltedPassword = async (password: string) => {
+        const accountInfo = await indexerService.getAccountInfo(wallet.username);
+        const salted_password = `${password}:${accountInfo.salt}`;
+        return salted_password;
+    };
+
     const handleAddKey = async () => {
         if (!password) {
             setError(new Error("Please enter your password"));
@@ -85,9 +81,12 @@ export const SessionKeys = () => {
 
         try {
             const expiration = Date.now() + days * 24 * 60 * 60 * 1000;
-
+            if (!password.length) {
+                throw new Error("Please fill in your password");
+            }
+            const saltedPassword = await getSaltedPassword(password);
             const { sessionKey } = await registerSessionKey(
-                password,
+                saltedPassword,
                 expiration,
                 ["oranj"],
                 undefined,
@@ -113,7 +112,7 @@ export const SessionKeys = () => {
 
             setStatus("Session key added successfully");
             setTimeout(() => setStatus(""), 3000);
-            setPassword("password123");
+            setPassword("");
             await fetchSessionKeys();
         } catch (error) {
             setError(error);
@@ -129,7 +128,12 @@ export const SessionKeys = () => {
         setTransactionHash("");
 
         try {
-            await removeSessionKey(password, publicKey, handleWalletEvent, handleError);
+            if (!password.length) {
+                throw new Error("Please fill in your password");
+            }
+
+            const saltedPassword = await getSaltedPassword(password);
+            await removeSessionKey(saltedPassword, publicKey, handleWalletEvent, handleError);
 
             await new Promise<void>((resolve, reject) => {
                 const timeout = setTimeout(() => {
@@ -152,120 +156,6 @@ export const SessionKeys = () => {
             setStatus("Session key removed successfully");
             setTimeout(() => setStatus(""), 3000);
             await fetchSessionKeys();
-        } catch (error) {
-            setError(error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleSendTransactionWithSessionKey = async (publicKey: string) => {
-        setIsLoading(true);
-        setError(null);
-        setStatus("Sending transaction...");
-        setTransactionHash("");
-
-        try {
-            const identity = wallet.address;
-            const privateKey = localStorage.getItem(publicKey);
-            if (!privateKey) {
-                throw new Error("This session key is not available on this device. The private key may have been lost.");
-            }
-
-            let nonce = Date.now();
-
-            const secp256k1Blob = sessionKeyService.getSignedBlob(wallet.address, nonce, privateKey);
-
-            const blob0: Blob = {
-                contract_name: "secp256k1",
-                data: serializeSecp256k1Blob(secp256k1Blob),
-            };
-
-            const action: WalletAction = {
-                UseSessionKey: {
-                    account: wallet.username,
-                    key: publicKey,
-                    nonce,
-                } as any,
-            };
-            const blob1: Blob = {
-                contract_name: walletContractName,
-                data: serializeIdentityAction(action),
-            };
-
-            const blobTx: BlobTransaction = {
-                identity,
-                blobs: [blob0, blob1],
-            };
-
-            const tx_hash = await nodeService.client.sendBlobTx(blobTx);
-            setTransactionHash(tx_hash);
-
-            setStatus("Waiting for transaction confirmation...");
-
-            await new Promise<void>((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                    webSocketService.unsubscribeFromWalletEvents();
-                    reject(new Error("Transaction timed out"));
-                }, 30000);
-
-                webSocketService.connect(wallet.address);
-                const unsubscribe = webSocketService.subscribeToWalletEvents((wsEvent) => {
-                    if (wsEvent.event === "Session key is valid") {
-                        clearTimeout(timeout);
-                        unsubscribe();
-                        webSocketService.disconnect();
-                        resolve();
-                    }
-                });
-            });
-
-            setStatus("Transaction completed successfully");
-            setTimeout(() => setStatus(""), 3000);
-        } catch (error) {
-            setError(error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleSendTransactionWithWallet = async () => {
-        setIsLoading(true);
-        setError(null);
-        setStatus("Sending transaction with wallet identity...");
-        setTransactionHash("");
-
-        try {
-            const [blob0, blob1] = createIdentityBlobs();
-            const blobTx: BlobTransaction = {
-                identity: wallet.address,
-                blobs: [blob0, blob1],
-            };
-
-            const tx_hash = await nodeService.client.sendBlobTx(blobTx);
-            setTransactionHash(tx_hash);
-
-            setStatus("Waiting for transaction confirmation...");
-
-            await new Promise<void>((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                    webSocketService.unsubscribeFromWalletEvents();
-                    reject(new Error("Transaction timed out"));
-                }, 30000);
-
-                webSocketService.connect(wallet.address);
-                const unsubscribe = webSocketService.subscribeToWalletEvents((wsEvent) => {
-                    if (wsEvent.event === "Session key is valid") {
-                        clearTimeout(timeout);
-                        unsubscribe();
-                        webSocketService.disconnect();
-                        resolve();
-                    }
-                });
-            });
-
-            setStatus("Transaction completed successfully");
-            setTimeout(() => setStatus(""), 3000);
         } catch (error) {
             setError(error);
         } finally {
@@ -336,15 +226,6 @@ export const SessionKeys = () => {
                 </div>
             )}
 
-            <button
-                onClick={handleSendTransactionWithWallet}
-                disabled={isLoading}
-                className="send-transaction-button"
-                style={{ marginBottom: "20px" }}
-            >
-                Send Transaction with Current Wallet
-            </button>
-
             <div className="session-keys-list">
                 <h3>Active Session Keys</h3>
                 {sessionKeys.length === 0 ? (
@@ -360,13 +241,6 @@ export const SessionKeys = () => {
                                     </span>
                                     <span className="key-nonce">Nonce: {key.nonce}</span>
                                 </div>
-                                <button
-                                    onClick={() => handleSendTransactionWithSessionKey(key.key)}
-                                    disabled={isLoading}
-                                    className="send-transaction-button"
-                                >
-                                    Send Transaction
-                                </button>
                                 <button
                                     onClick={() => handleRemoveKey(key.key)}
                                     disabled={isLoading}

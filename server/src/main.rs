@@ -24,9 +24,19 @@ use hyle_modules::{
 use hyle_smt_token::client::tx_executor_handler::SmtTokenProvableState;
 use prometheus::Registry;
 use sdk::{api::NodeInfo, info, ContractName};
-use std::sync::{Arc, Mutex};
+use secp256k1::{PublicKey, Secp256k1, SecretKey};
+use std::{
+    env,
+    sync::{Arc, Mutex},
+};
 use tracing::error;
-use wallet::client::{indexer::WalletEvent, tx_executor_handler::Wallet};
+use wallet::{
+    client::{
+        indexer::WalletEvent,
+        tx_executor_handler::{Wallet, WalletConstructor},
+    },
+    InviteCodePubKey,
+};
 
 mod app;
 mod conf;
@@ -69,10 +79,23 @@ async fn main() -> Result<()> {
 
     let wallet_cn: ContractName = args.wallet_cn.clone().into();
 
+    let secp = Secp256k1::new();
+    let secret_key =
+        hex::decode(env::var("INVITE_CODE_PKEY").unwrap_or(
+            "0000000000000001000000000000000100000000000000010000000000000001".to_string(),
+        ))
+        .expect("INVITE_CODE_PKEY must be a hex string");
+    let secret_key = SecretKey::from_slice(&secret_key).expect("32 bytes, within curve order");
+    let public_key = PublicKey::from_secret_key(&secp, &secret_key);
+
+    let hyli_password = env::var("HYLI_PASSWORD").unwrap_or("hylisecure".to_string());
+    let wallet_constructor = WalletConstructor::new(hyli_password, public_key.serialize());
+    let wallet = Wallet::new(&Some(wallet_constructor.clone())).expect("must succeed");
     let contracts = vec![init::ContractInit {
         name: wallet_cn.clone(),
         program_id: contracts::WALLET_ID,
-        initial_state: Wallet::default().get_state_commitment(),
+        initial_state: wallet.get_state_commitment(),
+        constructor_metadata: borsh::to_vec(&wallet_constructor).expect("must succeed"),
     }];
 
     match init::init_node(node_client.clone(), indexer_client.clone(), contracts).await {
@@ -124,7 +147,7 @@ async fn main() -> Result<()> {
             prover: Arc::new(Risc0Prover::new(contracts::WALLET_ELF)),
             contract_name: wallet_cn.clone(),
             node: app_ctx.node_client.clone(),
-            default_state: Default::default(),
+            default_state: wallet.clone(),
             buffer_blocks: 1,
             max_txs_per_proof: 30,
         }))
