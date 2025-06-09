@@ -85,10 +85,28 @@ interface HyliWalletProps {
      * CSS class prefix for styling overrides. Default is 'hyli'
      */
     classPrefix?: string;
+    /**
+     * Control modal open state from parent component
+     */
+    isOpen?: boolean;
+    /**
+     * Callback when modal should close
+     */
+    onClose?: () => void;
 }
 
-export const HyliWallet = ({ button, providers, modalContent, classPrefix = "hyli" }: HyliWalletProps) => {
-    const [isOpen, setIsOpen] = useState(false);
+export const HyliWallet = ({ 
+    button, 
+    providers, 
+    modalContent, 
+    classPrefix = "hyli",
+    isOpen: controlledIsOpen,
+    onClose: controlledOnClose
+}: HyliWalletProps) => {
+    const [internalIsOpen, setInternalIsOpen] = useState(false);
+    
+    // Use controlled state if provided, otherwise use internal state
+    const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
     const [selectedProvider, setSelectedProvider] = useState<ProviderOption | null>(null);
     const [showLogin, setShowLogin] = useState(true);
     const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -163,7 +181,10 @@ export const HyliWallet = ({ button, providers, modalContent, classPrefix = "hyl
         if (wallet) {
             logout();
         } else {
-            setIsOpen(true);
+            if (controlledIsOpen === undefined) {
+                setInternalIsOpen(true);
+            }
+            // If controlled, parent should handle opening via isOpen prop
         }
     };
 
@@ -171,7 +192,12 @@ export const HyliWallet = ({ button, providers, modalContent, classPrefix = "hyl
     const availableProviders = authProviderManager.getAvailableProviders() as ProviderOption[];
 
     const closeModal = () => {
-        setIsOpen(false);
+        if (controlledIsOpen === undefined) {
+            setInternalIsOpen(false);
+        }
+        if (controlledOnClose) {
+            controlledOnClose();
+        }
         setSelectedProvider(null);
         setShowLogin(true);
     };
