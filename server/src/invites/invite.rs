@@ -179,7 +179,7 @@ impl Module for InviteModule {
         });
 
         let api = Router::new().route(
-            "/consume_invite",
+            "/api/consume_invite",
             post(route_consume_invite).with_state(inner.clone()),
         );
 

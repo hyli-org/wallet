@@ -47,7 +47,7 @@ export class IndexerService {
     }
 
     async claimInviteCode(code: string, wallet: string): Promise<Blob> {
-        const response = await fetch(`${this.url}/consume_invite`, {
+        const response = await fetch(`${this.url}/api/consume_invite`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
