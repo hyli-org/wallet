@@ -1,5 +1,5 @@
 import { IndexerApiHttpClient } from "hyli";
-import { AuthMethod, walletContractName } from "hyli-wallet";
+import { AccountInfo, walletContractName } from "hyli-wallet";
 import { Transaction } from "./WebSocketService";
 
 interface BalanceResponse {
@@ -12,19 +12,6 @@ interface TransactionHistoryResponse {
     history: Transaction[];
 }
 
-interface SessionKey {
-    key: string;
-    expiration_date: number;
-    nonce: number;
-}
-
-interface AccountInfo {
-    account: string;
-    auth_method: AuthMethod;
-    session_keys: SessionKey[];
-    nonce: number;
-}
-
 class IndexerService {
     client: IndexerApiHttpClient;
     server: IndexerApiHttpClient;
@@ -34,10 +21,10 @@ class IndexerService {
         this.server = new IndexerApiHttpClient(import.meta.env.VITE_WALLET_SERVER_BASE_URL);
     }
 
-    async getBalance(address: string): Promise<number> {
+    async getBalance(address: string, token: string): Promise<number> {
         try {
             const response = await this.client.get<BalanceResponse>(
-                `v1/indexer/contract/oranj/balance/${address}`,
+                `v1/indexer/contract/${token}/balance/${address}`,
                 "Fetching balance"
             );
             return response.balance;

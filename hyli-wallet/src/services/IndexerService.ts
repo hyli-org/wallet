@@ -1,14 +1,14 @@
 import { Blob, IndexerApiHttpClient } from "hyli";
 import { AuthMethod, walletContractName } from "../types/wallet";
 
-interface SessionKey {
+export interface SessionKey {
     key: string;
     expiration_date: number;
     nonce: number;
     laneId?: string;
 }
 
-interface AccountInfo {
+export interface AccountInfo {
     account: string;
     auth_method: AuthMethod;
     session_keys: SessionKey[];

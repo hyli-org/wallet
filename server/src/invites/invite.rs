@@ -164,18 +164,6 @@ impl Module for InviteModule {
             }
         }
 
-        // Always send a TX to update the public key, it'll fail if it's bad.
-        ctx.node_client
-            .send_tx_blob(BlobTransaction::new(
-                Identity::new("admin@wallet"),
-                vec![WalletAction::UpdateInviteCodePublicKey {
-                    invite_code_public_key: public_key.serialize(),
-                    smt_root: Wallet::default().get_smt_root(),
-                }
-                .as_blob(ctx.wallet_cn.clone())],
-            ))
-            .await?;
-
         tracing::info!(
             "Invite module initialized with public key: {:?}",
             public_key.serialize()

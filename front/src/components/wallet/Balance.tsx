@@ -1,18 +1,37 @@
 import { Wallet } from "hyli-wallet";
+import { useWalletBalance } from "../../hooks/useWalletBalance";
 
 interface BalanceProps {
     wallet: Wallet;
-    balance: number;
 }
 
-export const Balance = ({ wallet, balance }: BalanceProps) => {
+export const Balance = ({ wallet }: BalanceProps) => {
+    const { balance } = useWalletBalance(wallet?.address, "oranj");
+    const { balance: oxygenBalance } = useWalletBalance(wallet?.address, "oxygen");
+    const { balance: vitaminBalance } = useWalletBalance(wallet?.address, "vitamin");
+
+    const balances = [
+        {
+            amount: balance,
+            currency: "ORANJ",
+        },
+        {
+            amount: oxygenBalance,
+            currency: "OXYGEN",
+        },
+        {
+            amount: vitaminBalance,
+            currency: "VITAMIN",
+        },
+    ];
     return (
         <div className="balance-section">
             <h2>Your Balance</h2>
-            <div className="balance-amount">{balance} ORANJ</div>
-            {/* <div className="currency-note"> */}
-            {/*   <small>HYLLAR (from "hyli" + "dollar") - The currency of the Hyli testnet network</small> */}
-            {/* </div> */}
+            {balances.map((item, index) => (
+                <div key={index} className="balance-amount">
+                    {item.amount} {item.currency}
+                </div>
+            ))}
             <div className="receive-section">
                 <h3>Receive Funds</h3>
                 <div className="address-display">

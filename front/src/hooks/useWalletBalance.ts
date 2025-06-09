@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { indexerService } from "../services/IndexerService";
 
-export function useWalletBalance(address: string | undefined) {
+export function useWalletBalance(address: string | undefined, token: string = "oranj") {
     const [balance, setBalance] = useState<number>(0);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
@@ -13,7 +13,7 @@ export function useWalletBalance(address: string | undefined) {
         setError(null);
 
         try {
-            const balance = await indexerService.getBalance(address);
+            const balance = await indexerService.getBalance(address, token);
             setBalance(balance);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to fetch balance");
