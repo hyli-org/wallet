@@ -14,7 +14,7 @@ export function useWalletTransactions(address: string | undefined) {
         setError(null);
 
         try {
-            const txHistory = await indexerService.getTransactionHistory(address);
+            const txHistory = await indexerService.getAllTransactionHistory(address);
             setTransactions(txHistory);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to fetch transaction history");

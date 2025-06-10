@@ -102,22 +102,22 @@ export const Dashboard = ({ wallet, onSendClick }: DashboardProps) => {
                 ) : (
                     <div className="activity-list">
                         {recentActivity.map((tx) => (
-                            <div key={tx.txHash} className="activity-item">
+                            <div key={tx.id} className="activity-item">
                                 <div className="activity-icon">
-                                    {tx.txType === 'send' ? '→' : '←'}
+                                    {tx.type === 'Send' || tx.type === 'Send TransferFrom' ? '→' : '←'}
                                 </div>
                                 <div className="activity-details">
                                     <div className="activity-header">
                                         <span className="activity-type">
-                                            {tx.txType === 'send' ? 'Sent' : 'Received'}
+                                            {tx.type}
                                         </span>
                                         <span className="activity-amount">
-                                            {tx.amount} {tx.contract.toUpperCase()}
+                                            {tx.amount} {tx.token ? tx.token.toUpperCase() : 'ORANJ'}
                                         </span>
                                     </div>
                                     <div className="activity-meta">
                                         <span className="activity-address">
-                                            {tx.txType === 'send' ? `To: ${tx.to}` : `From: ${tx.from}`}
+                                            {tx.type === 'Send' || tx.type === 'Send TransferFrom' ? 'To:' : 'From:'} {tx.address.slice(0, 6)}...{tx.address.slice(-4)}
                                         </span>
                                         <span className="activity-time">
                                             {new Date(tx.timestamp).toLocaleTimeString()}

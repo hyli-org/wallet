@@ -34,15 +34,31 @@ class IndexerService {
         }
     }
 
-    async getTransactionHistory(address: string): Promise<Transaction[]> {
+    async getTransactionHistory(address: string, token: string = "oranj"): Promise<Transaction[]> {
         try {
             const response = await this.server.get<TransactionHistoryResponse>(
-                `v1/indexer/contract/oranj/history/${address}`,
+                `v1/indexer/contract/${token}/history/${address}`,
                 "Fetching transaction history"
             );
-            return response.history;
+            // Add token field to each transaction
+            return response.history.map(tx => ({ ...tx, token }));
         } catch (error) {
-            console.error("Error while fetching the transaction history:", error);
+            console.error(`Error while fetching ${token} transaction history:`, error);
+            return [];
+        }
+    }
+
+    async getAllTransactionHistory(address: string): Promise<Transaction[]> {
+        const tokens = ["oranj", "oxygen", "vitamin"];
+        try {
+            const historyPromises = tokens.map(token => this.getTransactionHistory(address, token));
+            const histories = await Promise.all(historyPromises);
+            
+            // Combine all histories and sort by timestamp
+            const allTransactions = histories.flat();
+            return allTransactions.sort((a, b) => b.timestamp - a.timestamp);
+        } catch (error) {
+            console.error("Error while fetching all transaction histories:", error);
             return [];
         }
     }
