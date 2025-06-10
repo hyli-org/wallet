@@ -1,0 +1,327 @@
+/* Wallet App Container */
+.wallet-app {
+    min-height: 100vh;
+    background: var(--bg-primary);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+/* Light theme adjustments */
+[data-theme="light"] {
+    .wallet-header {
+        background: rgba(255, 255, 255, 0.95);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+    
+    .user-menu {
+        background: rgba(250, 250, 250, 0.9);
+        border-color: #E5E7EB;
+    }
+    
+    .settings-menu {
+        background: #FFFFFF;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    }
+    
+    .settings-menu button:hover {
+        background: #FAFAFA;
+    }
+}
+
+/* Header */
+.wallet-header {
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--glass-border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: var(--glass-blur);
+}
+
+.header-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Logo */
+.header-logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.header-logo:hover {
+    opacity: 0.8;
+}
+
+.logo-img {
+    width: 80px;
+    height: 80px;
+}
+
+
+/* Header Actions */
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* Icon Buttons */
+.icon-button {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: 1px solid var(--glass-border);
+    background: var(--glass-bg);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 1.25rem;
+    position: relative;
+}
+
+.icon-button:hover {
+    border-color: var(--hyli-orange);
+    color: var(--hyli-orange);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(223, 100, 69, 0.2);
+}
+
+/* Theme toggle button animation */
+.theme-toggle {
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.theme-toggle:hover {
+    transform: translateY(-2px) rotate(180deg);
+}
+
+.notification-dot {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 8px;
+    height: 8px;
+    background: var(--hyli-orange);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+/* User Menu */
+.user-menu {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem;
+    border-radius: 12px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    transition: all 0.3s ease;
+}
+
+.user-menu:hover {
+    border-color: rgba(223, 100, 69, 0.3);
+}
+
+.user-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--hyli-orange), var(--orange-hover));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-heading);
+    font-weight: var(--font-bold);
+    color: var(--text-primary);
+    font-size: var(--text-base);
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.username {
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    color: var(--text-primary);
+}
+
+.logout-link {
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.logout-link:hover {
+    color: var(--hyli-orange);
+}
+
+/* Main Content */
+.wallet-main {
+    flex: 1;
+    position: relative;
+    overflow-x: hidden;
+}
+
+.page-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+/* Settings Container */
+.settings-container {
+    position: relative;
+}
+
+/* Settings Dropdown */
+.settings-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 200;
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.settings-menu {
+    background: var(--bg-secondary);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 0.5rem;
+    min-width: 200px;
+    box-shadow: var(--shadow-card);
+    backdrop-filter: var(--glass-blur);
+}
+
+.settings-menu button {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: none;
+    border: none;
+    border-radius: 8px;
+    text-align: left;
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.settings-menu button:hover {
+    background: var(--glass-bg);
+    color: var(--hyli-orange);
+}
+
+.settings-divider {
+    height: 1px;
+    background: var(--glass-border);
+    margin: 0.5rem 0;
+}
+
+.settings-logout {
+    color: var(--error-red) !important;
+}
+
+/* Mobile Navigation */
+@media (max-width: 768px) {
+    .header-content {
+        padding: 1rem;
+    }
+    
+    
+    .user-info {
+        display: none;
+    }
+    
+    .user-menu {
+        padding: 0;
+        background: none;
+        border: none;
+    }
+    
+    .settings-dropdown {
+        right: 1rem;
+    }
+}
+
+/* Bottom Navigation for Mobile */
+@media (max-width: 768px) {
+    .wallet-app {
+        padding-bottom: 60px;
+    }
+    
+    .mobile-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: var(--bg-secondary);
+        border-top: 1px solid var(--glass-border);
+        display: flex;
+        justify-content: space-around;
+        padding: 0.5rem;
+        z-index: 100;
+    }
+    
+    .mobile-nav button {
+        flex: 1;
+        padding: 0.75rem;
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 1.5rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+    
+    .mobile-nav button.active {
+        color: var(--hyli-orange);
+    }
+    
+    .mobile-nav button.active::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 4px;
+        height: 4px;
+        background: var(--hyli-orange);
+        border-radius: 50%;
+    }
+}

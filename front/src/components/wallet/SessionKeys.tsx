@@ -20,6 +20,9 @@ export const SessionKeys = () => {
 
     const [sessionKeys, setSessionKeys] = useState<SessionKey[]>([]);
     const [password, setPassword] = useState("");
+    const [removePassword, setRemovePassword] = useState("");
+    const [keyToRemove, setKeyToRemove] = useState<string | null>(null);
+    const [showRemoveModal, setShowRemoveModal] = useState(false);
     const [expirationDays, setExpirationDays] = useState("7");
     const [error, setError] = useState<unknown>(null);
     const [status, setStatus] = useState("");
@@ -121,19 +124,29 @@ export const SessionKeys = () => {
         }
     };
 
-    const handleRemoveKey = async (publicKey: string) => {
+    const handleRemoveClick = (publicKey: string) => {
+        setKeyToRemove(publicKey);
+        setShowRemoveModal(true);
+        setRemovePassword("");
+        setError(null);
+    };
+
+    const handleRemoveKey = async () => {
+        if (!keyToRemove) return;
+        
+        if (!removePassword) {
+            setError(new Error("Please enter your password to remove this key"));
+            return;
+        }
+
         setIsLoading(true);
         setError(null);
         setStatus("Removing session key...");
         setTransactionHash("");
 
         try {
-            if (!password.length) {
-                throw new Error("Please fill in your password");
-            }
-
-            const saltedPassword = await getSaltedPassword(password);
-            await removeSessionKey(saltedPassword, publicKey, handleWalletEvent, handleError);
+            const saltedPassword = await getSaltedPassword(removePassword);
+            await removeSessionKey(saltedPassword, keyToRemove, handleWalletEvent, handleError);
 
             await new Promise<void>((resolve, reject) => {
                 const timeout = setTimeout(() => {
@@ -144,7 +157,7 @@ export const SessionKeys = () => {
                 webSocketService.connect(wallet.address);
                 const unsubscribe = webSocketService.subscribeToWalletEvents((wsEvent) => {
                     if (wsEvent.event === "Session key removed") {
-                        localStorage.removeItem(publicKey);
+                        localStorage.removeItem(keyToRemove);
                         clearTimeout(timeout);
                         unsubscribe();
                         webSocketService.disconnect();
@@ -155,6 +168,9 @@ export const SessionKeys = () => {
 
             setStatus("Session key removed successfully");
             setTimeout(() => setStatus(""), 3000);
+            setShowRemoveModal(false);
+            setRemovePassword("");
+            setKeyToRemove(null);
             await fetchSessionKeys();
         } catch (error) {
             setError(error);
@@ -203,7 +219,7 @@ export const SessionKeys = () => {
                             <span className="input-hint">days</span>
                         </div>
                     </div>
-                    <button onClick={handleAddKey} disabled={isLoading} className="add-key-button">
+                    <button onClick={handleAddKey} disabled={isLoading} className="btn-primary">
                         {isLoading ? "Adding..." : "Generate New Key"}
                     </button>
                 </div>
@@ -242,9 +258,9 @@ export const SessionKeys = () => {
                                     <span className="key-nonce">Nonce: {key.nonce}</span>
                                 </div>
                                 <button
-                                    onClick={() => handleRemoveKey(key.key)}
+                                    onClick={() => handleRemoveClick(key.key)}
                                     disabled={isLoading}
-                                    className="remove-key-button"
+                                    className="btn-secondary btn-sm"
                                 >
                                     Remove
                                 </button>
@@ -253,6 +269,54 @@ export const SessionKeys = () => {
                     </ul>
                 )}
             </div>
+
+            {/* Remove Session Key Modal */}
+            {showRemoveModal && (
+                <div className="modal-overlay" onClick={() => setShowRemoveModal(false)}>
+                    <div className="modal-content compact" onClick={(e) => e.stopPropagation()}>
+                        <button className="modal-close" onClick={() => setShowRemoveModal(false)}>×</button>
+                        <div className="modal-body">
+                            <h3 className="modal-title">Remove Session Key</h3>
+                            <p className="modal-description">Enter your password to remove this session key.</p>
+                            
+                            <div className="form-group">
+                                <input
+                                    type="password"
+                                    className="input"
+                                    placeholder="Enter your password"
+                                    value={removePassword}
+                                    onChange={(e) => setRemovePassword(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            handleRemoveKey();
+                                        }
+                                    }}
+                                    autoFocus
+                                />
+                            </div>
+
+                            {error !== null && <ErrorMessage error={error} />}
+                            
+                            <div className="modal-actions">
+                                <button 
+                                    className="btn-secondary" 
+                                    onClick={() => setShowRemoveModal(false)}
+                                    disabled={isLoading}
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    className="btn-primary" 
+                                    onClick={handleRemoveKey}
+                                    disabled={isLoading || !removePassword}
+                                >
+                                    {isLoading ? "Removing..." : "Remove Key"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
