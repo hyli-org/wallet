@@ -30,12 +30,9 @@ use std::{
     sync::{Arc, Mutex},
 };
 use tracing::error;
-use wallet::{
-    client::{
-        indexer::WalletEvent,
-        tx_executor_handler::{Wallet, WalletConstructor},
-    },
-    InviteCodePubKey,
+use wallet::client::{
+    indexer::WalletEvent,
+    tx_executor_handler::{Wallet, WalletConstructor},
 };
 
 mod app;
@@ -54,6 +51,9 @@ pub struct Args {
 
     #[arg(long, default_value = "wallet")]
     pub wallet_cn: String,
+
+    #[arg(short, long, default_value = "false")]
+    pub mock_invites: bool,
 }
 
 #[tokio::main]
@@ -179,14 +179,21 @@ async fn main() -> Result<()> {
         })
         .await?;
 
-    handler
-        .build_module::<invites::invite::InviteModule>(invites::invite::InviteModuleCtx {
-            db_url: config.db_url.clone(),
-            api_ctx: api_ctx.clone(),
-            node_client: app_ctx.node_client.clone(),
-            wallet_cn: wallet_cn.clone(),
-        })
-        .await?;
+    if args.mock_invites {
+        handler
+            .build_module::<invites::invite::MockInviteModule>(invites::invite::InviteModuleCtx {
+                db_url: config.db_url.clone(),
+                api_ctx: api_ctx.clone(),
+            })
+            .await?;
+    } else {
+        handler
+            .build_module::<invites::invite::InviteModule>(invites::invite::InviteModuleCtx {
+                db_url: config.db_url.clone(),
+                api_ctx: api_ctx.clone(),
+            })
+            .await?;
+    }
 
     // Should come last so the other modules have nested their own routes.
     #[allow(clippy::expect_used, reason = "Fail on misconfiguration")]

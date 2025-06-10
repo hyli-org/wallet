@@ -31,6 +31,11 @@ interface AuthFormProps {
      *  - undefined: allow user to toggle checkbox
      */
     forceSessionKey?: boolean;
+
+    /**
+     * Use to prevent closing the modal while registering / logging in.
+     */
+    setLockOpen?: (lockOpen: boolean) => void;
 }
 
 const ZK_FUN_FACTS = [
@@ -69,6 +74,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
     classPrefix = "hyli",
     closeModal,
     forceSessionKey,
+    setLockOpen,
 }) => {
     const { login, registerAccount: registerWallet, sessionKeyConfig, onWalletEvent, onError } = useWalletInternal();
     const isLocalhost =
@@ -78,7 +84,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
         username: isLocalhost ? "bob" : "",
         password: isLocalhost ? "hylisecure" : "",
         confirmPassword: isLocalhost ? "hylisecure" : "",
-        inviteCode: "",
+        inviteCode: isLocalhost ? "vip" : "",
         salt: getRandomSalt(),
     });
     const [error, setError] = useState<string>("");
@@ -197,6 +203,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
             }
         };
         try {
+            setLockOpen?.(true);
             await authAction(provider.type as ProviderOption, credentials);
         } catch (err) {
             const errorDetails = getAuthErrorMessage(err as Error);
@@ -204,6 +211,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
             setStage("idle");
             setIsSubmitting(false);
         } finally {
+            setLockOpen?.(false);
             setIsSubmitting(false);
         }
     };

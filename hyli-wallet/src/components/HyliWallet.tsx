@@ -95,16 +95,16 @@ interface HyliWalletProps {
     onClose?: () => void;
 }
 
-export const HyliWallet = ({ 
-    button, 
-    providers, 
-    modalContent, 
+export const HyliWallet = ({
+    button,
+    providers,
+    modalContent,
     classPrefix = "hyli",
     isOpen: controlledIsOpen,
-    onClose: controlledOnClose
+    onClose: controlledOnClose,
 }: HyliWalletProps) => {
     const [internalIsOpen, setInternalIsOpen] = useState(false);
-    
+
     // Use controlled state if provided, otherwise use internal state
     const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
     const [selectedProvider, setSelectedProvider] = useState<ProviderOption | null>(null);
@@ -116,12 +116,15 @@ export const HyliWallet = ({
     const { forceSessionKey } = useWalletInternal();
     const [isDarkMode, setIsDarkMode] = useState(false);
 
+    // To prevent closing while registering or logging in
+    const [lockOpen, setLockOpen] = useState(false);
+
     useEffect(() => {
-        const mq = window.matchMedia('(prefers-color-scheme: dark)');
+        const mq = window.matchMedia("(prefers-color-scheme: dark)");
         setIsDarkMode(mq.matches);
         const handler = (e: MediaQueryListEvent) => setIsDarkMode(e.matches);
-        mq.addEventListener('change', handler);
-        return () => mq.removeEventListener('change', handler);
+        mq.addEventListener("change", handler);
+        return () => mq.removeEventListener("change", handler);
     }, []);
 
     // Centre la fenêtre au chargement
@@ -192,6 +195,9 @@ export const HyliWallet = ({
     const availableProviders = authProviderManager.getAvailableProviders() as ProviderOption[];
 
     const closeModal = () => {
+        if (lockOpen) {
+            return;
+        }
         if (controlledIsOpen === undefined) {
             setInternalIsOpen(false);
         }
@@ -225,7 +231,11 @@ export const HyliWallet = ({
                     <span className={`provider-icon ${classPrefix}-provider-icon`}>{icon}</span>
                     {label}
                 </span>
-                {disabled ? <span className={`coming-soon ${classPrefix}-coming-soon`}>Soon</span> : <span className={`row-arrow ${classPrefix}-row-arrow`}>›</span>}
+                {disabled ? (
+                    <span className={`coming-soon ${classPrefix}-coming-soon`}>Soon</span>
+                ) : (
+                    <span className={`row-arrow ${classPrefix}-row-arrow`}>›</span>
+                )}
             </button>
         );
     };
@@ -275,6 +285,7 @@ export const HyliWallet = ({
                                 classPrefix={classPrefix}
                                 closeModal={closeModal}
                                 forceSessionKey={forceSessionKey}
+                                setLockOpen={setLockOpen}
                             />
                             <button className={`${classPrefix}-switch-auth-button`} onClick={() => setShowLogin(false)}>
                                 Don't have an account? Sign up
@@ -289,6 +300,7 @@ export const HyliWallet = ({
                                 classPrefix={classPrefix}
                                 closeModal={closeModal}
                                 forceSessionKey={forceSessionKey}
+                                setLockOpen={setLockOpen}
                             />
                             <button className={`${classPrefix}-switch-auth-button`} onClick={() => setShowLogin(true)}>
                                 Already have an account? Log in
@@ -301,7 +313,7 @@ export const HyliWallet = ({
     );
 
     const ModalContent = (
-        <div className={`${classPrefix}-overlay${isDarkMode ? ' dark' : ''}`} onClick={closeModal}>
+        <div className={`${classPrefix}-overlay${isDarkMode ? " dark" : ""}`} onClick={closeModal}>
             {modalContent
                 ? modalContent({
                       selectedProvider,
