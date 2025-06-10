@@ -167,6 +167,34 @@ async fn main() -> Result<()> {
         .await?;
 
     handler
+        .build_module::<AutoProver<SmtTokenProvableState>>(Arc::new(AutoProverCtx {
+            data_directory: config.data_directory.clone(),
+            prover: Arc::new(Risc0Prover::new(
+                hyle_smt_token::client::tx_executor_handler::metadata::SMT_TOKEN_ELF,
+            )),
+            contract_name: "vitamin".into(),
+            node: app_ctx.node_client.clone(),
+            default_state: Default::default(),
+            buffer_blocks: 1,
+            max_txs_per_proof: 30,
+        }))
+        .await?;
+
+    handler
+        .build_module::<AutoProver<SmtTokenProvableState>>(Arc::new(AutoProverCtx {
+            data_directory: config.data_directory.clone(),
+            prover: Arc::new(Risc0Prover::new(
+                hyle_smt_token::client::tx_executor_handler::metadata::SMT_TOKEN_ELF,
+            )),
+            contract_name: "oxygen".into(),
+            node: app_ctx.node_client.clone(),
+            default_state: Default::default(),
+            buffer_blocks: 1,
+            max_txs_per_proof: 30,
+        }))
+        .await?;
+
+    handler
         .build_module::<WebSocketModule<AppWsInMessage, AppOutWsEvent>>(config.websocket.clone())
         .await?;
 
