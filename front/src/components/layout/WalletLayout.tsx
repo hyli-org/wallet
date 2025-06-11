@@ -33,18 +33,18 @@ export const WalletLayout = ({ wallet, onLogout }: WalletLayoutProps) => {
         return true;
     };
 
-    let closing: any;
+    const closing = useRef<any>(null);
     const abortClosing = () => {
-        if (closing) {
-            clearTimeout(closing);
-            closing = null;
+        if (closing.current) {
+            clearTimeout(closing.current);
+            closing.current = null;
         }
     };
     const closeSoon = () => {
-        if (closing) {
-            clearTimeout(closing);
+        if (closing.current) {
+            clearTimeout(closing.current);
         }
-        closing = setTimeout(() => {
+        closing.current = setTimeout(() => {
             if (showSettings) setShowSettings(false);
         }, 350);
     };
