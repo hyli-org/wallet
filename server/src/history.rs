@@ -8,6 +8,7 @@ use sdk::BlobIndex;
 use sdk::Calldata;
 use sdk::Hashed;
 use sdk::RegisterContractEffect;
+use sdk::StateCommitment;
 use std::collections::BTreeMap;
 
 use client_sdk::contract_indexer::axum;
@@ -102,6 +103,10 @@ impl TxExecutorHandler for TokenHistory {
 
     fn build_commitment_metadata(&self, blob: &sdk::Blob) -> anyhow::Result<Vec<u8>> {
         self.token.build_commitment_metadata(blob)
+    }
+
+    fn get_state_commitment(&self) -> StateCommitment {
+        StateCommitment::default()
     }
 
     fn construct_state(

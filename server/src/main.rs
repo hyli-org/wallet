@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use app::{AppModule, AppModuleCtx, AppOutWsEvent, AppWsInMessage};
 use axum::Router;
 use clap::Parser;
+use client_sdk::transaction_builder::TxExecutorHandler;
 use client_sdk::{
     helpers::risc0::Risc0Prover,
     rest_client::{IndexerApiHttpClient, NodeApiHttpClient},
@@ -20,7 +21,6 @@ use hyle_modules::{
     },
     utils::logger::setup_tracing,
 };
-
 use hyle_smt_token::client::tx_executor_handler::SmtTokenProvableState;
 use prometheus::Registry;
 use sdk::{api::NodeInfo, info, ContractName};

@@ -131,6 +131,10 @@ impl TxExecutorHandler for Wallet {
             .map_err(|e| anyhow::anyhow!("Failed to handle Wallet action: {}", e))
     }
 
+    fn get_state_commitment(&self) -> StateCommitment {
+        get_state_commitment(*self.smt.0.root(), self.invite_code_public_key)
+    }
+
     fn construct_state(
         _register_blob: &RegisterContractEffect,
         metadata: &Option<Vec<u8>>,
@@ -208,10 +212,6 @@ impl Wallet {
             .get(account)
             .cloned()
             .ok_or_else(|| anyhow::anyhow!("Salt for account {} not found", account))
-    }
-
-    pub fn get_state_commitment(&self) -> StateCommitment {
-        get_state_commitment(*self.smt.0.root(), self.invite_code_public_key)
     }
 
     fn actual_handle(&mut self, calldata: &Calldata) -> Result<sdk::HyleOutput, String> {
