@@ -5,7 +5,7 @@ FROM oven/bun:latest AS build
 WORKDIR /app
 
 # Copier les fichiers de l'application
-COPY front/package.json front/bun.lockb ./
+COPY front/package.json front/bun.lock ./
 
 # Installer les dépendances
 RUN bun install
