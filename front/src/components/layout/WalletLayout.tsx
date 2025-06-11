@@ -81,6 +81,11 @@ export const WalletLayout = ({ wallet, onLogout }: WalletLayoutProps) => {
                                         <button onClick={() => handleSettingsClick() && navigate("/wallet/history")}>
                                             📊 Full History
                                         </button>
+                                        {wallet.username === "hyli" && (
+                                            <button onClick={() => handleSettingsClick() && navigate("/wallet/admin")}>
+                                                🛠️ Admin Panel
+                                            </button>
+                                        )}
                                         <div className="settings-divider" />
                                         <button
                                             className="settings-logout"

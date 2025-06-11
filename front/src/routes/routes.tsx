@@ -5,6 +5,7 @@ import { History } from "../components/wallet/History";
 import { SessionKeys } from "../components/wallet/SessionKeys";
 import { WalletLayout } from "../components/layout/WalletLayout";
 import { Wallet } from "hyli-wallet";
+import AdminPage from "../components/AdminPage";
 
 // Route path constants
 export const ROUTES = {
@@ -32,6 +33,7 @@ export const getProtectedRoutes = (wallet: Wallet | null, transactions: any[], o
             { path: "receive", element: <Balance wallet={wallet!} /> },
             { path: "history", element: <History transactions={transactions} /> },
             { path: "session-keys", element: <SessionKeys /> },
+            { path: "admin", element: <AdminPage /> },
             { index: true, element: null }, // Dashboard is shown in WalletLayout
         ],
     },
