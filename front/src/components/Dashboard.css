@@ -14,31 +14,31 @@
     .orb {
         opacity: 0.05;
     }
-    
+
     /* Token cards */
     .token-card {
         background: rgba(255, 255, 255, 0.9);
         border-color: rgba(223, 100, 69, 0.1);
     }
-    
+
     .token-card:hover {
         border-color: var(--hyli-orange);
         box-shadow: 0 4px 16px rgba(223, 100, 69, 0.15);
     }
-    
+
     /* Activity section */
     .activity-section {
-        background: #FFFFFF;
+        background: #ffffff;
         box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
     }
-    
+
     .activity-item {
         background: rgba(250, 250, 250, 0.9);
-        border-color: #E5E7EB;
+        border-color: #e5e7eb;
     }
-    
+
     .activity-icon {
-        background: #FAFAFA;
+        background: #fafafa;
     }
 }
 
@@ -47,25 +47,25 @@
     .modal-overlay {
         background: rgba(0, 0, 0, 0.4);
     }
-    
+
     .modal-content {
-        background: #FFFFFF;
+        background: #ffffff;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
     }
-    
+
     .address-display {
-        background: #FAFAFA;
-        border-color: #E5E7EB;
+        background: #fafafa;
+        border-color: #e5e7eb;
     }
-    
+
     .btn-copy {
-        background: #FFFFFF;
-        border-color: #E5E7EB;
+        background: #ffffff;
+        border-color: #e5e7eb;
     }
-    
+
     .modal-close {
-        background: #FAFAFA;
-        border-color: #E5E7EB;
+        background: #fafafa;
+        border-color: #e5e7eb;
     }
 }
 
@@ -73,7 +73,6 @@
 .vault-section {
     position: relative;
     padding: 3rem 0;
-    margin-bottom: 3rem;
 }
 
 /* Animated Background */
@@ -127,7 +126,8 @@
 }
 
 @keyframes float {
-    0%, 100% {
+    0%,
+    100% {
         transform: translate(0, 0) scale(1);
     }
     33% {
@@ -156,14 +156,6 @@
     animation: fadeInScale 0.6s ease-out;
 }
 
-.welcome-subtitle {
-    font-family: var(--font-body);
-    font-size: var(--text-lg);
-    color: var(--text-secondary);
-    opacity: 0.8;
-    margin: 0;
-}
-
 /* Token Grid */
 .token-grid {
     display: grid;
@@ -180,13 +172,12 @@
     backdrop-filter: var(--glass-blur);
     box-shadow: var(--shadow-card);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    cursor: pointer;
     position: relative;
     overflow: hidden;
 }
 
 .token-card::before {
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     left: 0;
@@ -229,12 +220,12 @@
 }
 
 .token-symbol.oxygen {
-    background: linear-gradient(135deg, var(--info-blue), #5575FF);
+    background: linear-gradient(135deg, var(--info-blue), #5575ff);
     box-shadow: 0 4px 16px rgba(69, 100, 223, 0.3);
 }
 
 .token-symbol.vitamin {
-    background: linear-gradient(135deg, var(--success-green), #55FF75);
+    background: linear-gradient(135deg, var(--success-green), #55ff75);
     box-shadow: 0 4px 16px rgba(69, 223, 100, 0.3);
 }
 
@@ -285,7 +276,7 @@
 }
 
 .btn-primary::before {
-    content: '';
+    content: "";
     position: absolute;
     top: 50%;
     left: 50%;
@@ -356,7 +347,8 @@
 }
 
 @keyframes bounce {
-    0%, 100% {
+    0%,
+    100% {
         transform: translateY(0);
     }
     50% {
@@ -395,7 +387,6 @@
     align-items: center;
     gap: 1rem;
     transition: all 0.3s ease;
-    cursor: pointer;
 }
 
 .activity-item:hover {
@@ -477,6 +468,11 @@
     color: var(--success-green);
 }
 
+.activity-status.failed {
+    background: rgba(223, 100, 69, 0.1);
+    color: var(--error-red);
+}
+
 .activity-status.pending {
     background: rgba(223, 164, 69, 0.1);
     color: var(--warning-amber);
@@ -484,7 +480,8 @@
 }
 
 @keyframes pulse {
-    0%, 100% {
+    0%,
+    100% {
         opacity: 1;
     }
     50% {
@@ -509,26 +506,26 @@
     .dashboard {
         padding: 1rem;
     }
-    
+
     .total-balance {
         font-size: var(--text-3xl);
     }
-    
+
     .token-grid {
         grid-template-columns: 1fr;
         gap: 1rem;
     }
-    
+
     .action-buttons {
         flex-direction: column;
         width: 100%;
     }
-    
+
     .btn-primary {
         width: 100%;
         justify-content: center;
     }
-    
+
     .activity-meta {
         flex-direction: column;
         align-items: flex-start;
