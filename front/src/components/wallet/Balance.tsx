@@ -37,9 +37,15 @@ export const Balance = ({ wallet }: BalanceProps) => {
                 <div className="address-display">
                     <p>Your address:</p>
                     <code>{wallet.address}</code>
-                    <button onClick={() => navigator.clipboard.writeText(wallet.address)}>Copy Address</button>
-                    <div>
+                    <button 
+                        className="btn-secondary btn-sm"
+                        onClick={() => navigator.clipboard.writeText(wallet.address)}
+                    >
+                        Copy Address
+                    </button>
+                    <div className="faucet-link">
                         <a
+                            className="btn-primary btn-sm"
                             href={`${import.meta.env.VITE_FAUCET_URL}/?wallet=${wallet.address}`}
                             target="_blank"
                             rel="noopener noreferrer"

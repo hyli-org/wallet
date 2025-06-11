@@ -12,25 +12,27 @@ export const ROUTES = {
     WALLET: "/wallet",
     BALANCE: "/wallet/balance",
     SEND: "/wallet/send",
+    RECEIVE: "/wallet/receive",
     HISTORY: "/wallet/history",
     SESSION_KEYS: "/wallet/session-keys",
 };
 
 export const getPublicRoutes = (): RouteObject[] => [
-    { path: ROUTES.ROOT, element: <Navigate to={ROUTES.BALANCE} replace /> },
+    { path: ROUTES.ROOT, element: <Navigate to={ROUTES.WALLET} replace /> },
     { path: "*", element: <Navigate to={ROUTES.ROOT} replace /> },
 ];
 
 export const getProtectedRoutes = (wallet: Wallet | null, transactions: any[], onLogout: () => void): RouteObject[] => [
     {
         path: ROUTES.WALLET,
-        element: <WalletLayout wallet={wallet!} onLogout={onLogout} />,
+        element: <WalletLayout wallet={wallet!} onLogout={onLogout} transactions={transactions} />,
         children: [
-            { path: "balance", element: <Balance wallet={wallet!} /> },
+            { path: "balance", element: <Navigate to={ROUTES.WALLET} replace /> },
             { path: "send", element: <Send wallet={wallet!} /> },
+            { path: "receive", element: <Balance wallet={wallet!} /> },
             { path: "history", element: <History transactions={transactions} /> },
             { path: "session-keys", element: <SessionKeys /> },
-            { index: true, element: <Navigate to="balance" replace /> },
+            { index: true, element: null }, // Dashboard is shown in WalletLayout
         ],
     },
 ];

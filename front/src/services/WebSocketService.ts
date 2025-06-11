@@ -1,4 +1,12 @@
-export type Transaction = any;
+export interface Transaction {
+    id: string;
+    type: 'Send' | 'Receive' | 'Approve' | 'Send TransferFrom' | 'Receive TransferFrom';
+    status: 'Sequenced' | 'Success' | 'Failed' | 'Timed Out';
+    amount: number;
+    address: string;
+    timestamp: number;
+    token?: string; // Optional field for token type
+}
 
 export interface AppEvent {
     TxEvent: {

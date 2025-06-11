@@ -20,11 +20,16 @@ export const SessionKeys = () => {
 
     const [sessionKeys, setSessionKeys] = useState<SessionKey[]>([]);
     const [password, setPassword] = useState("");
+    const [removePassword, setRemovePassword] = useState("");
+    const [keyToRemove, setKeyToRemove] = useState<string | null>(null);
+    const [showRemoveModal, setShowRemoveModal] = useState(false);
     const [expirationDays, setExpirationDays] = useState("7");
     const [error, setError] = useState<unknown>(null);
     const [status, setStatus] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [transactionHash, setTransactionHash] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
+    const [showRemovePassword, setShowRemovePassword] = useState(false);
 
     const fetchSessionKeys = async () => {
         try {
@@ -111,7 +116,6 @@ export const SessionKeys = () => {
             });
 
             setStatus("Session key added successfully");
-            setTimeout(() => setStatus(""), 3000);
             setPassword("");
             await fetchSessionKeys();
         } catch (error) {
@@ -121,19 +125,29 @@ export const SessionKeys = () => {
         }
     };
 
-    const handleRemoveKey = async (publicKey: string) => {
+    const handleRemoveClick = (publicKey: string) => {
+        setKeyToRemove(publicKey);
+        setShowRemoveModal(true);
+        setRemovePassword("");
+        setError(null);
+    };
+
+    const handleRemoveKey = async () => {
+        if (!keyToRemove) return;
+        
+        if (!removePassword) {
+            setError(new Error("Please enter your password to remove this key"));
+            return;
+        }
+
         setIsLoading(true);
         setError(null);
         setStatus("Removing session key...");
         setTransactionHash("");
 
         try {
-            if (!password.length) {
-                throw new Error("Please fill in your password");
-            }
-
-            const saltedPassword = await getSaltedPassword(password);
-            await removeSessionKey(saltedPassword, publicKey, handleWalletEvent, handleError);
+            const saltedPassword = await getSaltedPassword(removePassword);
+            await removeSessionKey(saltedPassword, keyToRemove, handleWalletEvent, handleError);
 
             await new Promise<void>((resolve, reject) => {
                 const timeout = setTimeout(() => {
@@ -144,7 +158,7 @@ export const SessionKeys = () => {
                 webSocketService.connect(wallet.address);
                 const unsubscribe = webSocketService.subscribeToWalletEvents((wsEvent) => {
                     if (wsEvent.event === "Session key removed") {
-                        localStorage.removeItem(publicKey);
+                        localStorage.removeItem(keyToRemove);
                         clearTimeout(timeout);
                         unsubscribe();
                         webSocketService.disconnect();
@@ -154,7 +168,9 @@ export const SessionKeys = () => {
             });
 
             setStatus("Session key removed successfully");
-            setTimeout(() => setStatus(""), 3000);
+            setShowRemoveModal(false);
+            setRemovePassword("");
+            setKeyToRemove(null);
             await fetchSessionKeys();
         } catch (error) {
             setError(error);
@@ -177,15 +193,51 @@ export const SessionKeys = () => {
                 <div className="form-group">
                     <div className="input-group">
                         <label htmlFor="password">Wallet Password</label>
-                        <div className="input-with-description">
+                        <div className="input-with-description" style={{ position: 'relative' }}>
                             <input
                                 id="password"
-                                type="password"
+                                type={showPassword ? "text" : "password"}
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder="Enter your wallet password"
                                 disabled={isLoading}
+                                style={{ paddingRight: '3rem' }}
                             />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                style={{
+                                    position: 'absolute',
+                                    right: '0.75rem',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    background: 'transparent',
+                                    border: 'none',
+                                    color: 'var(--text-secondary)',
+                                    cursor: 'pointer',
+                                    padding: '0.5rem',
+                                    fontSize: '1rem',
+                                    lineHeight: '1',
+                                    transition: 'color 0.2s ease'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.color = 'var(--hyli-orange)'}
+                                onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-secondary)'}
+                                title={showPassword ? "Hide password" : "Show password"}
+                            >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    {showPassword ? (
+                                        <>
+                                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                                            <line x1="1" y1="1" x2="23" y2="23" />
+                                        </>
+                                    ) : (
+                                        <>
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                            <circle cx="12" cy="12" r="3" />
+                                        </>
+                                    )}
+                                </svg>
+                            </button>
                         </div>
                     </div>
                     <div className="input-group">
@@ -203,14 +255,19 @@ export const SessionKeys = () => {
                             <span className="input-hint">days</span>
                         </div>
                     </div>
-                    <button onClick={handleAddKey} disabled={isLoading} className="add-key-button">
+                    <button onClick={handleAddKey} disabled={isLoading} className="btn-primary">
                         {isLoading ? "Adding..." : "Generate New Key"}
                     </button>
                 </div>
             </div>
 
             {error !== null && <ErrorMessage error={error} />}
-            {status && <div className="status-message">{status}</div>}
+            {status && (
+                <div className="status-message badge badge-primary">
+                    {isLoading && <span className="spinner"></span>}
+                    {status}
+                </div>
+            )}
             {transactionHash && (
                 <div className="transaction-hash">
                     Transaction:&nbsp;
@@ -242,9 +299,9 @@ export const SessionKeys = () => {
                                     <span className="key-nonce">Nonce: {key.nonce}</span>
                                 </div>
                                 <button
-                                    onClick={() => handleRemoveKey(key.key)}
+                                    onClick={() => handleRemoveClick(key.key)}
                                     disabled={isLoading}
-                                    className="remove-key-button"
+                                    className="btn-secondary btn-sm"
                                 >
                                     Remove
                                 </button>
@@ -253,6 +310,92 @@ export const SessionKeys = () => {
                     </ul>
                 )}
             </div>
+
+            {/* Remove Session Key Modal */}
+            {showRemoveModal && (
+                <div className="modal-overlay" onClick={() => setShowRemoveModal(false)}>
+                    <div className="modal-content compact" onClick={(e) => e.stopPropagation()}>
+                        <button className="modal-close" onClick={() => setShowRemoveModal(false)}>×</button>
+                        <div className="modal-body">
+                            <h3 className="modal-title">Remove Session Key</h3>
+                            <p className="modal-description">Enter your password to remove this session key.</p>
+                            
+                            <div className="form-group">
+                                <div style={{ position: 'relative' }}>
+                                    <input
+                                        type={showRemovePassword ? "text" : "password"}
+                                        className="input"
+                                        placeholder="Enter your password"
+                                        value={removePassword}
+                                        onChange={(e) => setRemovePassword(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                handleRemoveKey();
+                                            }
+                                        }}
+                                        style={{ paddingRight: '3rem' }}
+                                        autoFocus
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowRemovePassword(!showRemovePassword)}
+                                        style={{
+                                            position: 'absolute',
+                                            right: '0.75rem',
+                                            top: '50%',
+                                            transform: 'translateY(-50%)',
+                                            background: 'transparent',
+                                            border: 'none',
+                                            color: 'var(--text-secondary)',
+                                            cursor: 'pointer',
+                                            padding: '0.5rem',
+                                            fontSize: '1rem',
+                                            lineHeight: '1',
+                                            transition: 'color 0.2s ease'
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.color = 'var(--hyli-orange)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-secondary)'}
+                                        title={showRemovePassword ? "Hide password" : "Show password"}
+                                    >
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            {showRemovePassword ? (
+                                                <>
+                                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                                                    <line x1="1" y1="1" x2="23" y2="23" />
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                                    <circle cx="12" cy="12" r="3" />
+                                                </>
+                                            )}
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {error !== null && <ErrorMessage error={error} />}
+                            
+                            <div className="modal-actions">
+                                <button 
+                                    className="btn-secondary" 
+                                    onClick={() => setShowRemoveModal(false)}
+                                    disabled={isLoading}
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    className="btn-primary" 
+                                    onClick={handleRemoveKey}
+                                    disabled={isLoading || !removePassword}
+                                >
+                                    {isLoading ? "Removing..." : "Remove Key"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

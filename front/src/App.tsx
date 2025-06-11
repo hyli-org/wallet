@@ -7,6 +7,7 @@ import { useWebSocketConnection } from "./hooks/useWebSocketConnection";
 import { getPublicRoutes, getProtectedRoutes, ROUTES } from "./routes/routes";
 import { WalletProvider, useWallet } from "hyli-wallet";
 import { WebSocketProvider } from "./providers/WebSocketProvider";
+import { ThemeProvider } from "./contexts/ThemeContext";
 
 function AppContent() {
     const { wallet, logout } = useWallet();
@@ -36,7 +37,7 @@ function AppContent() {
     const allRoutes = [...publicRoutes, ...protectedRoutes];
 
     return (
-        <div>
+        <>
             {!wallet && <WalletShowcase providers={["password", "google", "github"]} />}
             {wallet && (
                 <Routes>
@@ -54,29 +55,31 @@ function AppContent() {
                     ))}
                 </Routes>
             )}
-        </div>
+        </>
     );
 }
 
 export default function App() {
     return (
-        <BrowserRouter>
-            <WalletProvider
-                config={{
-                    nodeBaseUrl: import.meta.env.VITE_NODE_BASE_URL,
-                    walletServerBaseUrl: import.meta.env.VITE_WALLET_SERVER_BASE_URL,
-                    applicationWsUrl: import.meta.env.VITE_WALLET_WS_URL,
-                }}
-                sessionKeyConfig={{
-                    duration: 60 * 60 * 1000, // 1 hour
-                    whitelist: ["oranj"],
-                }}
-                forceSessionKey={false}
-            >
-                <WebSocketProvider>
-                    <AppContent />
-                </WebSocketProvider>
-            </WalletProvider>
-        </BrowserRouter>
+        <ThemeProvider>
+            <BrowserRouter>
+                <WalletProvider
+                    config={{
+                        nodeBaseUrl: import.meta.env.VITE_NODE_BASE_URL,
+                        walletServerBaseUrl: import.meta.env.VITE_WALLET_SERVER_BASE_URL,
+                        applicationWsUrl: import.meta.env.VITE_WALLET_WS_URL,
+                    }}
+                    sessionKeyConfig={{
+                        duration: 60 * 60 * 1000, // 1 hour
+                        whitelist: ["oranj"],
+                    }}
+                    forceSessionKey={false}
+                >
+                    <WebSocketProvider>
+                        <AppContent />
+                    </WebSocketProvider>
+                </WalletProvider>
+            </BrowserRouter>
+        </ThemeProvider>
     );
 }
