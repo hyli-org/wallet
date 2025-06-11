@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Wallet } from "hyli-wallet";
 import { Dashboard } from "../Dashboard";

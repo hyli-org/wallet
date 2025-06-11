@@ -1,7 +1,7 @@
 export interface Transaction {
     id: string;
-    type: 'Send' | 'Receive' | 'Approve' | 'Send TransferFrom' | 'Receive TransferFrom';
-    status: 'Sequenced' | 'Success' | 'Failed' | 'Timed Out';
+    type: "Send" | "Receive" | "Approve" | "Send TransferFrom" | "Receive TransferFrom";
+    status: "Sequenced" | "Success" | "Failed" | "Timed Out";
     amount: number;
     address: string;
     timestamp: number;

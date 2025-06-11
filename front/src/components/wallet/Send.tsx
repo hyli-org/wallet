@@ -101,10 +101,10 @@ export const Send = ({ wallet, onSend }: SendProps) => {
             }
 
             onSend?.({
-                type: "send",
+                type: "Send",
                 amount: parsedAmount,
                 address,
-                status: "completed",
+                status: "Success",
             });
 
             setAmount("");
