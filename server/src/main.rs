@@ -21,6 +21,7 @@ use hyle_modules::{
     utils::logger::setup_tracing,
 };
 
+use hyle_smt_token::client::tx_executor_handler::SmtTokenProvableState;
 use prometheus::Registry;
 use sdk::{api::NodeInfo, info, ContractName};
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
@@ -53,6 +54,9 @@ pub struct Args {
 
     #[arg(short, long, default_value = "false")]
     pub mock_invites: bool,
+
+    #[arg(short, long, default_value = "false")]
+    pub auto_provers: bool,
 }
 
 #[tokio::main]
@@ -164,6 +168,48 @@ async fn main() -> Result<()> {
             da_read_from: config.da_read_from.clone(),
         })
         .await?;
+
+    if args.auto_provers {
+        handler
+            .build_module::<AutoProver<SmtTokenProvableState>>(Arc::new(AutoProverCtx {
+                data_directory: config.data_directory.clone(),
+                prover: Arc::new(Risc0Prover::new(
+                    hyle_smt_token::client::tx_executor_handler::metadata::SMT_TOKEN_ELF,
+                )),
+                contract_name: "oranj".into(),
+                node: app_ctx.node_client.clone(),
+                default_state: Default::default(),
+                buffer_blocks: config.smt_buffer_blocks,
+                max_txs_per_proof: config.smt_max_txs_per_proof,
+            }))
+            .await?;
+        handler
+            .build_module::<AutoProver<SmtTokenProvableState>>(Arc::new(AutoProverCtx {
+                data_directory: config.data_directory.clone(),
+                prover: Arc::new(Risc0Prover::new(
+                    hyle_smt_token::client::tx_executor_handler::metadata::SMT_TOKEN_ELF,
+                )),
+                contract_name: "vitamin".into(),
+                node: app_ctx.node_client.clone(),
+                default_state: Default::default(),
+                buffer_blocks: config.smt_buffer_blocks,
+                max_txs_per_proof: config.smt_max_txs_per_proof,
+            }))
+            .await?;
+        handler
+            .build_module::<AutoProver<SmtTokenProvableState>>(Arc::new(AutoProverCtx {
+                data_directory: config.data_directory.clone(),
+                prover: Arc::new(Risc0Prover::new(
+                    hyle_smt_token::client::tx_executor_handler::metadata::SMT_TOKEN_ELF,
+                )),
+                contract_name: "oxygen".into(),
+                node: app_ctx.node_client.clone(),
+                default_state: Default::default(),
+                buffer_blocks: config.smt_buffer_blocks,
+                max_txs_per_proof: config.smt_max_txs_per_proof,
+            }))
+            .await?;
+    }
 
     if args.mock_invites {
         handler
