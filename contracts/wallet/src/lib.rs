@@ -229,6 +229,7 @@ fn check_for_invite_code(
         return Err("Invalid invite code for testing".to_string());
     }
     // Data to sign: "Invite - {invite_code} for {account}"
+    // Note that in prod this is a hashed invite code, not the raw string.
     let data = format!("Invite - {} for {}", invite_code, account);
     // Check if the calldata contains a secp256k1 blob with the expected data
     let blob = CheckSecp256k1::new(calldata, data.as_bytes()).expect()?;
@@ -426,7 +427,7 @@ pub enum WalletAction {
         nonce: u128,
         salt: String, // Not actually used in the circuit, provided as DA
         auth_method: AuthMethod,
-        invite_code: String,
+        invite_code: String, // In prod this ends up being a hash
     },
     VerifyIdentity {
         account: String,

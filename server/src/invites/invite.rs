@@ -57,7 +57,11 @@ impl InviteModuleInner {
         tracing::info!("Invite code consumed: {}", code);
         // Let's create a secp2561k1 blob signing the data
         let identity = Identity::new(format!("{}@wallet", wallet));
-        let data = format!("Invite - {} for {}", code, wallet);
+        // don't use the invite code directly in the data, as it may contain sensitive information
+        let mut code_bytes = code.as_bytes().to_vec();
+        code_bytes.extend_from_slice(wallet.as_bytes());
+        let code_hash = hex::encode(Sha256::digest(&code_bytes));
+        let data = format!("Invite - {} for {}", code_hash, wallet);
         let mut hasher = Sha256::new();
         hasher.update(data.clone());
         let message_hash: [u8; 32] = hasher.finalize().into();
@@ -215,7 +219,11 @@ impl MockInviteModuleInner {
         tracing::info!("Invite code consumed: {}", code);
         // Let's create a secp2561k1 blob signing the data
         let identity = Identity::new(format!("{}@wallet", wallet));
-        let data = format!("Invite - {} for {}", code, wallet);
+        // don't use the invite code directly in the data, as it may contain sensitive information
+        let mut code_bytes = code.as_bytes().to_vec();
+        code_bytes.extend_from_slice(wallet.as_bytes());
+        let code_hash = hex::encode(Sha256::digest(&code_bytes));
+        let data = format!("Invite - {} for {}", code_hash, wallet);
         let mut hasher = Sha256::new();
         hasher.update(data.clone());
         let message_hash: [u8; 32] = hasher.finalize().into();
