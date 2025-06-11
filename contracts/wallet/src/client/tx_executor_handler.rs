@@ -65,32 +65,45 @@ impl Default for Wallet {
  */
 impl TxExecutorHandler for Wallet {
     fn build_commitment_metadata(&self, blob: &Blob) -> anyhow::Result<Vec<u8>> {
-        let wallet_action: WalletAction = WalletAction::from_blob_data(&blob.data)?;
+        let wallet_action: Result<WalletAction, _> = WalletAction::from_blob_data(&blob.data);
         let zk_view = match wallet_action {
-            WalletAction::UpdateInviteCodePublicKey { .. } => WalletZkView {
-                commitment: get_state_commitment(*self.smt.0.root(), self.invite_code_public_key),
-                invite_code_public_key: self.invite_code_public_key,
-                partial_data: vec![],
+            Ok(wallet_action) => match wallet_action {
+                WalletAction::UpdateInviteCodePublicKey { .. } => WalletZkView {
+                    commitment: get_state_commitment(
+                        *self.smt.0.root(),
+                        self.invite_code_public_key,
+                    ),
+                    invite_code_public_key: self.invite_code_public_key,
+                    partial_data: vec![],
+                },
+                WalletAction::RegisterIdentity { account, .. }
+                | WalletAction::VerifyIdentity { account, .. }
+                | WalletAction::UseSessionKey { account, .. }
+                | WalletAction::AddSessionKey { account, .. }
+                | WalletAction::RemoveSessionKey { account, .. } => {
+                    let mut account_info = self.smt.0.get(&AccountInfo::compute_key(&account))?;
+                    account_info.identity = account.clone();
+                    WalletZkView {
+                        commitment: self.get_state_commitment(),
+                        invite_code_public_key: self.invite_code_public_key,
+                        partial_data: vec![PartialWalletData {
+                            proof: BorshableMerkleProof(
+                                self.smt
+                                    .0
+                                    .merkle_proof(vec![AccountInfo::compute_key(&account)])
+                                    .expect("Failed to generate proof"),
+                            ),
+                            account_info,
+                        }],
+                    }
+                }
             },
-            WalletAction::RegisterIdentity { account, .. }
-            | WalletAction::VerifyIdentity { account, .. }
-            | WalletAction::UseSessionKey { account, .. }
-            | WalletAction::AddSessionKey { account, .. }
-            | WalletAction::RemoveSessionKey { account, .. } => {
-                let mut account_info = self.smt.0.get(&AccountInfo::compute_key(&account))?;
-                account_info.identity = account.clone();
+            Err(_) => {
+                // Return a valid WalletZkView with empty partial data, to generate proof of failures
                 WalletZkView {
                     commitment: self.get_state_commitment(),
                     invite_code_public_key: self.invite_code_public_key,
-                    partial_data: vec![PartialWalletData {
-                        proof: BorshableMerkleProof(
-                            self.smt
-                                .0
-                                .merkle_proof(vec![AccountInfo::compute_key(&account)])
-                                .expect("Failed to generate proof"),
-                        ),
-                        account_info,
-                    }],
+                    partial_data: vec![],
                 }
             }
         };
@@ -277,5 +290,48 @@ impl Wallet {
             calldata,
             &mut res,
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use client_sdk::transaction_builder::TxExecutorHandler;
+    use sdk::{
+        Blob, BlobData, BlobIndex, Calldata, ContractName, Identity, IndexedBlobs, TxHash,
+        ZkContract,
+    };
+
+    #[test]
+    fn test_proof_of_failure() {
+        let wallet = Wallet::new(&None).expect("Failed to create wallet");
+
+        // Create a dummy blob
+        let blob = Blob {
+            contract_name: ContractName::new("Wallet"),
+            data: BlobData(vec![43, 12, 56]),
+        };
+
+        let commitment = wallet
+            .build_commitment_metadata(&blob)
+            .expect("Failed to build commitment metadata");
+
+        let mut zk = borsh::from_slice::<WalletZkView>(&commitment)
+            .expect("Failed to deserialize WalletZkView");
+
+        // Attempt to handle the invalid calldata
+        let result = zk.execute(&Calldata {
+            tx_hash: TxHash::default(),
+            identity: Identity::default(),
+            blobs: IndexedBlobs::from(vec![blob]),
+            tx_blob_count: 1,
+            index: BlobIndex(0),
+            tx_ctx: None,
+            private_input: vec![],
+        });
+
+        // Check that it returns an error
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Could not deserialize Blob at index 0");
     }
 }

@@ -483,7 +483,7 @@ mod tests {
 
     #[test]
     fn test_wallet_logic() {
-        let mut wallet = Wallet::default();
+        let mut wallet = Wallet::new(&None).unwrap();
 
         let password_hash = "test_hash".to_string().into_bytes();
         let hex_encoded_hash = hex::encode(password_hash.clone());
@@ -648,7 +648,7 @@ mod tests {
             ..Default::default()
         };
 
-        let mut wallet = Wallet::default();
+        let mut wallet = Wallet::new(&None).unwrap();
         let v = wallet
             .build_commitment_metadata(&register_blob)
             .expect("Failed to build commitment metadata");
@@ -728,7 +728,7 @@ mod tests {
         let mut verify_call = register_call.clone();
         verify_call.index = BlobIndex(1);
 
-        let mut wallet = Wallet::default();
+        let mut wallet = Wallet::new(&None).unwrap();
         let iv = wallet
             .build_commitment_metadata(&register_blob)
             .expect("Failed to build commitment metadata");
@@ -794,7 +794,7 @@ mod tests {
             ..Default::default()
         };
 
-        let mut wallet = Wallet::default();
+        let mut wallet = Wallet::new(&None).unwrap();
         {
             let v = wallet.build_commitment_metadata(&pubkey_blob).unwrap();
             let mut zk_view: WalletZkView = borsh::from_slice(&v).unwrap();
@@ -847,7 +847,7 @@ mod tests {
             ..Default::default()
         };
 
-        let mut wallet = Wallet::default();
+        let mut wallet = Wallet::new(&None).unwrap();
         let v = wallet
             .build_commitment_metadata(&register_blob)
             .expect("Failed to build commitment metadata");
