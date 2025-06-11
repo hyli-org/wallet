@@ -21,12 +21,10 @@ export const WalletLayout = ({ wallet, onLogout }: WalletLayoutProps) => {
     const isDashboard = location.pathname === "/wallet" || location.pathname === "/wallet/balance";
 
     const handleSendClick = () => {
-        // TODO: Open send modal
         navigate("/wallet/send");
     };
 
     const handleReceiveClick = () => {
-        // TODO: Open receive modal
         navigate("/wallet/receive");
     };
 
