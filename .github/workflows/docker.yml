@@ -45,7 +45,6 @@ jobs:
             type=semver,pattern={{major}}
             type=ref,event=branch
             type=ref,event=pr
-            type=sha
       - name: Docker Auth
         id: docker-auth
         uses: "docker/login-action@v3"
