@@ -7,7 +7,7 @@ use client_sdk::{
     rest_client::{IndexerApiHttpClient, NodeApiHttpClient},
 };
 use conf::Conf;
-use history::{HistoryEvent, HyllarHistory};
+use history::{HistoryEvent, TokenHistory};
 use hyle_modules::{
     bus::{metrics::BusMetrics, SharedMessageBus},
     modules::{
@@ -21,7 +21,6 @@ use hyle_modules::{
     utils::logger::setup_tracing,
 };
 
-use hyle_smt_token::client::tx_executor_handler::SmtTokenProvableState;
 use prometheus::Registry;
 use sdk::{api::NodeInfo, info, ContractName};
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
@@ -132,7 +131,7 @@ async fn main() -> Result<()> {
         })
         .await?;
     handler
-        .build_module::<ContractStateIndexer<HyllarHistory, Vec<HistoryEvent>>>(
+        .build_module::<ContractStateIndexer<TokenHistory, Vec<HistoryEvent>>>(
             ContractStateIndexerCtx {
                 contract_name: "oranj".into(),
                 data_directory: config.data_directory.clone(),
@@ -152,53 +151,12 @@ async fn main() -> Result<()> {
             max_txs_per_proof: config.wallet_max_txs_per_proof,
         }))
         .await?;
-    handler
-        .build_module::<AutoProver<SmtTokenProvableState>>(Arc::new(AutoProverCtx {
-            data_directory: config.data_directory.clone(),
-            prover: Arc::new(Risc0Prover::new(
-                hyle_smt_token::client::tx_executor_handler::metadata::SMT_TOKEN_ELF,
-            )),
-            contract_name: "oranj".into(),
-            node: app_ctx.node_client.clone(),
-            default_state: Default::default(),
-            buffer_blocks: config.smt_buffer_blocks,
-            max_txs_per_proof: config.smt_max_txs_per_proof,
-        }))
-        .await?;
-
-    handler
-        .build_module::<AutoProver<SmtTokenProvableState>>(Arc::new(AutoProverCtx {
-            data_directory: config.data_directory.clone(),
-            prover: Arc::new(Risc0Prover::new(
-                hyle_smt_token::client::tx_executor_handler::metadata::SMT_TOKEN_ELF,
-            )),
-            contract_name: "vitamin".into(),
-            node: app_ctx.node_client.clone(),
-            default_state: Default::default(),
-            buffer_blocks: 1,
-            max_txs_per_proof: 30,
-        }))
-        .await?;
-
-    handler
-        .build_module::<AutoProver<SmtTokenProvableState>>(Arc::new(AutoProverCtx {
-            data_directory: config.data_directory.clone(),
-            prover: Arc::new(Risc0Prover::new(
-                hyle_smt_token::client::tx_executor_handler::metadata::SMT_TOKEN_ELF,
-            )),
-            contract_name: "oxygen".into(),
-            node: app_ctx.node_client.clone(),
-            default_state: Default::default(),
-            buffer_blocks: 1,
-            max_txs_per_proof: 30,
-        }))
-        .await?;
 
     handler
         .build_module::<WebSocketModule<AppWsInMessage, AppOutWsEvent>>(config.websocket.clone())
         .await?;
 
-    // This module connects to the da_address and receives all the blocks²
+    // This module connects to the da_address and receives all the blocks
     handler
         .build_module::<DAListener>(DAListenerConf {
             start_block: None,

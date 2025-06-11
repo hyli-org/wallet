@@ -40,8 +40,8 @@ pub struct TransactionDetails {
 }
 
 #[derive(Debug, Clone, Default, BorshDeserialize, BorshSerialize)]
-pub struct HyllarHistory {
-    oranj: SmtTokenProvableState,
+pub struct TokenHistory {
+    token: SmtTokenProvableState,
     history: BTreeMap<Identity, Vec<TransactionDetails>>,
 }
 
@@ -51,7 +51,7 @@ pub struct HistoryEvent {
     pub tx: TransactionDetails,
 }
 
-impl HyllarHistory {
+impl TokenHistory {
     pub fn add_to_history(
         &mut self,
         identity: Identity,
@@ -95,13 +95,13 @@ impl HyllarHistory {
     }
 }
 
-impl TxExecutorHandler for HyllarHistory {
+impl TxExecutorHandler for TokenHistory {
     fn handle(&mut self, calldata: &sdk::Calldata) -> anyhow::Result<sdk::HyleOutput> {
-        self.oranj.handle(calldata)
+        self.token.handle(calldata)
     }
 
     fn build_commitment_metadata(&self, blob: &sdk::Blob) -> anyhow::Result<Vec<u8>> {
-        self.oranj.build_commitment_metadata(blob)
+        self.token.build_commitment_metadata(blob)
     }
 
     fn construct_state(
@@ -112,8 +112,8 @@ impl TxExecutorHandler for HyllarHistory {
     }
 }
 
-impl ContractHandler<Vec<HistoryEvent>> for HyllarHistory {
-    async fn api(store: ContractHandlerStore<HyllarHistory>) -> (Router<()>, OpenApi) {
+impl ContractHandler<Vec<HistoryEvent>> for TokenHistory {
+    async fn api(store: ContractHandlerStore<TokenHistory>) -> (Router<()>, OpenApi) {
         let (router, api) = OpenApiRouter::default()
             .routes(routes!(get_history))
             .split_for_parts();
@@ -290,7 +290,7 @@ struct HistoryResponse {
 )]
 pub async fn get_history(
     Path(account): Path<Identity>,
-    State(state): State<ContractHandlerStore<HyllarHistory>>,
+    State(state): State<ContractHandlerStore<TokenHistory>>,
 ) -> Result<impl IntoResponse, AppError> {
     let store = state.read().await;
     let state = store.state.clone().ok_or(AppError(
