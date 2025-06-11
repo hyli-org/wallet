@@ -143,6 +143,24 @@ async fn main() -> Result<()> {
             },
         )
         .await?;
+    handler
+        .build_module::<ContractStateIndexer<TokenHistory, Vec<HistoryEvent>>>(
+            ContractStateIndexerCtx {
+                contract_name: "vitamin".into(),
+                data_directory: config.data_directory.clone(),
+                api: api_ctx.clone(),
+            },
+        )
+        .await?;
+    handler
+        .build_module::<ContractStateIndexer<TokenHistory, Vec<HistoryEvent>>>(
+            ContractStateIndexerCtx {
+                contract_name: "oxygen".into(),
+                data_directory: config.data_directory.clone(),
+                api: api_ctx.clone(),
+            },
+        )
+        .await?;
 
     handler
         .build_module::<AutoProver<Wallet>>(Arc::new(AutoProverCtx {
