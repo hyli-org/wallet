@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use app::{AppModule, AppModuleCtx, AppOutWsEvent, AppWsInMessage};
 use axum::Router;
 use clap::Parser;
+use client_sdk::rest_client::test::NodeApiMockClient;
 use client_sdk::transaction_builder::TxExecutorHandler;
 use client_sdk::{
     helpers::risc0::Risc0Prover,
@@ -57,6 +58,9 @@ pub struct Args {
 
     #[arg(short, long, default_value = "false")]
     pub auto_provers: bool,
+
+    #[arg(long, default_value = "false")]
+    pub noinit: bool,
 }
 
 #[tokio::main]
@@ -101,11 +105,15 @@ async fn main() -> Result<()> {
         constructor_metadata: borsh::to_vec(&wallet_constructor).expect("must succeed"),
     }];
 
-    match init::init_node(node_client.clone(), indexer_client.clone(), contracts).await {
-        Ok(_) => {}
-        Err(e) => {
-            error!("Error initializing node: {:?}", e);
-            return Ok(());
+    if args.noinit {
+        info!("Skipping initialization, using existing contracts");
+    } else {
+        match init::init_node(node_client.clone(), indexer_client.clone(), contracts).await {
+            Ok(_) => {}
+            Err(e) => {
+                error!("Error initializing node: {:?}", e);
+                return Ok(());
+            }
         }
     }
     let bus = SharedMessageBus::new(BusMetrics::global(config.id.clone()));

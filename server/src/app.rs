@@ -8,7 +8,7 @@ use axum::{
     routing::get,
     Router,
 };
-use client_sdk::rest_client::NodeApiHttpClient;
+use client_sdk::rest_client::NodeApiClient;
 use hyle_modules::{
     bus::{BusClientSender, SharedMessageBus},
     module_bus_client, module_handle_messages,
@@ -31,7 +31,7 @@ pub struct AppModule {
 
 pub struct AppModuleCtx {
     pub api: Arc<BuildApiContextInner>,
-    pub node_client: Arc<NodeApiHttpClient>,
+    pub node_client: Arc<dyn NodeApiClient + Send + Sync>,
     pub wallet_cn: ContractName,
 }
 

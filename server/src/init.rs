@@ -12,18 +12,18 @@ pub struct ContractInit {
 }
 
 pub async fn init_node(
-    node: Arc<NodeApiHttpClient>,
+    node: Arc<dyn NodeApiClient>,
     indexer: Arc<IndexerApiHttpClient>,
     contracts: Vec<ContractInit>,
 ) -> Result<()> {
     for contract in contracts {
-        init_contract(&node, &indexer, contract).await?;
+        init_contract(node.as_ref(), &indexer, contract).await?;
     }
     Ok(())
 }
 
 async fn init_contract(
-    node: &NodeApiHttpClient,
+    node: &dyn NodeApiClient,
     indexer: &IndexerApiHttpClient,
     contract: ContractInit,
 ) -> Result<()> {
