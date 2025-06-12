@@ -134,7 +134,7 @@ export const Dashboard = ({ wallet, onSendClick }: DashboardProps) => {
                                     </span>
                                 </div>
                                 <div className={`activity-status ${tx.status.toLowerCase()}`}>
-                                    {tx.status === "Success" ? "✓" : tx.status === "Failed" ? "✗" : "..."}
+                                    {tx.status === "Success" ? "✓" : tx.status === "Failed" ? "✗" : tx.status === "Timed Out" ? "⏰" : "..."}
                                 </div>
                             </div>
                         ))}
