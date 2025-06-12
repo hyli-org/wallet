@@ -31,12 +31,16 @@ export const Dashboard = ({ wallet, onSendClick }: DashboardProps) => {
 
     const recentActivity = transactions.slice(0, 3);
 
-    const formatAmount = (amount: number): string => {
-        if (amount >= 1000) {
-            return `${(amount / 1000).toFixed(1)}k`;
-        }
-        return amount.toFixed(0);
+    const formatAmount = (num: number): string => {
+        if (num === 0) return "0";
+
+        const k = 1000;
+        const sizes = ['', 'k', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc'];
+        const i = Math.floor(Math.log(num) / Math.log(k));
+
+        return (num / Math.pow(k, i)).toFixed(i == 0 ? 0 : 3).toLocaleString() + sizes[i];
     };
+
 
     return (
         <div className="dashboard">
