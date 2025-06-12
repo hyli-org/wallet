@@ -134,7 +134,7 @@ export const Dashboard = ({ wallet, onSendClick }: DashboardProps) => {
                                 </div>
                                 <div>
                                     <span className="activity-amount">
-                                        {tx.amount} {tx.token ? tx.token.toUpperCase() : "ORANJ"}
+                                        {tx.amount.toLocaleString()} {tx.token ? tx.token.toUpperCase() : "ORANJ"}
                                     </span>
                                 </div>
                                 <div className={`activity-status ${tx.status.toLowerCase()}`}>
