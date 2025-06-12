@@ -1161,9 +1161,9 @@ dependencies = [
 
 [[package]]
 name = "assertables"
-version = "9.6.0"
+version = "9.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72129447ae3f06776127f6f88ad9da1f3ad936a20935ea84cc63ef24fdf95b17"
+checksum = "5c775ce207e5c3131cd1ced711448f31bae2ae71fe2b9becb0090470b09f9035"
 
 [[package]]
 name = "async-attributes"
@@ -1572,9 +1572,9 @@ dependencies = [
 
 [[package]]
 name = "aws-smithy-eventstream"
-version = "0.60.8"
+version = "0.60.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c45d3dddac16c5c59d553ece225a88870cf81b7b813c9cc17b78cf4685eac7a"
+checksum = "338a3642c399c0a5d157648426110e199ca7fd1c689cc395676b81aa563700c4"
 dependencies = [
  "aws-smithy-types",
  "bytes",
@@ -1604,9 +1604,9 @@ dependencies = [
 
 [[package]]
 name = "aws-smithy-http-client"
-version = "1.0.3"
+version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "073d330f94bdf1f47bb3e0f5d45dda1e372a54a553c39ab6e9646902c8c81594"
+checksum = "7f491388e741b7ca73b24130ff464c1478acc34d5b331b7dd0a2ee4643595a15"
 dependencies = [
  "aws-smithy-async",
  "aws-smithy-runtime-api",
@@ -1633,9 +1633,9 @@ dependencies = [
 
 [[package]]
 name = "aws-smithy-json"
-version = "0.61.3"
+version = "0.61.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92144e45819cae7dc62af23eac5a038a58aa544432d2102609654376a900bd07"
+checksum = "a16e040799d29c17412943bdbf488fd75db04112d0c0d4b9290bacf5ae0014b9"
 dependencies = [
  "aws-smithy-types",
 ]
@@ -1675,9 +1675,9 @@ dependencies = [
 
 [[package]]
 name = "aws-smithy-runtime-api"
-version = "1.8.0"
+version = "1.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1e5d9e3a80a18afa109391fb5ad09c3daf887b516c6fd805a157c6ea7994a57"
+checksum = "bd8531b6d8882fd8f48f82a9754e682e29dd44cff27154af51fa3eb730f59efb"
 dependencies = [
  "aws-smithy-async",
  "aws-smithy-types",
@@ -1692,9 +1692,9 @@ dependencies = [
 
 [[package]]
 name = "aws-smithy-types"
-version = "1.3.1"
+version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40076bd09fadbc12d5e026ae080d0930defa606856186e31d83ccc6a255eeaf3"
+checksum = "d498595448e43de7f4296b7b7a18a8a02c61ec9349128c80a368f7c3b4ab11a8"
 dependencies = [
  "base64-simd",
  "bytes",
@@ -1718,9 +1718,9 @@ dependencies = [
 
 [[package]]
 name = "aws-smithy-xml"
-version = "0.60.9"
+version = "0.60.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab0b0166827aa700d3dc519f72f8b3a91c35d0b8d042dc5d643a91e6f80648fc"
+checksum = "3db87b96cb1b16c024980f133968d52882ca0daaee3a086c6decc500f6c99728"
 dependencies = [
  "xmlparser",
 ]
@@ -3809,7 +3809,7 @@ dependencies = [
 [[package]]
 name = "hyle-bonsai-runner"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#b034dce58d330de87bdbacd59cb8df33947ed45c"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=main#76ef7e23c1597ccd1cfae334a1286bb873b9d9ae"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3827,7 +3827,7 @@ dependencies = [
 [[package]]
 name = "hyle-client-sdk"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#b034dce58d330de87bdbacd59cb8df33947ed45c"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=main#76ef7e23c1597ccd1cfae334a1286bb873b9d9ae"
 dependencies = [
  "anyhow",
  "axum",
@@ -3847,7 +3847,7 @@ dependencies = [
 [[package]]
 name = "hyle-contract-sdk"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#b034dce58d330de87bdbacd59cb8df33947ed45c"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=main#76ef7e23c1597ccd1cfae334a1286bb873b9d9ae"
 dependencies = [
  "borsh",
  "hyle-model",
@@ -3861,7 +3861,7 @@ dependencies = [
 [[package]]
 name = "hyle-crypto"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#b034dce58d330de87bdbacd59cb8df33947ed45c"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=main#76ef7e23c1597ccd1cfae334a1286bb873b9d9ae"
 dependencies = [
  "anyhow",
  "blst",
@@ -3874,7 +3874,7 @@ dependencies = [
 [[package]]
 name = "hyle-model"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#b034dce58d330de87bdbacd59cb8df33947ed45c"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=main#76ef7e23c1597ccd1cfae334a1286bb873b9d9ae"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -3897,7 +3897,7 @@ dependencies = [
 [[package]]
 name = "hyle-modules"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#b034dce58d330de87bdbacd59cb8df33947ed45c"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=main#76ef7e23c1597ccd1cfae334a1286bb873b9d9ae"
 dependencies = [
  "anyhow",
  "anymap",
@@ -3909,6 +3909,7 @@ dependencies = [
  "hyle-contract-sdk",
  "hyle-net",
  "hyle-verifiers",
+ "indexmap 2.9.0",
  "opentelemetry",
  "paste",
  "prometheus",
@@ -3931,7 +3932,7 @@ dependencies = [
 [[package]]
 name = "hyle-net"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#b034dce58d330de87bdbacd59cb8df33947ed45c"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=main#76ef7e23c1597ccd1cfae334a1286bb873b9d9ae"
 dependencies = [
  "anyhow",
  "axum",
@@ -3957,7 +3958,7 @@ dependencies = [
 [[package]]
 name = "hyle-smt-token"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#b034dce58d330de87bdbacd59cb8df33947ed45c"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=main#76ef7e23c1597ccd1cfae334a1286bb873b9d9ae"
 dependencies = [
  "anyhow",
  "borsh",
@@ -3971,7 +3972,7 @@ dependencies = [
 [[package]]
 name = "hyle-verifiers"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#b034dce58d330de87bdbacd59cb8df33947ed45c"
+source = "git+https://github.com/Hyle-org/hyle.git?branch=main#76ef7e23c1597ccd1cfae334a1286bb873b9d9ae"
 dependencies = [
  "anyhow",
  "borsh",
@@ -4522,7 +4523,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07033963ba89ebaf1584d767badaa2e8fcec21aedea6b8c0346d487d49c28667"
 dependencies = [
  "cfg-if 1.0.1",
- "windows-targets 0.53.0",
+ "windows-targets 0.53.1",
 ]
 
 [[package]]
@@ -8529,9 +8530,9 @@ dependencies = [
 
 [[package]]
 name = "windows-link"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "76840935b766e1b0a05c0066835fb9ec80071d4c09a16f6bd5f7e655e3c14c38"
+checksum = "d3bfe459f85da17560875b8bf1423d6f113b7a87a5d942e7da0ac71be7c61f8b"
 
 [[package]]
 name = "windows-registry"
@@ -8622,9 +8623,9 @@ dependencies = [
 
 [[package]]
 name = "windows-targets"
-version = "0.53.0"
+version = "0.53.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1e4c7e8ceaaf9cb7d7507c974735728ab453b67ef8f18febdd7c11fe59dca8b"
+checksum = "30357ec391cde730f8fbfcdc29adc47518b06504528df977ab5af02ef23fdee9"
 dependencies = [
  "windows_aarch64_gnullvm 0.53.0",
  "windows_aarch64_msvc 0.53.0",
