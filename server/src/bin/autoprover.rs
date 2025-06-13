@@ -15,7 +15,7 @@ use hyle_modules::{
 };
 use prometheus::Registry;
 use sdk::{api::NodeInfo, info, ContractName};
-use server::conf::Conf;
+use server::{conf::Conf, new_wallet};
 use wallet::client::tx_executor_handler::Wallet;
 
 #[derive(Parser, Debug)]
@@ -74,7 +74,7 @@ async fn main() -> Result<()> {
 
     // Ajout de l'autoprover du wallet
     let wallet_cn: ContractName = "wallet".into();
-    let wallet = Wallet::new(&None).expect("must succeed");
+    let wallet = new_wallet();
     handler
         .build_module::<AutoProver<Wallet>>(Arc::new(AutoProverCtx {
             data_directory: config.data_directory.clone(),
