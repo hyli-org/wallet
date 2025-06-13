@@ -1,4 +1,4 @@
-FROM rust:latest AS builder
+FROM rustlang/rust:nightly AS builder
 
 RUN curl -L https://risczero.com/install | bash
 RUN /root/.risc0/bin/rzup install
@@ -12,6 +12,7 @@ COPY Cargo.toml .
 COPY Cargo.lock .
 
 RUN cargo build --bin server
+RUN cargo build --bin autoprover
 
 # RUNNER
 FROM rust:latest

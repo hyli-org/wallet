@@ -1,7 +1,7 @@
 [package]
 name = "contracts"
 edition = { workspace = true }
-rust-version = "1.81"
+rust-version = "1.85"
 
 [lib]
 path = "metadata.rs"

@@ -25,7 +25,7 @@ sha2 = "0.10.8"
 
 [workspace.package]
 version = "0.4.1"
-edition = "2021"
+edition = "2024"
 
 [patch.crates-io]
 sha2 = { git = "https://github.com/risc0/RustCrypto-hashes", tag = "sha2-v0.10.8-risczero.0" }
