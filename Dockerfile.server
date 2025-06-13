@@ -12,6 +12,7 @@ COPY Cargo.toml .
 COPY Cargo.lock .
 
 RUN cargo build --bin server
+RUN cargo build --bin autoprover
 
 # RUNNER
 FROM rust:latest

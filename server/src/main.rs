@@ -2,7 +2,6 @@ use anyhow::{Context, Result};
 use app::{AppModule, AppModuleCtx, AppOutWsEvent, AppWsInMessage};
 use axum::Router;
 use clap::Parser;
-use client_sdk::rest_client::test::NodeApiMockClient;
 use client_sdk::transaction_builder::TxExecutorHandler;
 use client_sdk::{
     helpers::risc0::Risc0Prover,
@@ -11,20 +10,20 @@ use client_sdk::{
 use conf::Conf;
 use history::{HistoryEvent, TokenHistory};
 use hyle_modules::{
-    bus::{metrics::BusMetrics, SharedMessageBus},
+    bus::{SharedMessageBus, metrics::BusMetrics},
     modules::{
+        BuildApiContextInner, ModulesHandler,
         contract_state_indexer::{ContractStateIndexer, ContractStateIndexerCtx},
         da_listener::{DAListener, DAListenerConf},
         prover::{AutoProver, AutoProverCtx},
         rest::{RestApi, RestApiRunContext},
         websocket::WebSocketModule,
-        BuildApiContextInner, ModulesHandler,
     },
     utils::logger::setup_tracing,
 };
 use hyle_smt_token::client::tx_executor_handler::SmtTokenProvableState;
 use prometheus::Registry;
-use sdk::{api::NodeInfo, info, ContractName};
+use sdk::{ContractName, api::NodeInfo, info};
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
 use std::{
     env,
@@ -55,6 +54,9 @@ pub struct Args {
 
     #[arg(short, long, default_value = "false")]
     pub mock_invites: bool,
+
+    #[arg(short, long, default_value = "false")]
+    pub wallet_auto_prover: bool,
 
     #[arg(short, long, default_value = "false")]
     pub auto_provers: bool,
@@ -184,18 +186,6 @@ async fn main() -> Result<()> {
         .await?;
 
     handler
-        .build_module::<AutoProver<Wallet>>(Arc::new(AutoProverCtx {
-            data_directory: config.data_directory.clone(),
-            prover: Arc::new(Risc0Prover::new(contracts::WALLET_ELF)),
-            contract_name: wallet_cn.clone(),
-            node: app_ctx.node_client.clone(),
-            default_state: wallet.clone(),
-            buffer_blocks: config.wallet_buffer_blocks,
-            max_txs_per_proof: config.wallet_max_txs_per_proof,
-        }))
-        .await?;
-
-    handler
         .build_module::<WebSocketModule<AppWsInMessage, AppOutWsEvent>>(config.websocket.clone())
         .await?;
 
@@ -207,6 +197,21 @@ async fn main() -> Result<()> {
             da_read_from: config.da_read_from.clone(),
         })
         .await?;
+
+    if args.wallet_auto_prover {
+        // Wallet auto prover
+        handler
+            .build_module::<AutoProver<Wallet>>(Arc::new(AutoProverCtx {
+                data_directory: config.data_directory.clone(),
+                prover: Arc::new(Risc0Prover::new(contracts::WALLET_ELF)),
+                contract_name: wallet_cn.clone(),
+                node: app_ctx.node_client.clone(),
+                default_state: wallet.clone(),
+                buffer_blocks: config.wallet_buffer_blocks,
+                max_txs_per_proof: config.wallet_max_txs_per_proof,
+            }))
+            .await?;
+    }
 
     if args.auto_provers {
         handler

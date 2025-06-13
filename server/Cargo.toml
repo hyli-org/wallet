@@ -45,3 +45,7 @@ secp256k1 = { version = "0.31.0" }
 
 [package.metadata.cargo-machete]
 ignored = ["tracing-subscriber", "opentelemetry", "prometheus", "rand"]
+
+[[bin]]
+name = "autoprover"
+path = "src/bin/autoprover.rs"
