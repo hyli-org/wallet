@@ -29,6 +29,7 @@ import { BlobTransaction } from "hyli";
 import * as WalletOperations from "../services/WalletOperations";
 import { IndexerService } from "../services/IndexerService";
 import { sessionKeyService } from "../services/SessionKeyService";
+import { hashBlobTransaction } from "../utils/hash";
 
 export interface PasswordAuthCredentials extends AuthCredentials {
     password: string;
@@ -203,7 +204,9 @@ export class PasswordAuthProvider implements AuthProvider {
             await register_contract(nodeService.client as any);
 
             onWalletEvent?.({ account: identity, type: "sending_blob", message: `Sending blob transaction` });
-            const txHash = await nodeService.client.sendBlobTx(blobTx);
+            // Skipped, to make sure we send the proof alongside.
+            const txHash = await hashBlobTransaction(blobTx);
+            //const txHash = await nodeService.client.sendBlobTx(blobTx);
             onWalletEvent?.({ account: identity, type: "blob_sent", message: `Blob transaction sent: ${txHash}` });
 
             // Create initial wallet state
@@ -219,7 +222,7 @@ export class PasswordAuthProvider implements AuthProvider {
             const proofTx = await build_proof_transaction(identity, salted_password, txHash, 0, blobTx.blobs.length);
 
             onWalletEvent?.({ account: identity, type: "sending_proof", message: `Sending proof transaction` });
-
+            await nodeService.client.sendBlobTx(blobTx);
             const proofTxHash = await nodeService.client.sendProofTx(proofTx);
             onWalletEvent?.({
                 account: identity,
