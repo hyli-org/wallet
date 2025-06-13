@@ -16,6 +16,7 @@ import { build_proof_transaction, build_blob as check_secret_blob } from "hyli-c
 import { Blob, BlobTransaction } from "hyli";
 import { NodeService } from "./NodeService";
 import { IndexerService } from "./IndexerService";
+import { hashBlobTransaction } from "../utils/hash";
 
 /**
  * Registers a new session key in the wallet and sends transactions to register it.
@@ -64,7 +65,9 @@ export const registerSessionKey = async (
 
         onWalletEvent?.({ account: identity, type: "sending_blob", message: `Sending blob transaction` });
         // Send transaction to add session key
-        const blobTxHash = await nodeService.client.sendBlobTx(blobTx);
+        // Done later for now, to make sure we send the proof alongside
+        //const blobTxHash = await nodeService.client.sendBlobTx(blobTx);
+        const blobTxHash = await hashBlobTransaction(blobTx);
         // Notify of blob transaction
         onWalletEvent?.({ account: identity, type: "blob_sent", message: `Blob transaction sent: ${blobTxHash}` });
 
@@ -73,7 +76,7 @@ export const registerSessionKey = async (
         const proofTx = await build_proof_transaction(identity, password, blobTxHash, 0, blobTx.blobs.length);
 
         onWalletEvent?.({ account: identity, type: "sending_proof", message: `Sending proof transaction` });
-
+        await nodeService.client.sendBlobTx(blobTx);
         const proofTxHash = await nodeService.client.sendProofTx(proofTx);
         // Notify of proof transaction
         onWalletEvent?.({ account: identity, type: "proof_sent", message: `Proof transaction sent: ${proofTxHash}` });
