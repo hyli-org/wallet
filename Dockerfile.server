@@ -1,4 +1,4 @@
-FROM rustlang/rust:nightly AS builder
+FROM rust:latest AS builder
 
 RUN curl -L https://risczero.com/install | bash
 RUN /root/.risc0/bin/rzup install
