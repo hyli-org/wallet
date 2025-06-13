@@ -1,7 +1,6 @@
 [package]
 name = "wallet"
 edition = { workspace = true }
-rust-version = "1.85"
 
 [[bin]]
 name = "wallet"

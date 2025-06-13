@@ -1,6 +1,6 @@
 [package]
 name = "server"
-edition = "2024"
+edition = "2021"
 
 [dependencies]
 sdk = { workspace = true, features = ["tracing"] }
