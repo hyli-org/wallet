@@ -209,6 +209,7 @@ async fn main() -> Result<()> {
                 default_state: wallet.clone(),
                 buffer_blocks: config.wallet_buffer_blocks,
                 max_txs_per_proof: config.wallet_max_txs_per_proof,
+                tx_working_window_size: config.wallet_tx_working_window_size,
             }))
             .await?;
     }
@@ -225,6 +226,7 @@ async fn main() -> Result<()> {
                 default_state: Default::default(),
                 buffer_blocks: config.smt_buffer_blocks,
                 max_txs_per_proof: config.smt_max_txs_per_proof,
+                tx_working_window_size: config.smt_tx_working_window_size,
             }))
             .await?;
         handler
@@ -238,6 +240,7 @@ async fn main() -> Result<()> {
                 default_state: Default::default(),
                 buffer_blocks: config.smt_buffer_blocks,
                 max_txs_per_proof: config.smt_max_txs_per_proof,
+                tx_working_window_size: config.smt_tx_working_window_size,
             }))
             .await?;
         handler
@@ -251,6 +254,7 @@ async fn main() -> Result<()> {
                 default_state: Default::default(),
                 buffer_blocks: config.smt_buffer_blocks,
                 max_txs_per_proof: config.smt_max_txs_per_proof,
+                tx_working_window_size: config.smt_tx_working_window_size,
             }))
             .await?;
     }

@@ -11,8 +11,10 @@ indexer_url = "http://localhost:4321"
 
 wallet_buffer_blocks = 0
 wallet_max_txs_per_proof = 100
+wallet_tx_working_window_size = 500
 smt_buffer_blocks = 0
 smt_max_txs_per_proof = 30
+smt_tx_working_window_size = 150
 
 # Invites
 db_url = "postgres://postgres:postgres@localhost:5432/postgres"

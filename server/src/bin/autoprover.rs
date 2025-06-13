@@ -86,6 +86,7 @@ async fn main() -> Result<()> {
             default_state: wallet,
             buffer_blocks: config.wallet_buffer_blocks,
             max_txs_per_proof: config.wallet_max_txs_per_proof,
+            tx_working_window_size: config.wallet_tx_working_window_size,
         }))
         .await?;
 
