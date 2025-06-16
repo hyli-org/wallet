@@ -31,6 +31,18 @@ fn get_state_commitment(root: H256, pubkey: InviteCodePubKey) -> StateCommitment
     StateCommitment(result.to_vec())
 }
 
+impl sdk::TransactionalZkContract for WalletZkView {
+    type State = sdk::StateCommitment;
+
+    fn initial_state(&self) -> Self::State {
+        self.commitment.clone()
+    }
+
+    fn revert(&mut self, initial_state: Self::State) {
+        self.commitment = initial_state;
+    }
+}
+
 impl sdk::ZkContract for WalletZkView {
     fn execute(&mut self, calldata: &sdk::Calldata) -> RunResult {
         let (action, ctx) = sdk::utils::parse_raw_calldata::<WalletAction>(calldata)?;
