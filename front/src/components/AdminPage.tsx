@@ -39,35 +39,20 @@ function serializeNukeTxAction(txHashes: string[]): Uint8Array {
     return borshSerialize(nukeTxActionSchema, { parameters: { tx_hashes: txHashes }, caller: null, callees: null });
 }
 
-const registerContractActionSchema = as_structured(
+const updateContractProgramIdActionSchema = as_structured(
     BorshSchema.Struct({
-        verifier: BorshSchema.String,
-        program_id: BorshSchema.Vec(BorshSchema.u8),
-        state_commitment: BorshSchema.Vec(BorshSchema.u8),
         contract_name: BorshSchema.String,
-        timeout_window: BorshSchema.Option(BorshSchema.u32),
-        constructor_metadata: BorshSchema.Option(BorshSchema.Vec(BorshSchema.u8)),
+        program_id: BorshSchema.Vec(BorshSchema.u8),
     })
 );
 
-function serializeRegisterContractAction(
-    contractName: string,
-    verifier: string,
-    programId: string,
-    stateCommitment: string
-): Uint8Array {
-    // Convertir les hex strings en bytes
+function serializeUpdateContractProgramIdAction(contractName: string, programId: string): Uint8Array {
     const programIdBytes = Array.from(new Uint8Array(Buffer.from(programId, 'hex')));
-    const stateCommitmentBytes = Array.from(new Uint8Array(Buffer.from(stateCommitment, 'hex')));
     
-    return borshSerialize(registerContractActionSchema, {
+    return borshSerialize(updateContractProgramIdActionSchema, {
         parameters: {
-            verifier: verifier,
-            program_id: programIdBytes,
-            state_commitment: stateCommitmentBytes,
             contract_name: contractName,
-            timeout_window: null,
-            constructor_metadata: null,
+            program_id: programIdBytes,
         },
         caller: null,
         callees: null,
@@ -151,52 +136,10 @@ const AdminPage: React.FC = () => {
                 const actionBlob = { contract_name: "hyle", data: Array.from(action) };
                 blobs = [actionBlob];
             } else if (actionType === "update") {
-                setStatus("Fetching existing contract information...");
-                
-                const existingContract = await nodeService.client.getContract(updateContractName);
-                const verifier = existingContract.verifier;
-                const stateCommitment = Buffer.from(existingContract.state).toString('hex');
-                
-                // First transaction: Delete
-                setStatus("Sending delete transaction...");
-                const deleteAction = serializeDeleteContractAction(updateContractName);
-
-                const blob0 = await check_secret_blob(identity, salted_password);
-                const blob1 = verifyIdentity(wallet.username, Date.now());
-                const deleteBlob = { contract_name: "hyle", data: Array.from(deleteAction) };
-                const deleteBlobTx: BlobTransaction = { identity, blobs: [blob0, blob1, deleteBlob] };
-                console.log("Delete transaction:", deleteBlobTx);
-                const deleteTxHash = await nodeService.client.sendBlobTx(deleteBlobTx);
-                
-                setStatus("Building delete proof transaction...");
-                const deleteProofTx = await build_proof_transaction(identity, salted_password, deleteTxHash, 0, deleteBlobTx.blobs.length);
-                setStatus("Sending delete proof transaction...");
-                await nodeService.client.sendProofTx(deleteProofTx);
-                
-                // Second transaction: Register
-                setStatus("Sending register transaction...");
-                const registerAction = serializeRegisterContractAction(
-                    updateContractName,
-                    verifier,
-                    newProgramId, 
-                    stateCommitment
-                );
-                const registerBlob = { contract_name: "hyle", data: Array.from(registerAction) };
-                const registerBlobTx: BlobTransaction = { identity: "hyle@hyle", blobs: [registerBlob] };
-                console.log("Register transaction:", registerBlobTx);
-                const registerTxHash = await nodeService.client.sendBlobTx(registerBlobTx);
-                
-                setStatus("Building register proof transaction...");
-                const registerProofTx = await build_proof_transaction(identity, salted_password, registerTxHash, 0, registerBlobTx.blobs.length);
-                setStatus("Sending register proof transaction...");
-                await nodeService.client.sendProofTx(registerProofTx);
-                
-                setResult(`UpdateContract: ${updateContractName} with new ProgramId: ${newProgramId}, verifier: ${verifier}`);
-                
-                // Skip the normal blob processing since we handled everything above
-                setStatus("UpdateContract transactions sent!");
-                setIsLoading(false);
-                return;
+                const action = serializeUpdateContractProgramIdAction(updateContractName, newProgramId);
+                setResult(`UpdateContractProgramIdAction: ${updateContractName} with new ProgramId: ${newProgramId}`);
+                const actionBlob = { contract_name: "hyle", data: Array.from(action) };
+                blobs = [blob0, blob1, actionBlob];
             }
             setStatus(
                 `Sending ${
