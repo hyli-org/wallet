@@ -182,10 +182,7 @@ const AdminPage: React.FC = () => {
                     stateCommitment
                 );
                 const registerBlob = { contract_name: "hyle", data: Array.from(registerAction) };
-                blobs = [registerBlob];
-
-                const blob1Bis = verifyIdentity(wallet.username, Date.now());
-                const registerBlobTx: BlobTransaction = { identity, blobs: [blob0, blob1Bis, registerBlob] };
+                const registerBlobTx: BlobTransaction = { identity: "hyle@hyle", blobs: [registerBlob] };
                 console.log("Register transaction:", registerBlobTx);
                 const registerTxHash = await nodeService.client.sendBlobTx(registerBlobTx);
                 
