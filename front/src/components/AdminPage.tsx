@@ -5,6 +5,7 @@ import { build_proof_transaction, build_blob as check_secret_blob } from "hyli-c
 import { nodeService } from "../services/NodeService";
 import { indexerService } from "../services/IndexerService";
 import { BorshSchema, borshSerialize } from "borsher";
+import { Buffer } from "buffer";
 
 const as_structured = (schema: BorshSchema<any>) => {
     return BorshSchema.Struct({
@@ -38,6 +39,41 @@ function serializeNukeTxAction(txHashes: string[]): Uint8Array {
     return borshSerialize(nukeTxActionSchema, { parameters: { tx_hashes: txHashes }, caller: null, callees: null });
 }
 
+const registerContractActionSchema = as_structured(
+    BorshSchema.Struct({
+        verifier: BorshSchema.String,
+        program_id: BorshSchema.Vec(BorshSchema.u8),
+        state_commitment: BorshSchema.Vec(BorshSchema.u8),
+        contract_name: BorshSchema.String,
+        timeout_window: BorshSchema.Option(BorshSchema.u32),
+        constructor_metadata: BorshSchema.Option(BorshSchema.Vec(BorshSchema.u8)),
+    })
+);
+
+function serializeRegisterContractAction(
+    contractName: string,
+    verifier: string,
+    programId: string,
+    stateCommitment: string
+): Uint8Array {
+    // Convertir les hex strings en bytes
+    const programIdBytes = Array.from(new Uint8Array(Buffer.from(programId, 'hex')));
+    const stateCommitmentBytes = Array.from(new Uint8Array(Buffer.from(stateCommitment, 'hex')));
+    
+    return borshSerialize(registerContractActionSchema, {
+        parameters: {
+            verifier: verifier,
+            program_id: programIdBytes,
+            state_commitment: stateCommitmentBytes,
+            contract_name: contractName,
+            timeout_window: null,
+            constructor_metadata: null,
+        },
+        caller: null,
+        callees: null,
+    });
+}
+
 const INIT_TRANSFERS = [
     { to: "faucet", token: "oranj", amount: BigInt(1_000_000_000) },
     { to: "blackjack", token: "vitamin", amount: BigInt(1_000_000) },
@@ -45,7 +81,7 @@ const INIT_TRANSFERS = [
 ];
 
 type PendingAction = null | {
-    type: "delete" | "nuke" | "init";
+    type: "delete" | "nuke" | "init" | "update";
     value: string;
     timeoutId: NodeJS.Timeout;
 };
@@ -62,8 +98,12 @@ const AdminPage: React.FC = () => {
     const [password, setPassword] = useState<string>("");
     const [showPassword, setShowPassword] = useState<boolean>(false);
     const [pendingSeconds, setPendingSeconds] = useState<number>(5);
+    const [updateContractName, setUpdateContractName] = useState<string>("");
+    const [newProgramId, setNewProgramId] = useState<string>("");
 
     if (!wallet) return null;
+    
+    const isHyliAdmin = wallet.username === "hyli";
 
     // Helper to clear pending action
     const clearPending = () => {
@@ -75,7 +115,7 @@ const AdminPage: React.FC = () => {
     };
 
     // Generic admin action sender
-    const sendAdminAction = async (actionType: "init" | "delete" | "nuke", value?: string) => {
+    const sendAdminAction = async (actionType: "init" | "delete" | "nuke" | "update", value?: string) => {
         setError(null);
         setIsLoading(true);
         try {
@@ -109,11 +149,64 @@ const AdminPage: React.FC = () => {
                 const action = serializeNukeTxAction(hashes);
                 setResult(`NukeTxAction: ${hashes.join(", ")}`);
                 const actionBlob = { contract_name: "hyle", data: Array.from(action) };
-                blobs = [blob0, blob1, actionBlob];
+                blobs = [actionBlob];
+            } else if (actionType === "update") {
+                setStatus("Fetching existing contract information...");
+                
+                const existingContract = await nodeService.client.getContract(updateContractName);
+                const verifier = existingContract.verifier;
+                const stateCommitment = Buffer.from(existingContract.state).toString('hex');
+                
+                // First transaction: Delete
+                setStatus("Sending delete transaction...");
+                const deleteAction = serializeDeleteContractAction(updateContractName);
+
+                const blob0 = await check_secret_blob(identity, salted_password);
+                const blob1 = verifyIdentity(wallet.username, Date.now());
+                const deleteBlob = { contract_name: "hyle", data: Array.from(deleteAction) };
+                const deleteBlobTx: BlobTransaction = { identity, blobs: [blob0, blob1, deleteBlob] };
+                console.log("Delete transaction:", deleteBlobTx);
+                const deleteTxHash = await nodeService.client.sendBlobTx(deleteBlobTx);
+                
+                setStatus("Building delete proof transaction...");
+                const deleteProofTx = await build_proof_transaction(identity, salted_password, deleteTxHash, 0, deleteBlobTx.blobs.length);
+                setStatus("Sending delete proof transaction...");
+                await nodeService.client.sendProofTx(deleteProofTx);
+                
+                // Second transaction: Register
+                setStatus("Sending register transaction...");
+                const registerAction = serializeRegisterContractAction(
+                    updateContractName,
+                    verifier,
+                    newProgramId, 
+                    stateCommitment
+                );
+                const registerBlob = { contract_name: "hyle", data: Array.from(registerAction) };
+                blobs = [registerBlob];
+
+                const blob1Bis = verifyIdentity(wallet.username, Date.now());
+                const registerBlobTx: BlobTransaction = { identity, blobs: [blob0, blob1Bis, registerBlob] };
+                console.log("Register transaction:", registerBlobTx);
+                const registerTxHash = await nodeService.client.sendBlobTx(registerBlobTx);
+                
+                setStatus("Building register proof transaction...");
+                const registerProofTx = await build_proof_transaction(identity, salted_password, registerTxHash, 0, registerBlobTx.blobs.length);
+                setStatus("Sending register proof transaction...");
+                await nodeService.client.sendProofTx(registerProofTx);
+                
+                setResult(`UpdateContract: ${updateContractName} with new ProgramId: ${newProgramId}, verifier: ${verifier}`);
+                
+                // Skip the normal blob processing since we handled everything above
+                setStatus("UpdateContract transactions sent!");
+                setIsLoading(false);
+                return;
             }
             setStatus(
                 `Sending ${
-                    actionType === "init" ? "Init" : actionType === "delete" ? "DeleteContract" : "NukeTx"
+                    actionType === "init" ? "Init" : 
+                    actionType === "delete" ? "DeleteContract" : 
+                    actionType === "nuke" ? "NukeTx" : 
+                    "UpdateContract"
                 } transaction...`
             );
             const blobTx: BlobTransaction = { identity, blobs };
@@ -124,7 +217,10 @@ const AdminPage: React.FC = () => {
             await nodeService.client.sendProofTx(proofTx);
             setStatus(
                 `${
-                    actionType === "init" ? "Init" : actionType === "delete" ? "DeleteContract" : "NukeTx"
+                    actionType === "init" ? "Init" : 
+                    actionType === "delete" ? "DeleteContract" : 
+                    actionType === "nuke" ? "NukeTx" : 
+                    "UpdateContract"
                 } transaction sent!`
             );
         } catch (e) {
@@ -164,6 +260,21 @@ const AdminPage: React.FC = () => {
         setIsLoading(false);
     };
 
+    const handleUpdateContract = async () => {
+        setError(null);
+        setStatus("");
+        setIsLoading(true);
+        // Only allow one pending action at a time
+        clearPending();
+        const timeoutId = setTimeout(async () => {
+            setPendingAction(null);
+            await sendAdminAction("update");
+        }, 5000);
+        setPendingAction({ type: "update", value: updateContractName, timeoutId });
+        setStatus(`UpdateContract will be sent in 5s. Click 'Undo' to cancel.`);
+        setIsLoading(false);
+    };
+
     /*
     const handleNukeTx = async () => {
         setError(null);
@@ -200,6 +311,19 @@ const AdminPage: React.FC = () => {
         <div style={{ padding: 32 }}>
             <h1>Admin Panel</h1>
             <p>Welcome, admin! Here you can perform special actions.</p>
+            
+            {!isHyliAdmin && (
+                <div style={{ 
+                    background: "#fff3cd", 
+                    border: "1px solid #ffeaa7", 
+                    color: "#856404", 
+                    padding: "1rem", 
+                    borderRadius: "0.5rem", 
+                    marginBottom: "2rem" 
+                }}>
+                    ⚠️ Limited access: Only the "hyli" user can use this admin section.
+                </div>
+            )}
             <div className="card" style={{ margin: "2rem 0", maxWidth: 600 }}>
                 <h3 className="card-title">Init Payload</h3>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 16 }}>
@@ -229,6 +353,7 @@ const AdminPage: React.FC = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     style={{ width: "100%" }}
+                    disabled={!isHyliAdmin}
                 />
                 <button
                     type="button"
@@ -253,7 +378,7 @@ const AdminPage: React.FC = () => {
                     className="btn-primary"
                     style={{ minWidth: 180 }}
                     onClick={handleInit}
-                    disabled={isLoading || !password}
+                    disabled={isLoading || !password || !isHyliAdmin}
                 >
                     Init (preconfigured transfers)
                 </button>
@@ -266,15 +391,58 @@ const AdminPage: React.FC = () => {
                     value={contractName}
                     onChange={(e) => setContractName(e.target.value)}
                     style={{ maxWidth: 320 }}
+                    disabled={!isHyliAdmin}
                 />
                 <button
                     className="btn-primary"
                     style={{ minWidth: 180 }}
                     onClick={handleDeleteContract}
-                    disabled={isLoading || !contractName || !password}
+                    disabled={isLoading || !contractName || !password || !isHyliAdmin}
                 >
                     Delete Contract
                 </button>
+            </div>
+            
+            <div className="card" style={{ margin: "2rem 0", maxWidth: 800 }}>
+                <h3 className="card-title">Update Contract</h3>
+                <p style={{ color: "#666", marginBottom: "1rem" }}>
+                    Update a contract by deleting it and then registering it with a new ProgramId.
+                    The verifier and commitment will be automatically retrieved from the existing contract.
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                    <div className="form-group" style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+                        <input
+                            className="input"
+                            type="text"
+                            placeholder="Contract name to update"
+                            value={updateContractName}
+                            onChange={(e) => setUpdateContractName(e.target.value)}
+                            style={{ flex: 1, maxWidth: 320 }}
+                            disabled={!isHyliAdmin}
+                        />
+                    </div>
+                    <div className="form-group" style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+                        <input
+                            className="input"
+                            type="text"
+                            placeholder="New ProgramId (hex)"
+                            value={newProgramId}
+                            onChange={(e) => setNewProgramId(e.target.value)}
+                            style={{ flex: 1, maxWidth: 320 }}
+                            disabled={!isHyliAdmin}
+                        />
+                    </div>
+                    <div className="form-group" style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+                        <button
+                            className="btn-primary"
+                            style={{ minWidth: 180 }}
+                            onClick={handleUpdateContract}
+                            disabled={isLoading || !updateContractName || !newProgramId || !password || !isHyliAdmin}
+                        >
+                            Update Contract
+                        </button>
+                    </div>
+                </div>
             </div>
             {/*
             <div className="form-group" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
