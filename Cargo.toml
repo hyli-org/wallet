@@ -25,8 +25,8 @@ edition = "2021"
 sha2 = { git = "https://github.com/risc0/RustCrypto-hashes", tag = "sha2-v0.10.8-risczero.0" }
 # boundless-market = { git = "https://github.com/Hyle-org/boundless.git" }
 
-[patch."https://github.com/Hyle-org/hyle"]
-hyle-contract-sdk = { path = "../hyle/crates/contract-sdk", package = "hyle-contract-sdk" }
-hyle-client-sdk = { path = "../hyle/crates/client-sdk", package = "hyle-client-sdk" }
-hyle-smt-token = { path = "../hyle/crates/contracts/smt-token", package = "hyle-smt-token" }
-hyle-modules = { path = "../hyle/crates/hyle-modules", package = "hyle-modules" }
+# [patch."https://github.com/Hyle-org/hyle"]
+# hyle-contract-sdk = { path = "../hyle/crates/contract-sdk", package = "hyle-contract-sdk" }
+# hyle-client-sdk = { path = "../hyle/crates/client-sdk", package = "hyle-client-sdk" }
+# hyle-smt-token = { path = "../hyle/crates/contracts/smt-token", package = "hyle-smt-token" }
+# hyle-modules = { path = "../hyle/crates/hyle-modules", package = "hyle-modules" }
