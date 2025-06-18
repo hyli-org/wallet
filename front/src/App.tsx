@@ -8,6 +8,8 @@ import { getPublicRoutes, getProtectedRoutes, ROUTES } from "./routes/routes";
 import { WalletProvider, useWallet } from "hyli-wallet";
 import { WebSocketProvider } from "./providers/WebSocketProvider";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { declareCustomElement } from "testnet-maintenance-widget";
+declareCustomElement();
 
 function AppContent() {
     const { wallet, logout } = useWallet();
@@ -76,6 +78,8 @@ export default function App() {
                     forceSessionKey={false}
                 >
                     <WebSocketProvider>
+                        {/* @ts-ignore */}
+                        <maintenance-widget />
                         <AppContent />
                     </WebSocketProvider>
                 </WalletProvider>
