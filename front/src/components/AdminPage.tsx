@@ -368,7 +368,7 @@ const AdminPage: React.FC = () => {
                             placeholder="New ProgramId (hex)"
                             value={newProgramId}
                             onChange={(e) => setNewProgramId(e.target.value)}
-                            style={{ flex: 1, maxWidth: 320 }}
+                            style={{ flex: 1, maxWidth: 600 }}
                             disabled={!isHyliAdmin}
                         />
                     </div>
