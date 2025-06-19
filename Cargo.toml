@@ -3,14 +3,10 @@ resolver = "2"
 members = ["contracts", "contracts/wallet", "server"]
 
 [workspace.dependencies]
-# sdk = { package = "hyle-contract-sdk", version = "0.13.0-rc.4" }
-# client-sdk = { default-features = false, package = "hyle-client-sdk", version = "0.13.0-rc.4" }
-# hyle = { version = "0.13.0-rc.4" }
-
-sdk = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-contract-sdk", branch = "main" }
-client-sdk = { git = "https://github.com/Hyle-org/hyle.git", default-features = false, package = "hyle-client-sdk", branch = "main" }
-hyle-smt-token = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-smt-token", branch = "main" }
-hyle-modules = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-modules", branch = "main" }
+sdk = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-contract-sdk", tag = "v0.13.1" }
+client-sdk = { git = "https://github.com/Hyle-org/hyle.git", default-features = false, package = "hyle-client-sdk", tag = "v0.13.1" }
+hyle-smt-token = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-smt-token", tag = "v0.13.1" }
+hyle-modules = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-modules", tag = "v0.13.1" }
 
 
 contracts = { path = "contracts", default-features = false, package = "contracts" }
