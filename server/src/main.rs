@@ -10,20 +10,20 @@ use client_sdk::{
 use conf::Conf;
 use history::{HistoryEvent, TokenHistory};
 use hyle_modules::{
-    bus::{SharedMessageBus, metrics::BusMetrics},
+    bus::{metrics::BusMetrics, SharedMessageBus},
     modules::{
-        BuildApiContextInner, ModulesHandler,
         contract_state_indexer::{ContractStateIndexer, ContractStateIndexerCtx},
         da_listener::{DAListener, DAListenerConf},
         prover::{AutoProver, AutoProverCtx},
         rest::{RestApi, RestApiRunContext},
         websocket::WebSocketModule,
+        BuildApiContextInner, ModulesHandler,
     },
     utils::logger::setup_tracing,
 };
 use hyle_smt_token::client::tx_executor_handler::SmtTokenProvableState;
 use prometheus::Registry;
-use sdk::{ContractName, api::NodeInfo, info};
+use sdk::{api::NodeInfo, info, ContractName};
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
 use std::{
     env,
@@ -305,35 +305,8 @@ async fn main() -> Result<()> {
         })
         .await?;
 
-    #[cfg(unix)]
-    {
-        use tokio::signal::unix;
-        let mut terminate = unix::signal(unix::SignalKind::interrupt())?;
-        tokio::select! {
-            Err(e) = handler.start_modules() => {
-                error!("Error running modules: {:?}", e);
-            }
-            _ = tokio::signal::ctrl_c() => {
-                info!("Ctrl-C received, shutting down");
-            }
-            _ = terminate.recv() =>  {
-                info!("SIGTERM received, shutting down");
-            }
-        }
-        _ = handler.shutdown_modules().await;
-    }
-    #[cfg(not(unix))]
-    {
-        tokio::select! {
-            Err(e) = handler.start_modules() => {
-                error!("Error running modules: {:?}", e);
-            }
-            _ = tokio::signal::ctrl_c() => {
-                info!("Ctrl-C received, shutting down");
-            }
-        }
-        _ = handler.shutdown_modules().await;
-    }
+    handler.start_modules().await?;
+    handler.exit_process().await?;
 
     Ok(())
 }
