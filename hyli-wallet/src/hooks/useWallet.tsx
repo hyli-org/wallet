@@ -134,7 +134,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
                 // Update last check time
                 localStorage.setItem("last_wallet_check", Date.now().toFixed(0));
                 // Check if the account exists
-                WalletOperations.checkAccountExists(wallet, false)
+                WalletOperations.checkAccountExists(wallet, true)
                     .then((exists) => {
                         if (!exists) {
                             console.warn("Account", wallet, "does not exist, clearing wallet.");

@@ -273,7 +273,7 @@ export const checkAccountExists = async (wallet: Wallet, withSessionKey: boolean
         if (!accountInfo) {
             return false; // Account does not exist
         }
-        if (withSessionKey) {
+        if (withSessionKey && wallet.sessionKey) {
             const backendKey = accountInfo.session_keys.find(
                 (k) => k.key === wallet.sessionKey?.publicKey && k.expiration_date > now
             );
