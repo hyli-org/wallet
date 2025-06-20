@@ -29,6 +29,33 @@ function serializeDeleteContractAction(contractName: string): Uint8Array {
     });
 }
 
+const upgradeContractTimeoutActionSchema = as_structured(
+    BorshSchema.Struct({
+        contract_name: BorshSchema.String,
+        timeout_window: BorshSchema.Enum({
+            NoTimeout: BorshSchema.Unit,
+            Timeout: BorshSchema.u64,
+        }),
+    })
+);
+
+function serializeUpgradeContractTimeoutAction(
+    contractName: string,
+    timeout_window: undefined | string | number
+): Uint8Array {
+    let timeoutWindow;
+    if (!timeout_window || !+timeout_window) {
+        timeoutWindow = { NoTimeout: {} };
+    } else {
+        timeoutWindow = { Timeout: +timeout_window };
+    }
+    return borshSerialize(upgradeContractTimeoutActionSchema, {
+        parameters: { contract_name: contractName, timeout_window: timeoutWindow },
+        caller: null,
+        callees: null,
+    });
+}
+
 const nukeTxActionSchema = as_structured(
     BorshSchema.Struct({
         tx_hashes: BorshSchema.Vec(BorshSchema.String),
@@ -47,8 +74,8 @@ const updateContractProgramIdActionSchema = as_structured(
 );
 
 function serializeUpdateContractProgramIdAction(contractName: string, programId: string): Uint8Array {
-    const programIdBytes = Array.from(new Uint8Array(Buffer.from(programId, 'hex')));
-    
+    const programIdBytes = Array.from(new Uint8Array(Buffer.from(programId, "hex")));
+
     return borshSerialize(updateContractProgramIdActionSchema, {
         parameters: {
             contract_name: contractName,
@@ -66,7 +93,7 @@ const INIT_TRANSFERS = [
 ];
 
 type PendingAction = null | {
-    type: "delete" | "nuke" | "init" | "update";
+    type: "delete" | "nuke" | "init" | "update" | "update_timeout";
     value: string;
     timeoutId: NodeJS.Timeout;
 };
@@ -85,9 +112,10 @@ const AdminPage: React.FC = () => {
     const [pendingSeconds, setPendingSeconds] = useState<number>(5);
     const [updateContractName, setUpdateContractName] = useState<string>("");
     const [newProgramId, setNewProgramId] = useState<string>("");
+    const [newTimeout, setNewTimeout] = useState<string>("");
 
     if (!wallet) return null;
-    
+
     const isHyliAdmin = wallet.username === "hyli";
 
     // Helper to clear pending action
@@ -100,7 +128,10 @@ const AdminPage: React.FC = () => {
     };
 
     // Generic admin action sender
-    const sendAdminAction = async (actionType: "init" | "delete" | "nuke" | "update", value?: string) => {
+    const sendAdminAction = async (
+        actionType: "init" | "delete" | "nuke" | "update" | "update_timeout",
+        value?: string
+    ) => {
         setError(null);
         setIsLoading(true);
         try {
@@ -139,30 +170,35 @@ const AdminPage: React.FC = () => {
                 const action = serializeUpdateContractProgramIdAction(updateContractName, newProgramId);
                 setResult(`UpdateContractProgramIdAction: ${updateContractName} with new ProgramId: ${newProgramId}`);
                 const actionBlob = { contract_name: "hyle", data: Array.from(action) };
-                blobs = [blob0, blob1, actionBlob];
+                blobs = [blob0, actionBlob, blob1];
+            } else if (actionType === "update_timeout") {
+                const action = serializeUpgradeContractTimeoutAction(updateContractName, newTimeout);
+                setResult(`UpgradeContractTimeoutAction: ${updateContractName} with new Timeout: ${newTimeout}`);
+                const actionBlob = { contract_name: "hyle", data: Array.from(action) };
+                blobs = [blob0, actionBlob, blob1];
             }
-            setStatus(
-                `Sending ${
-                    actionType === "init" ? "Init" : 
-                    actionType === "delete" ? "DeleteContract" : 
-                    actionType === "nuke" ? "NukeTx" : 
-                    "UpdateContract"
-                } transaction...`
-            );
+            const actionTypeLabels: Record<typeof actionType, string> = {
+                init: "Init",
+                delete: "DeleteContract",
+                nuke: "NukeTx",
+                update: "UpdateContract",
+                update_timeout: "UpdateContractTimeout",
+            };
+            setStatus(`Sending ${actionTypeLabels[actionType]} transaction...`);
             const blobTx: BlobTransaction = { identity, blobs };
             const tx_hash = await nodeService.client.sendBlobTx(blobTx);
             setStatus("Building proof transaction...");
             const proofTx = await build_proof_transaction(identity, salted_password, tx_hash, 0, blobTx.blobs.length);
             setStatus("Sending proof transaction...");
             await nodeService.client.sendProofTx(proofTx);
-            setStatus(
-                `${
-                    actionType === "init" ? "Init" : 
-                    actionType === "delete" ? "DeleteContract" : 
-                    actionType === "nuke" ? "NukeTx" : 
-                    "UpdateContract"
-                } transaction sent!`
-            );
+            const sentLabels: Record<typeof actionType, string> = {
+                init: "Init",
+                delete: "DeleteContract",
+                nuke: "NukeTx",
+                update: "UpdateContract",
+                update_timeout: "UpdateContractTimeout",
+            };
+            setStatus(`${sentLabels[actionType]} transaction sent!`);
         } catch (e) {
             setError(e instanceof Error ? e.message : String(e));
             setStatus("");
@@ -215,6 +251,20 @@ const AdminPage: React.FC = () => {
         setIsLoading(false);
     };
 
+    const handleUpdateContractTimeout = async () => {
+        setError(null);
+        setStatus("");
+        setIsLoading(true);
+        // Only allow one pending action at a time
+        clearPending();
+        const timeoutId = setTimeout(async () => {
+            setPendingAction(null);
+            await sendAdminAction("update_timeout");
+        }, 5000);
+        setPendingAction({ type: "update_timeout", value: updateContractName, timeoutId });
+        setStatus(`UpdateContract will be sent in 5s. Click 'Undo' to cancel.`);
+        setIsLoading(false);
+    };
     /*
     const handleNukeTx = async () => {
         setError(null);
@@ -251,16 +301,18 @@ const AdminPage: React.FC = () => {
         <div style={{ padding: 32 }}>
             <h1>Admin Panel</h1>
             <p>Welcome, admin! Here you can perform special actions.</p>
-            
+
             {!isHyliAdmin && (
-                <div style={{ 
-                    background: "#fff3cd", 
-                    border: "1px solid #ffeaa7", 
-                    color: "#856404", 
-                    padding: "1rem", 
-                    borderRadius: "0.5rem", 
-                    marginBottom: "2rem" 
-                }}>
+                <div
+                    style={{
+                        background: "#fff3cd",
+                        border: "1px solid #ffeaa7",
+                        color: "#856404",
+                        padding: "1rem",
+                        borderRadius: "0.5rem",
+                        marginBottom: "2rem",
+                    }}
+                >
                     ⚠️ Limited access: Only the "hyli" user can use this admin section.
                 </div>
             )}
@@ -342,12 +394,12 @@ const AdminPage: React.FC = () => {
                     Delete Contract
                 </button>
             </div>
-            
+
             <div className="card" style={{ margin: "2rem 0", maxWidth: 800 }}>
                 <h3 className="card-title">Update Contract</h3>
                 <p style={{ color: "#666", marginBottom: "1rem" }}>
-                    Update a contract by deleting it and then registering it with a new ProgramId.
-                    The verifier and commitment will be automatically retrieved from the existing contract.
+                    Update a contract by deleting it and then registering it with a new ProgramId. The verifier and
+                    commitment will be automatically retrieved from the existing contract.
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
                     <div className="form-group" style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
@@ -384,6 +436,48 @@ const AdminPage: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            <div className="card" style={{ margin: "2rem 0", maxWidth: 800 }}>
+                <h3 className="card-title">Update Contract Timeout</h3>
+                <p style={{ color: "#666", marginBottom: "1rem" }}>
+                    Update a contract timeout. 0 will mean "no timeout".
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                    <div className="form-group" style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+                        <input
+                            className="input"
+                            type="text"
+                            placeholder="Contract name to update"
+                            value={updateContractName}
+                            onChange={(e) => setUpdateContractName(e.target.value)}
+                            style={{ flex: 1, maxWidth: 320 }}
+                            disabled={!isHyliAdmin}
+                        />
+                    </div>
+                    <div className="form-group" style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+                        <input
+                            className="input"
+                            type="text"
+                            placeholder="New Timeout (0 for 'no timeout')"
+                            value={newTimeout}
+                            onChange={(e) => setNewTimeout(e.target.value)}
+                            style={{ flex: 1, maxWidth: 400 }}
+                            disabled={!isHyliAdmin}
+                        />
+                    </div>
+                    <div className="form-group" style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+                        <button
+                            className="btn-primary"
+                            style={{ minWidth: 180 }}
+                            onClick={handleUpdateContractTimeout}
+                            disabled={isLoading || !updateContractName || !newTimeout || !password || !isHyliAdmin}
+                        >
+                            Update Contract Timeout
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             {/*
             <div className="form-group" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                 <input
