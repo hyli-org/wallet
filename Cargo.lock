@@ -3089,12 +3089,12 @@ dependencies = [
 
 [[package]]
 name = "errno"
-version = "0.3.12"
+version = "0.3.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cea14ef9355e3beab063703aa9dab15afd25f0667c341310c1e5274bb1d0da18"
+checksum = "778e2ac28f6c47af28e4907f13ffd1e1ddbd400980a9abd7c8df189bf578a5ad"
 dependencies = [
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -3809,7 +3809,7 @@ dependencies = [
 [[package]]
 name = "hyle-bonsai-runner"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#275c32bbc807bf81697741db50441fb711c290e9"
+source = "git+https://github.com/Hyle-org/hyle.git?tag=v0.13.1#275c32bbc807bf81697741db50441fb711c290e9"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3828,7 +3828,7 @@ dependencies = [
 [[package]]
 name = "hyle-client-sdk"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#275c32bbc807bf81697741db50441fb711c290e9"
+source = "git+https://github.com/Hyle-org/hyle.git?tag=v0.13.1#275c32bbc807bf81697741db50441fb711c290e9"
 dependencies = [
  "anyhow",
  "axum",
@@ -3848,7 +3848,7 @@ dependencies = [
 [[package]]
 name = "hyle-contract-sdk"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#275c32bbc807bf81697741db50441fb711c290e9"
+source = "git+https://github.com/Hyle-org/hyle.git?tag=v0.13.1#275c32bbc807bf81697741db50441fb711c290e9"
 dependencies = [
  "borsh",
  "hyle-model",
@@ -3862,7 +3862,7 @@ dependencies = [
 [[package]]
 name = "hyle-crypto"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#275c32bbc807bf81697741db50441fb711c290e9"
+source = "git+https://github.com/Hyle-org/hyle.git?tag=v0.13.1#275c32bbc807bf81697741db50441fb711c290e9"
 dependencies = [
  "anyhow",
  "blst",
@@ -3875,7 +3875,7 @@ dependencies = [
 [[package]]
 name = "hyle-model"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#275c32bbc807bf81697741db50441fb711c290e9"
+source = "git+https://github.com/Hyle-org/hyle.git?tag=v0.13.1#275c32bbc807bf81697741db50441fb711c290e9"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -3898,7 +3898,7 @@ dependencies = [
 [[package]]
 name = "hyle-modules"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#275c32bbc807bf81697741db50441fb711c290e9"
+source = "git+https://github.com/Hyle-org/hyle.git?tag=v0.13.1#275c32bbc807bf81697741db50441fb711c290e9"
 dependencies = [
  "anyhow",
  "anymap",
@@ -3934,7 +3934,7 @@ dependencies = [
 [[package]]
 name = "hyle-net"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#275c32bbc807bf81697741db50441fb711c290e9"
+source = "git+https://github.com/Hyle-org/hyle.git?tag=v0.13.1#275c32bbc807bf81697741db50441fb711c290e9"
 dependencies = [
  "anyhow",
  "axum",
@@ -3960,7 +3960,7 @@ dependencies = [
 [[package]]
 name = "hyle-smt-token"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#275c32bbc807bf81697741db50441fb711c290e9"
+source = "git+https://github.com/Hyle-org/hyle.git?tag=v0.13.1#275c32bbc807bf81697741db50441fb711c290e9"
 dependencies = [
  "anyhow",
  "borsh",
@@ -3974,7 +3974,7 @@ dependencies = [
 [[package]]
 name = "hyle-verifiers"
 version = "0.13.0-rc.4"
-source = "git+https://github.com/Hyle-org/hyle.git?branch=main#275c32bbc807bf81697741db50441fb711c290e9"
+source = "git+https://github.com/Hyle-org/hyle.git?tag=v0.13.1#275c32bbc807bf81697741db50441fb711c290e9"
 dependencies = [
  "anyhow",
  "borsh",
@@ -8499,9 +8499,9 @@ dependencies = [
 
 [[package]]
 name = "webpki-roots"
-version = "1.0.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2853738d1cc4f2da3a225c18ec6c3721abb31961096e9dbf5ab35fa88b19cfdb"
+checksum = "8782dd5a41a24eed3a4f40b606249b3e236ca61adf1f25ea4d45c73de122b502"
 dependencies = [
  "rustls-pki-types",
 ]
@@ -8654,6 +8654,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e38bc4d79ed67fd075bcc251a1c39b32a1776bbe92e5bef1f0bf1f8c531853b"
 dependencies = [
  "windows-targets 0.52.6",
+]
+
+[[package]]
+name = "windows-sys"
+version = "0.60.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f2f500e4d28234f72040990ec9d39e3a6b950f9f22d3dba18416c35882612bcb"
+dependencies = [
+ "windows-targets 0.53.2",
 ]
 
 [[package]]
