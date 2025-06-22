@@ -65,8 +65,17 @@ pub struct Args {
     pub noinit: bool,
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        // Results in poor threading performance otherwise.
+        .disable_lifo_slot()
+        .build()
+        .context("building tokio runtime")?;
+    runtime.block_on(actual_main())
+}
+
+async fn actual_main() -> Result<()> {
     let args = Args::parse();
     let config = Conf::new(args.config_file).context("reading config file")?;
 
