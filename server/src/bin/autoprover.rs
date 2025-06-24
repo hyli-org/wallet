@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
+use axum::Router;
 use clap::Parser;
 use client_sdk::rest_client::{IndexerApiHttpClient, NodeApiHttpClient};
 use hyle_modules::{
@@ -59,7 +60,7 @@ async fn main() -> Result<()> {
 
     let mut handler = ModulesHandler::new(&bus).await;
     let api_ctx = Arc::new(BuildApiContextInner {
-        router: Mutex::new(None),
+        router: Mutex::new(Some(Router::new())),
         openapi: Default::default(),
     });
 
@@ -84,10 +85,10 @@ async fn main() -> Result<()> {
             contract_name: wallet_cn,
             node: node_client.clone(),
             default_state: wallet,
+            api: Some(api_ctx.clone()),
             buffer_blocks: config.wallet_buffer_blocks,
             max_txs_per_proof: config.wallet_max_txs_per_proof,
             tx_working_window_size: config.wallet_tx_working_window_size,
-            api: Some(api_ctx.clone()),
         }))
         .await?;
 
