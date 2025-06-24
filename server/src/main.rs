@@ -237,7 +237,7 @@ async fn actual_main() -> Result<()> {
                 buffer_blocks: config.smt_buffer_blocks,
                 max_txs_per_proof: config.smt_max_txs_per_proof,
                 tx_working_window_size: config.smt_tx_working_window_size,
-                api: Some(api_ctx.clone()),
+                api: None,
             }))
             .await?;
         handler
@@ -252,7 +252,7 @@ async fn actual_main() -> Result<()> {
                 buffer_blocks: config.smt_buffer_blocks,
                 max_txs_per_proof: config.smt_max_txs_per_proof,
                 tx_working_window_size: config.smt_tx_working_window_size,
-                api: Some(api_ctx.clone()),
+                api: None,
             }))
             .await?;
         handler
@@ -267,7 +267,7 @@ async fn actual_main() -> Result<()> {
                 buffer_blocks: config.smt_buffer_blocks,
                 max_txs_per_proof: config.smt_max_txs_per_proof,
                 tx_working_window_size: config.smt_tx_working_window_size,
-                api: Some(api_ctx.clone()),
+                api: None,
             }))
             .await?;
     }
