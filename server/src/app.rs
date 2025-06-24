@@ -87,7 +87,7 @@ impl Module for AppModule {
 
     async fn run(&mut self) -> Result<()> {
         module_handle_messages! {
-            on_bus self.bus,
+            on_self self,
             listen <CSIBusEvent<Vec<HistoryEvent>>> event => {
                 for msg in event.event {
                     self.bus.send(WsTopicMessage::new(
