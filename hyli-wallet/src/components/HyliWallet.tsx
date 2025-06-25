@@ -93,6 +93,12 @@ interface HyliWalletProps {
      * Callback when modal should close
      */
     onClose?: () => void;
+    /**
+     * Default authentication mode when a provider is selected
+     * 'login' - Show login form (default)
+     * 'register' - Show registration form
+     */
+    defaultAuthMode?: 'login' | 'register';
 }
 
 export const HyliWallet = ({
@@ -102,13 +108,15 @@ export const HyliWallet = ({
     classPrefix = "hyli",
     isOpen: controlledIsOpen,
     onClose: controlledOnClose,
+    defaultAuthMode = 'login',
 }: HyliWalletProps) => {
+    console.log('HyliWallet component mounted with props:', { defaultAuthMode, providers });
     const [internalIsOpen, setInternalIsOpen] = useState(false);
 
     // Use controlled state if provided, otherwise use internal state
     const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
     const [selectedProvider, setSelectedProvider] = useState<ProviderOption | null>(null);
-    const [showLogin, setShowLogin] = useState(true);
+    const [showLogin, setShowLogin] = useState(defaultAuthMode === 'login');
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -205,7 +213,7 @@ export const HyliWallet = ({
             controlledOnClose();
         }
         setSelectedProvider(null);
-        setShowLogin(true);
+        setShowLogin(defaultAuthMode === 'login');
     };
 
     const renderProviderButton = (providerType: ProviderOption) => {
@@ -225,7 +233,13 @@ export const HyliWallet = ({
             <button
                 key={providerType}
                 className={`provider-row${disabled ? " disabled" : ""}`}
-                onClick={() => !disabled && setSelectedProvider(providerType)}
+                onClick={() => {
+                    if (!disabled) {
+                        console.log('Provider clicked:', { providerType, defaultAuthMode, willSetShowLoginTo: defaultAuthMode === 'login' });
+                        setSelectedProvider(providerType);
+                        setShowLogin(defaultAuthMode === 'login');
+                    }
+                }}
             >
                 <span className={`label ${classPrefix}-provider-label`}>
                     <span className={`provider-icon ${classPrefix}-provider-icon`}>{icon}</span>
