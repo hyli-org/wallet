@@ -9,7 +9,7 @@ use sdk::Calldata;
 use sdk::Hashed;
 use sdk::RegisterContractEffect;
 use sdk::StateCommitment;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, VecDeque};
 
 use client_sdk::contract_indexer::axum;
 use client_sdk::contract_indexer::utoipa;
@@ -43,7 +43,7 @@ pub struct TransactionDetails {
 #[derive(Debug, Clone, Default, BorshDeserialize, BorshSerialize)]
 pub struct TokenHistory {
     token: SmtTokenProvableState,
-    history: BTreeMap<Identity, Vec<TransactionDetails>>,
+    history: BTreeMap<Identity, VecDeque<TransactionDetails>>,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -70,10 +70,11 @@ impl TokenHistory {
             timestamp,
             status: "Sequenced".to_string(),
         };
-        self.history
-            .entry(identity.clone())
-            .or_default()
-            .insert(0, transaction.clone());
+        let history_deque = self.history.entry(identity.clone()).or_default();
+        history_deque.push_front(transaction.clone());
+        if history_deque.len() > 100 {
+            history_deque.truncate(100);
+        }
         HistoryEvent {
             account: identity,
             tx: transaction,
@@ -133,8 +134,9 @@ impl ContractHandler<Vec<HistoryEvent>> for TokenHistory {
         _tx_context: sdk::TxContext,
     ) -> anyhow::Result<Option<Vec<HistoryEvent>>> {
         let mut events = vec![];
+        let tx_hash = tx.hashed();
         self.history.iter_mut().for_each(|(account, history)| {
-            for t in history.iter_mut().filter(|t| t.id == tx.hashed().0) {
+            for t in history.iter_mut().filter(|t| t.id == tx_hash.0) {
                 t.status = "Success".to_string();
                 events.push(HistoryEvent {
                     account: account.clone(),
@@ -309,7 +311,7 @@ pub async fn get_history(
         .cloned()
         .map(|history| HistoryResponse {
             account: account.0.clone(),
-            history,
+            history: history.into_iter().collect(),
         })
         .map(Json)
         .ok_or_else(|| {
