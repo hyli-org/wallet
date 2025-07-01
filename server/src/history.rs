@@ -204,7 +204,7 @@ impl ContractHandler<Vec<HistoryEvent>> for TokenHistory {
         tx_context: sdk::TxContext,
     ) -> anyhow::Result<Option<Vec<HistoryEvent>>> {
         let action = Self::get_action(tx, index)
-            .with_context(|| format!("Failed to get action for transaction: {:?}", tx))?;
+            .with_context(|| format!("Failed to get action for transaction: {tx:?}"))?;
         let timestamp = tx_context.timestamp.0;
         let mut events = vec![];
 

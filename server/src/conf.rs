@@ -13,7 +13,6 @@ pub struct Conf {
     /// When running only the indexer, the address of the DA server to connect to
     pub da_read_from: String,
     pub node_url: String,
-    pub indexer_url: String,
 
     pub db_url: String,
 
