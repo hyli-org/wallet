@@ -40,9 +40,6 @@ async fn main() -> Result<()> {
 
     let node_client =
         Arc::new(NodeApiHttpClient::new(config.node_url.clone()).context("build node client")?);
-    let _indexer_client = Arc::new(
-        IndexerApiHttpClient::new(config.indexer_url.clone()).context("build indexer client")?,
-    );
 
     let bus = SharedMessageBus::new(BusMetrics::global(config.id.clone()));
     std::fs::create_dir_all(&config.data_directory).context("creating data directory")?;

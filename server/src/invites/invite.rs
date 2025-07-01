@@ -56,8 +56,8 @@ impl InviteModuleInner {
 
         tracing::info!("Invite code consumed: {}", code);
         // Let's create a secp2561k1 blob signing the data
-        let identity = Identity::new(format!("{}@wallet", wallet));
-        let data = format!("Invite - {} for {}", code, wallet);
+        let identity = Identity::new(format!("{wallet}@wallet"));
+        let data = format!("Invite - {code} for {wallet}");
         let mut hasher = Sha256::new();
         hasher.update(data.clone());
         let message_hash: [u8; 32] = hasher.finalize().into();
@@ -144,7 +144,8 @@ impl Module for InviteModule {
             "0000000000000001000000000000000100000000000000010000000000000001".to_string(),
         ))
         .expect("INVITE_CODE_PKEY must be a hex string");
-        let secret_key = SecretKey::from_slice(&secret_key).expect("32 bytes, within curve order");
+        let secret_key = SecretKey::from_byte_array(secret_key.try_into().expect("32 bytes"))
+            .expect("32 bytes, within curve order");
         let public_key = PublicKey::from_secret_key(&secp, &secret_key);
 
         // If we're using the default private key, add some invite codes.
@@ -214,8 +215,8 @@ impl MockInviteModuleInner {
     async fn consume_invite(&self, code: &str, wallet: &str) -> Result<Blob> {
         tracing::info!("Invite code consumed: {}", code);
         // Let's create a secp2561k1 blob signing the data
-        let identity = Identity::new(format!("{}@wallet", wallet));
-        let data = format!("Invite - {} for {}", code, wallet);
+        let identity = Identity::new(format!("{wallet}@wallet"));
+        let data = format!("Invite - {code} for {wallet}");
         let mut hasher = Sha256::new();
         hasher.update(data.clone());
         let message_hash: [u8; 32] = hasher.finalize().into();
@@ -253,7 +254,8 @@ impl Module for MockInviteModule {
             "0000000000000001000000000000000100000000000000010000000000000001".to_string(),
         ))
         .expect("INVITE_CODE_PKEY must be a hex string");
-        let secret_key = SecretKey::from_slice(&secret_key).expect("32 bytes, within curve order");
+        let secret_key = SecretKey::from_byte_array(secret_key.try_into().expect("32 bytes"))
+            .expect("32 bytes, within curve order");
         let public_key = PublicKey::from_secret_key(&secp, &secret_key);
 
         let inner = Arc::new(MockInviteModuleInner {

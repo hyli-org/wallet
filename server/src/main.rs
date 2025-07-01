@@ -3,10 +3,7 @@ use app::{AppModule, AppModuleCtx, AppOutWsEvent, AppWsInMessage};
 use axum::Router;
 use clap::Parser;
 use client_sdk::transaction_builder::TxExecutorHandler;
-use client_sdk::{
-    helpers::risc0::Risc0Prover,
-    rest_client::{IndexerApiHttpClient, NodeApiHttpClient},
-};
+use client_sdk::{helpers::risc0::Risc0Prover, rest_client::NodeApiHttpClient};
 use conf::Conf;
 use history::{HistoryEvent, TokenHistory};
 use hyle_modules::{
@@ -91,9 +88,6 @@ async fn actual_main() -> Result<()> {
 
     let node_client =
         Arc::new(NodeApiHttpClient::new(config.node_url.clone()).context("build node client")?);
-    let indexer_client = Arc::new(
-        IndexerApiHttpClient::new(config.indexer_url.clone()).context("build indexer client")?,
-    );
 
     let wallet_cn: ContractName = args.wallet_cn.clone().into();
 
@@ -102,8 +96,9 @@ async fn actual_main() -> Result<()> {
         hex::decode(env::var("INVITE_CODE_PKEY").unwrap_or(
             "0000000000000001000000000000000100000000000000010000000000000001".to_string(),
         ))
-        .expect("INVITE_CODE_PKEY must be a hex string");
-    let secret_key = SecretKey::from_slice(&secret_key).expect("32 bytes, within curve order");
+        .expect("HYLIGOTCHI_PUBKEY must be a hex string");
+    let secret_key = SecretKey::from_byte_array(secret_key.try_into().expect("32 bytes"))
+        .expect("32 bytes, within curve order");
     let public_key = PublicKey::from_secret_key(&secp, &secret_key);
 
     let hyli_password = env::var("HYLI_PASSWORD").unwrap_or("hylisecure".to_string());
@@ -119,7 +114,7 @@ async fn actual_main() -> Result<()> {
     if args.noinit {
         info!("Skipping initialization, using existing contracts");
     } else {
-        match init::init_node(node_client.clone(), indexer_client.clone(), contracts).await {
+        match init::init_node(node_client.clone(), contracts).await {
             Ok(_) => {}
             Err(e) => {
                 error!("Error initializing node: {:?}", e);
