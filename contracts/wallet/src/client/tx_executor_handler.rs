@@ -8,7 +8,7 @@ use sdk::{
     merkle_utils::BorshableMerkleProof, utils::as_hyle_output, Blob, Calldata,
     RegisterContractEffect, StateCommitment,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     check_for_invite_code, get_state_commitment, smt::AccountSMT, AccountInfo, AuthMethod,
@@ -17,7 +17,7 @@ use crate::{
 };
 
 #[serde_with::serde_as]
-#[derive(Debug, Clone, Serialize, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, BorshSerialize, BorshDeserialize)]
 pub struct Wallet {
     #[serde_as(as = "[_; 33]")]
     invite_code_public_key: InviteCodePubKey,

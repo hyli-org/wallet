@@ -23,6 +23,7 @@ pub struct Conf {
     pub smt_max_txs_per_proof: usize,
     pub smt_tx_working_window_size: usize,
 
+    pub wallet_state_path: PathBuf,
     pub wallet_buffer_blocks: u32,
     pub wallet_max_txs_per_proof: usize,
     pub wallet_tx_working_window_size: usize,
