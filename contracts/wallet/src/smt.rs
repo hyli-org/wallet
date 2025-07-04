@@ -50,27 +50,15 @@ impl<'de> Deserialize<'de> for AccountSMT {
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
                 formatter.write_str("a list of accounts with their length prefix")
             }
-
             fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
             where
                 A: SeqAccess<'de>,
             {
-                let len: u32 = seq
-                    .next_element()?
-                    .ok_or_else(|| de::Error::invalid_length(0, &self))?;
-
                 let mut accounts = SparseMerkleTree::default();
-
-                for i in 0..len {
-                    let account: AccountInfo = seq
-                        .next_element()?
-                        .ok_or_else(|| de::Error::invalid_length((i + 1) as usize, &self))?;
-
+                while let Some(account) = seq.next_element::<AccountInfo>()? {
                     let key = AccountInfo::compute_key(&account.identity);
-
                     accounts.update(key, account).map_err(de::Error::custom)?;
                 }
-
                 Ok(AccountSMT(accounts))
             }
         }

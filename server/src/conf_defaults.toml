@@ -8,7 +8,7 @@ rest_server_port = 4000
 rest_server_max_body_size = 10_485_760 # 10 MB
 node_url = "http://localhost:4321"
 
-wallet_state_path = "wallet_state.json"
+wallet_state_path = "wallet-state.json"
 wallet_buffer_blocks = 0
 wallet_max_txs_per_proof = 100
 wallet_tx_working_window_size = 500

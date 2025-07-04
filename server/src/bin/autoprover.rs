@@ -76,9 +76,30 @@ async fn main() -> Result<()> {
 
     // Try first read from file system a json serialized wallet state before falling back to the default state new_wallet() with logs on how the state is loaded
     let wallet_state_path = config.wallet_state_path.clone();
+
+    info!(
+        "Try loading wallet state from: {}",
+        wallet_state_path.display()
+    );
     let wallet_state = std::fs::read_to_string(&wallet_state_path)
-        .and_then(|s| serde_json::from_str(&s).map_err(|e| e.into()))
-        .unwrap_or_else(|_| {
+        .and_then(|s| {
+            // Attempt to deserialize the wallet state from the file
+            // Log if successful or if it falls back to the default state
+            info!(
+                "Reading wallet state from file: {}",
+                wallet_state_path.display()
+            );
+
+            let res = serde_json::from_str(&s).map_err(|e| e.into());
+            if res.is_ok() {
+                info!("Successfully loaded wallet state from file.");
+            } else {
+                info!("Failed to load wallet state from file, using default state.");
+            }
+            res
+        })
+        .unwrap_or_else(|e| {
+            info!("Error reading wallet state from file: {}", e);
             info!("No wallet state found, using default state");
             new_wallet()
         });
