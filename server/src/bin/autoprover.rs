@@ -73,7 +73,37 @@ async fn main() -> Result<()> {
 
     // Ajout de l'autoprover du wallet
     let wallet_cn: ContractName = "wallet".into();
-    let wallet = new_wallet();
+
+    // Try first read from file system a json serialized wallet state before falling back to the default state new_wallet() with logs on how the state is loaded
+    let wallet_state_path = config.wallet_state_path.clone();
+
+    info!(
+        "Try loading wallet state from: {}",
+        wallet_state_path.display()
+    );
+    let wallet_state = std::fs::read_to_string(&wallet_state_path)
+        .and_then(|s| {
+            // Attempt to deserialize the wallet state from the file
+            // Log if successful or if it falls back to the default state
+            info!(
+                "Reading wallet state from file: {}",
+                wallet_state_path.display()
+            );
+
+            let res = serde_json::from_str(&s).map_err(|e| e.into());
+            if res.is_ok() {
+                info!("Successfully loaded wallet state from file.");
+            } else {
+                info!("Failed to load wallet state from file, using default state.");
+            }
+            res
+        })
+        .unwrap_or_else(|e| {
+            info!("Error reading wallet state from file: {}", e);
+            info!("No wallet state found, using default state");
+            new_wallet()
+        });
+
     handler
         .build_module::<AutoProver<Wallet>>(Arc::new(AutoProverCtx {
             data_directory: config.data_directory.clone(),
@@ -82,7 +112,7 @@ async fn main() -> Result<()> {
             )),
             contract_name: wallet_cn,
             node: node_client.clone(),
-            default_state: wallet,
+            default_state: wallet_state,
             api: Some(api_ctx.clone()),
             buffer_blocks: config.wallet_buffer_blocks,
             max_txs_per_proof: config.wallet_max_txs_per_proof,
