@@ -3,10 +3,11 @@ use std::sync::{Arc, Mutex};
 use anyhow::{Context, Result};
 use axum::Router;
 use clap::Parser;
-use client_sdk::rest_client::{IndexerApiHttpClient, NodeApiHttpClient};
+use client_sdk::rest_client::NodeApiHttpClient;
 use hyle_modules::{
     bus::{metrics::BusMetrics, SharedMessageBus},
     modules::{
+        admin::{AdminApi, AdminApiRunContext},
         da_listener::{DAListener, DAListenerConf},
         prover::{AutoProver, AutoProverCtx},
         rest::{RestApi, RestApiRunContext},
@@ -88,6 +89,15 @@ async fn main() -> Result<()> {
             max_txs_per_proof: config.wallet_max_txs_per_proof,
             tx_working_window_size: config.wallet_tx_working_window_size,
         }))
+        .await?;
+
+    handler
+        .build_module::<AdminApi>(AdminApiRunContext::new(
+            config.admin_server_port,
+            Router::new(),
+            config.admin_server_max_body_size,
+            config.data_directory.clone(),
+        ))
         .await?;
 
     // REST API

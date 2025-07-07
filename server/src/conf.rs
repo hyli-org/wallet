@@ -19,6 +19,9 @@ pub struct Conf {
     pub rest_server_port: u16,
     pub rest_server_max_body_size: usize,
 
+    pub admin_server_port: u16,
+    pub admin_server_max_body_size: usize,
+
     pub smt_buffer_blocks: u32,
     pub smt_max_txs_per_proof: usize,
     pub smt_tx_working_window_size: usize,

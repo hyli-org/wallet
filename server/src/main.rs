@@ -6,6 +6,7 @@ use client_sdk::transaction_builder::TxExecutorHandler;
 use client_sdk::{helpers::risc0::Risc0Prover, rest_client::NodeApiHttpClient};
 use conf::Conf;
 use history::{HistoryEvent, TokenHistory};
+use hyle_modules::modules::admin::{AdminApi, AdminApiRunContext};
 use hyle_modules::{
     bus::{metrics::BusMetrics, SharedMessageBus},
     modules::{
@@ -283,6 +284,15 @@ async fn actual_main() -> Result<()> {
             })
             .await?;
     }
+
+    handler
+        .build_module::<AdminApi>(AdminApiRunContext::new(
+            config.admin_server_port,
+            Router::new(),
+            config.admin_server_max_body_size,
+            config.data_directory.clone(),
+        ))
+        .await?;
 
     // Should come last so the other modules have nested their own routes.
     #[allow(clippy::expect_used, reason = "Fail on misconfiguration")]
