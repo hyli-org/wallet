@@ -6,7 +6,10 @@ use client_sdk::light_executor::{
 use sdk::{BlobIndex, BlobTransaction, Calldata, Hashed, Identity, IndexedBlobs, TxContext};
 use std::collections::HashMap;
 
-use crate::{check_for_invite_code, AccountInfo, WalletAction};
+use crate::{
+    check_for_invite_code, client::tx_executor_handler::WalletConstructor, AccountInfo, AuthMethod,
+    WalletAction, DEFAULT_INVITE_CODE_PUBLIC_KEY,
+};
 
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
 pub struct LightWalletExecutor {
@@ -76,6 +79,33 @@ impl<'a> LightContractExecutor<'a, '_> for LightWalletExecutor {
 }
 
 impl LightWalletExecutor {
+    pub fn new(constructor: &Option<WalletConstructor>) -> anyhow::Result<Self> {
+        let mut this = Self {
+            // Default bad pubkey, replaced immediately
+            invite_code_public_key: DEFAULT_INVITE_CODE_PUBLIC_KEY,
+            accounts: HashMap::new(),
+            salts: HashMap::new(),
+        };
+        if let Some(constructor_data) = constructor {
+            this.invite_code_public_key = constructor_data.invite_code_public_key;
+            this.accounts.insert(
+                "hyli".to_string(),
+                AccountInfo {
+                    identity: "hyli".to_string(),
+                    auth_method: AuthMethod::Password {
+                        hash: constructor_data.hyli_password_hash.clone(),
+                    },
+                    session_keys: vec![],
+                    nonce: 0,
+                },
+            );
+            this.salts
+                .insert("hyli".to_string(), "hyli-random-salt".to_string());
+        }
+
+        Ok(this)
+    }
+
     pub fn inner_handle(
         &mut self,
         tx: &BlobTransaction,
@@ -126,6 +156,16 @@ impl LightWalletExecutor {
             }
             WalletAction::UseSessionKey { account, nonce } => {
                 account_info.handle_session_key_usage(account, nonce, calldata)
+            }
+            WalletAction::UpdateInviteCodePublicKey {
+                invite_code_public_key,
+                ..
+            } => {
+                if self.invite_code_public_key != DEFAULT_INVITE_CODE_PUBLIC_KEY {
+                    return Err("Invite code public key already set".to_string());
+                }
+                self.invite_code_public_key = invite_code_public_key;
+                Ok("Updated public key".to_string())
             }
             _ => account_info.handle_authenticated_action(action, calldata),
         }

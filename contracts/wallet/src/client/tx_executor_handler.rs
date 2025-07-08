@@ -29,9 +29,9 @@ pub struct Wallet {
 #[serde_with::serde_as]
 #[derive(Debug, Clone, Serialize, BorshSerialize, BorshDeserialize)]
 pub struct WalletConstructor {
-    hyli_password_hash: String,
+    pub hyli_password_hash: String,
     #[serde_as(as = "[_; 33]")]
-    invite_code_public_key: InviteCodePubKey,
+    pub invite_code_public_key: InviteCodePubKey,
 }
 
 impl WalletConstructor {
