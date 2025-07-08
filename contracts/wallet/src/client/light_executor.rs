@@ -127,9 +127,13 @@ impl LightWalletExecutor {
             | WalletAction::RemoveSessionKey { account, .. } => account,
             _ => unreachable!(),
         };
-        let Some(account_info) = self.accounts.get_mut(&acc) else {
-            return Err(format!("Account {acc} not found"));
-        };
+        let account_info = self
+            .accounts
+            .entry(acc.clone())
+            .or_insert_with(|| AccountInfo {
+                identity: acc.clone(),
+                ..Default::default()
+            });
 
         let calldata = &Calldata {
             tx_hash: tx.hashed(),
