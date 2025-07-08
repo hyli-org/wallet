@@ -83,7 +83,7 @@ impl sdk::ZkContract for WalletZkView {
             .0
             .clone()
             .verify::<SHA256Hasher>(&root, leaves.clone())
-            .map_err(|e| format!("Failed to verify proof: {}", e))?;
+            .map_err(|e| format!("Failed to verify proof: {e}"))?;
         if self.commitment != get_state_commitment(root, self.invite_code_public_key) {
             panic!(
                 "State commitment mismatch: expected {:?}, got {:?}",
@@ -216,8 +216,7 @@ impl AuthMethod {
                 let checked_hash = hex::encode(check_secret.0);
                 if checked_hash != *hash {
                     return Err(format!(
-                        "Invalid authentication, expected {}, got {}",
-                        hash, checked_hash
+                        "Invalid authentication, expected {hash}, got {checked_hash}"
                     ));
                 }
                 Ok("Authentication successful".to_string())
@@ -241,7 +240,7 @@ fn check_for_invite_code(
         return Err("Invalid invite code for testing".to_string());
     }
     // Data to sign: "Invite - {invite_code} for {account}"
-    let data = format!("Invite - {} for {}", invite_code, account);
+    let data = format!("Invite - {invite_code} for {account}");
     // Check if the calldata contains a secp256k1 blob with the expected data
     let blob = CheckSecp256k1::new(calldata, data.as_bytes()).expect()?;
     if blob.public_key != *invite_code_public_key {
