@@ -1,8 +1,6 @@
 use anyhow::{anyhow, Result};
 use borsh::{BorshDeserialize, BorshSerialize};
-use client_sdk::light_executor::{
-    parse_structured_blob_from_tx, LightContractExecutor, LightExecutorOutput,
-};
+use client_sdk::light_executor::{LightContractExecutor, LightExecutorOutput};
 use sdk::{BlobIndex, BlobTransaction, Calldata, Hashed, Identity, IndexedBlobs, TxContext};
 use std::collections::HashMap;
 
@@ -28,6 +26,14 @@ impl Default for LightWalletExecutor {
     }
 }
 
+fn parse_raw_blob_from_tx(tx: &BlobTransaction, index: BlobIndex) -> Option<WalletAction> {
+    let blob = tx.blobs.get(index.0)?;
+    let Ok(parameters) = borsh::from_slice::<WalletAction>(blob.data.0.as_slice()) else {
+        return None;
+    };
+    Some(parameters)
+}
+
 impl<'a> LightContractExecutor<'a, '_> for LightWalletExecutor {
     type Scratchpad = (&'a BlobTransaction, Option<AccountInfo>);
     type ExtraData = ();
@@ -49,11 +55,11 @@ impl<'a> LightContractExecutor<'a, '_> for LightWalletExecutor {
         tx_ctx: Option<&TxContext>,
         _extra_data: Self::ExtraData,
     ) -> Result<LightExecutorOutput> {
-        let Some(parsed_blob) = parse_structured_blob_from_tx::<WalletAction>(tx, index) else {
+        let Some(parsed_blob) = parse_raw_blob_from_tx(tx, index) else {
             return Err(anyhow!("Failed to parse structured blob from transaction"));
         };
 
-        self.inner_handle(tx, index, tx_ctx, parsed_blob.data.parameters)
+        self.inner_handle(tx, index, tx_ctx, parsed_blob)
             .map(|ok| LightExecutorOutput {
                 success: true,
                 program_outputs: ok.into_bytes(),
