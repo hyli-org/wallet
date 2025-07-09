@@ -1,5 +1,6 @@
-pub mod tx_executor_handler;
 pub mod indexer;
+pub mod light_executor;
+pub mod tx_executor_handler;
 
 pub mod metadata {
     pub const WALLET_ELF: &[u8] = include_bytes!("../../wallet.img");

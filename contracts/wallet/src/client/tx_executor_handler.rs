@@ -29,9 +29,9 @@ pub struct Wallet {
 #[serde_with::serde_as]
 #[derive(Debug, Clone, Serialize, BorshSerialize, BorshDeserialize)]
 pub struct WalletConstructor {
-    hyli_password_hash: String,
+    pub hyli_password_hash: String,
     #[serde_as(as = "[_; 33]")]
-    invite_code_public_key: InviteCodePubKey,
+    pub invite_code_public_key: InviteCodePubKey,
 }
 
 impl WalletConstructor {
@@ -116,14 +116,14 @@ impl TxExecutorHandler for Wallet {
         next: Vec<u8>,
     ) -> anyhow::Result<Vec<u8>, String> {
         let initial_view: WalletZkView = borsh::from_slice(&initial)
-            .map_err(|e| format!("Failed to deserialize initial view: {}", e))?;
+            .map_err(|e| format!("Failed to deserialize initial view: {e}"))?;
         let mut next_view: WalletZkView = borsh::from_slice(&next)
-            .map_err(|e| format!("Failed to deserialize next view: {}", e))?;
+            .map_err(|e| format!("Failed to deserialize next view: {e}"))?;
 
         next_view.partial_data.extend(initial_view.partial_data);
         next_view.commitment = initial_view.commitment;
 
-        borsh::to_vec(&next_view).map_err(|e| format!("Failed to serialize combined view: {}", e))
+        borsh::to_vec(&next_view).map_err(|e| format!("Failed to serialize combined view: {e}"))
     }
 
     fn handle(&mut self, calldata: &Calldata) -> anyhow::Result<sdk::HyleOutput> {
@@ -248,7 +248,7 @@ impl Wallet {
             .smt
             .0
             .get(&AccountInfo::compute_key(&acc))
-            .map_err(|e| format!("Failed to get account info from SMT: {}", e))?;
+            .map_err(|e| format!("Failed to get account info from SMT: {e}"))?;
         account_info.identity = acc.clone();
 
         let result = match action {
@@ -279,7 +279,7 @@ impl Wallet {
         self.smt
             .0
             .update(AccountInfo::compute_key(&acc), account_info)
-            .map_err(|e| format!("Failed to update account info in SMT: {}", e))?;
+            .map_err(|e| format!("Failed to update account info in SMT: {e}"))?;
 
         let next_state_commitment = self.get_state_commitment();
 

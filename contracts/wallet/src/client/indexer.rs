@@ -70,7 +70,7 @@ impl Wallet {
                 sdk::info!("🚀 Executed {contract_name} with error: {}", e);
                 WalletEvent {
                     account: tx.identity.clone(),
-                    program_outputs: format!("Error: {:?}", e),
+                    program_outputs: format!("Error: {e:?}"),
                 }
             }
         };
