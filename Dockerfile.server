@@ -8,6 +8,7 @@ WORKDIR /app
 COPY .cargo .cargo
 COPY ./contracts/ ./contracts
 COPY ./server ./server
+COPY ./dumped_wallet.json ./dumped_wallet.json
 COPY Cargo.toml . 
 COPY Cargo.lock .
 
