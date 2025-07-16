@@ -84,12 +84,20 @@ async fn main() -> Result<()> {
         hex::decode(env::var("INVITE_CODE_PKEY").unwrap_or(
             "0000000000000001000000000000000100000000000000010000000000000001".to_string(),
         ))
-        .expect("HYLIGOTCHI_PUBKEY must be a hex string");
+        .expect("INVITE_CODE_PKEY must be a hex string");
     let secret_key = SecretKey::from_byte_array(secret_key.try_into().expect("32 bytes"))
         .expect("32 bytes, within curve order");
     let public_key = PublicKey::from_secret_key(&secp, &secret_key);
+
     let hyli_password = env::var("HYLI_PASSWORD").unwrap_or("hylisecure".to_string());
-    let wallet_constructor = WalletConstructor::new(hyli_password, public_key.serialize());
+    let dumped_wallet_json =
+        std::fs::read_to_string("./dumped_wallet.json").context("reading dumped_wallet.json")?;
+    let dumped_wallet = serde_json::from_str::<Wallet>(&dumped_wallet_json)
+        .context("parsing dumped_wallet.json")?
+        .clone();
+
+    let wallet_constructor =
+        WalletConstructor::new(hyli_password, public_key.serialize(), Some(dumped_wallet));
     let wallet = Wallet::new(&Some(wallet_constructor.clone())).expect("must succeed");
 
     handler
