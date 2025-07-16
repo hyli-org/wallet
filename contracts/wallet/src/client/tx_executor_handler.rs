@@ -8,7 +8,7 @@ use sdk::{
     merkle_utils::BorshableMerkleProof, utils::as_hyle_output, Blob, Calldata,
     RegisterContractEffect, StateCommitment,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     check_for_invite_code, get_state_commitment, smt::AccountSMT, AccountInfo, AuthMethod,
@@ -17,13 +17,13 @@ use crate::{
 };
 
 #[serde_with::serde_as]
-#[derive(Debug, Clone, Serialize, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, BorshSerialize, BorshDeserialize)]
 pub struct Wallet {
     #[serde_as(as = "[_; 33]")]
     invite_code_public_key: InviteCodePubKey,
-    smt: AccountSMT,
+    pub smt: AccountSMT,
     // Keep track of salts so users can query them.
-    salts: HashMap<String, String>,
+    pub salts: HashMap<String, String>,
 }
 
 #[serde_with::serde_as]
@@ -32,10 +32,15 @@ pub struct WalletConstructor {
     pub hyli_password_hash: String,
     #[serde_as(as = "[_; 33]")]
     pub invite_code_public_key: InviteCodePubKey,
+    pub dumped_wallet: Option<Wallet>,
 }
 
 impl WalletConstructor {
-    pub fn new(hyli_password: String, invite_code_public_key: InviteCodePubKey) -> Self {
+    pub fn new(
+        hyli_password: String,
+        invite_code_public_key: InviteCodePubKey,
+        dumped_wallet: Option<Wallet>,
+    ) -> Self {
         let mut d = "hyli@wallet:".as_bytes().to_vec();
 
         d.extend_from_slice(&sha2::Sha256::digest(format!(
@@ -47,6 +52,7 @@ impl WalletConstructor {
         Self {
             hyli_password_hash: hex::encode(hash),
             invite_code_public_key,
+            dumped_wallet,
         }
     }
 }
@@ -166,6 +172,17 @@ impl TxExecutorHandler for Wallet {
                 .map_err(|e| anyhow::anyhow!("Failed to update account info in SMT: {}", e))?;
             this.salts
                 .insert("hyli".to_string(), "hyli-random-salt".to_string());
+
+            if let Some(dumped_wallet) = constructor_data.dumped_wallet {
+                for (id, salt) in dumped_wallet.salts {
+                    this.salts.insert(id.clone(), salt);
+                }
+                for (key, value) in dumped_wallet.smt.0.store().leaves_map() {
+                    this.smt.0.update(*key, value.clone()).map_err(|e| {
+                        anyhow::anyhow!("Failed to update account info in SMT: {}", e)
+                    })?;
+                }
+            }
         }
 
         Ok(this)

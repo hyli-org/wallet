@@ -17,6 +17,6 @@ pub fn new_wallet() -> Wallet {
     let public_key = PublicKey::from_secret_key(&secp, &secret_key);
 
     let hyli_password = env::var("HYLI_PASSWORD").unwrap_or("hylisecure".to_string());
-    let wallet_constructor = WalletConstructor::new(hyli_password, public_key.serialize());
+    let wallet_constructor = WalletConstructor::new(hyli_password, public_key.serialize(), None);
     Wallet::new(&Some(wallet_constructor.clone())).expect("must succeed")
 }
