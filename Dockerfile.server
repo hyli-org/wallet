@@ -21,6 +21,7 @@ FROM rust:latest
 WORKDIR /app
 
 COPY --from=builder /app/target/release/server ./
+COPY ./dumped_wallet.json ./dumped_wallet.json
 COPY --from=builder /app/target/release/autoprover ./
 
 RUN apt-get update && apt-get install -y libdbus-1-dev curl
