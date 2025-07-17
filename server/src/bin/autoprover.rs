@@ -1,4 +1,7 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    env,
+    sync::{Arc, Mutex},
+};
 
 use anyhow::{Context, Result};
 use axum::Router;
@@ -17,8 +20,9 @@ use hyle_modules::{
 };
 use prometheus::Registry;
 use sdk::{api::NodeInfo, info, ContractName};
-use server::{conf::Conf, new_wallet};
-use wallet::client::tx_executor_handler::Wallet;
+use secp256k1::{PublicKey, Secp256k1, SecretKey};
+use server::conf::Conf;
+use wallet::client::tx_executor_handler::{Wallet, WalletConstructor};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -74,7 +78,28 @@ async fn main() -> Result<()> {
 
     // Ajout de l'autoprover du wallet
     let wallet_cn: ContractName = "wallet".into();
-    let wallet = new_wallet();
+
+    let secp = Secp256k1::new();
+    let secret_key =
+        hex::decode(env::var("INVITE_CODE_PKEY").unwrap_or(
+            "0000000000000001000000000000000100000000000000010000000000000001".to_string(),
+        ))
+        .expect("INVITE_CODE_PKEY must be a hex string");
+    let secret_key = SecretKey::from_byte_array(secret_key.try_into().expect("32 bytes"))
+        .expect("32 bytes, within curve order");
+    let public_key = PublicKey::from_secret_key(&secp, &secret_key);
+
+    let hyli_password = env::var("HYLI_PASSWORD").unwrap_or("hylisecure".to_string());
+    let dumped_wallet_json =
+        std::fs::read_to_string("./dumped_wallet.json").context("reading dumped_wallet.json")?;
+    let dumped_wallet = serde_json::from_str::<Wallet>(&dumped_wallet_json)
+        .context("parsing dumped_wallet.json")?
+        .clone();
+
+    let wallet_constructor =
+        WalletConstructor::new(hyli_password, public_key.serialize(), Some(dumped_wallet));
+    let wallet = Wallet::new(&Some(wallet_constructor.clone())).expect("must succeed");
+
     handler
         .build_module::<AutoProver<Wallet>>(Arc::new(AutoProverCtx {
             data_directory: config.data_directory.clone(),

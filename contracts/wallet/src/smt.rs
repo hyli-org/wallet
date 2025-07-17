@@ -1,6 +1,12 @@
+use std::fmt;
+
 use borsh::{BorshDeserialize, BorshSerialize};
 use sdk::merkle_utils::SHA256Hasher;
-use serde::ser::{Serialize, SerializeSeq, Serializer};
+use serde::{
+    de::{SeqAccess, Visitor},
+    ser::{Serialize, SerializeSeq, Serializer},
+    Deserialize, Deserializer,
+};
 use sha2::{Digest, Sha256};
 use sparse_merkle_tree::{default_store::DefaultStore, traits::Value, SparseMerkleTree, H256};
 
@@ -28,6 +34,39 @@ impl Serialize for AccountSMT {
             seq.serialize_element(leaf_value)?;
         }
         seq.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for AccountSMT {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct AccountSMTVisitor;
+
+        impl<'de> Visitor<'de> for AccountSMTVisitor {
+            type Value = AccountSMT;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a sequence of AccountInfo")
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<AccountSMT, A::Error>
+            where
+                A: SeqAccess<'de>,
+            {
+                let mut accounts = SparseMerkleTree::default();
+                while let Some(account) = seq.next_element::<AccountInfo>()? {
+                    let key = AccountInfo::compute_key(&account.identity);
+                    accounts
+                        .update(key, account)
+                        .map_err(serde::de::Error::custom)?;
+                }
+                Ok(AccountSMT(accounts))
+            }
+        }
+
+        deserializer.deserialize_seq(AccountSMTVisitor)
     }
 }
 
