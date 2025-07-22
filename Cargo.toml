@@ -3,10 +3,10 @@ resolver = "2"
 members = ["contracts", "contracts/wallet", "server"]
 
 [workspace.dependencies]
-sdk = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-contract-sdk", branch = "upgrade_risc0" }
-client-sdk = { git = "https://github.com/Hyle-org/hyle.git", default-features = false, package = "hyle-client-sdk", branch = "upgrade_risc0" }
-hyle-smt-token = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-smt-token", branch = "upgrade_risc0" }
-hyle-modules = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-modules", branch = "upgrade_risc0" }
+sdk = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-contract-sdk", branch = "main" }
+client-sdk = { git = "https://github.com/Hyle-org/hyle.git", default-features = false, package = "hyle-client-sdk", branch = "main" }
+hyle-smt-token = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-smt-token", branch = "main" }
+hyle-modules = { git = "https://github.com/Hyle-org/hyle.git", package = "hyle-modules", branch = "main" }
 
 
 contracts = { path = "contracts", default-features = false, package = "contracts" }
