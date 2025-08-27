@@ -9,8 +9,8 @@ use axum::{
     Router,
 };
 use client_sdk::rest_client::NodeApiClient;
-use hyle_modules::{
-    bus::{BusClientSender, SharedMessageBus},
+use hyli_modules::{
+    bus::{BusClientSender, BusMessage, SharedMessageBus},
     module_bus_client, module_handle_messages,
     modules::{
         contract_state_indexer::CSIBusEvent, websocket::WsTopicMessage, BuildApiContextInner,
@@ -50,10 +50,15 @@ module_bus_client! {
 #[derive(Debug)]
 pub struct AppModuleBusClient {
     sender(WsTopicMessage<AppOutWsEvent>),
-    receiver(CSIBusEvent<Vec<HistoryEvent>>),
-    receiver(CSIBusEvent<WalletEvent>),
+    receiver(CSIBusEvent<Wrap<Vec<HistoryEvent>>>),
+    receiver(CSIBusEvent<Wrap<WalletEvent>>),
 }
 }
+
+#[derive(Debug, Clone)]
+pub struct Wrap<T>(pub T);
+
+impl<T> BusMessage for Wrap<T> {}
 
 impl Module for AppModule {
     type Context = Arc<AppModuleCtx>;
@@ -88,20 +93,20 @@ impl Module for AppModule {
     async fn run(&mut self) -> Result<()> {
         module_handle_messages! {
             on_self self,
-            listen <CSIBusEvent<Vec<HistoryEvent>>> event => {
-                for msg in event.event {
+            listen <CSIBusEvent<Wrap<Vec<HistoryEvent>>>> event => {
+                for msg in event.event.0 {
                     self.bus.send(WsTopicMessage::new(
                         msg.account.0.clone(),
                         AppOutWsEvent::TxEvent(msg),
                     ))?;
                 }
             }
-            listen<CSIBusEvent<WalletEvent>> event => {
+            listen<CSIBusEvent<Wrap<WalletEvent>>> event => {
                 self.bus.send(WsTopicMessage::new(
-                    event.event.account.0.clone(),
+                    event.event.0.account.0.clone(),
                     AppOutWsEvent::WalletEvent {
-                        account: event.event.account.0.clone(),
-                        event:event.event.program_outputs
+                        account: event.event.0.account.0.clone(),
+                        event:event.event.0.program_outputs
                     },
                 ))?;
             }

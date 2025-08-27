@@ -15,6 +15,7 @@ use client_sdk::{
     },
     transaction_builder::TxExecutorHandler,
 };
+use hyli_modules::bus::BusMessage;
 use sdk::{tracing, Hashed};
 use serde::Serialize;
 
@@ -27,6 +28,8 @@ pub struct WalletEvent {
     pub account: sdk::Identity,
     pub program_outputs: String,
 }
+
+impl BusMessage for WalletEvent {}
 
 impl Wallet {
     fn handle_transaction(
@@ -52,14 +55,14 @@ impl Wallet {
 
         let res = self.handle(&calldata);
         let event = match res {
-            Ok(hyle_output) => {
+            Ok(hyli_output) => {
                 let program_outputs =
-                    str::from_utf8(&hyle_output.program_outputs).unwrap_or("no output");
+                    str::from_utf8(&hyli_output.program_outputs).unwrap_or("no output");
 
                 sdk::info!("🚀 Executed {contract_name}: {}", program_outputs);
                 sdk::tracing::debug!(
                     handler = %contract_name,
-                    "hyle_output: {:?}", hyle_output
+                    "hyli_output: {:?}", hyli_output
                 );
                 WalletEvent {
                     account: tx.identity.clone(),

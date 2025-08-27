@@ -4,7 +4,7 @@ use borsh::{io::Error, BorshDeserialize, BorshSerialize};
 #[cfg(feature = "client")]
 use client_sdk::contract_indexer::utoipa;
 use sdk::{
-    hyle_model_utils::TimestampMs,
+    hyli_model_utils::TimestampMs,
     merkle_utils::{BorshableMerkleProof, SHA256Hasher},
     secp256k1::CheckSecp256k1,
     ContractName, LaneId, RunResult, StateCommitment,

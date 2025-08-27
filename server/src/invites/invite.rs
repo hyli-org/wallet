@@ -2,8 +2,8 @@ use anyhow::Result;
 use axum::http::StatusCode;
 use axum::{extract::State, routing::post, Json, Router};
 use chrono::NaiveDateTime;
-use hyle_modules::modules::BuildApiContextInner;
-use hyle_modules::{
+use hyli_modules::modules::BuildApiContextInner;
+use hyli_modules::{
     bus::SharedMessageBus, module_bus_client, module_handle_messages, modules::Module,
 };
 use sdk::verifiers::Secp256k1Blob;

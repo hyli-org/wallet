@@ -2,8 +2,9 @@ use anyhow::anyhow;
 use anyhow::Context;
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
-use hyle_smt_token::client::tx_executor_handler::SmtTokenProvableState;
-use hyle_smt_token::SmtTokenAction;
+use hyli_modules::bus::BusMessage;
+use hyli_smt_token::client::tx_executor_handler::SmtTokenProvableState;
+use hyli_smt_token::SmtTokenAction;
 use sdk::BlobIndex;
 use sdk::Calldata;
 use sdk::Hashed;
@@ -30,6 +31,8 @@ use sdk::Identity;
 use sdk::TxHash;
 use serde::Serialize;
 
+use crate::app::Wrap;
+
 #[derive(Debug, Clone, Default, Serialize, ToSchema, BorshDeserialize, BorshSerialize)]
 pub struct TransactionDetails {
     id: String,
@@ -51,6 +54,8 @@ pub struct HistoryEvent {
     pub account: Identity,
     pub tx: TransactionDetails,
 }
+
+impl BusMessage for HistoryEvent {}
 
 impl TokenHistory {
     pub fn add_to_history(
@@ -98,7 +103,7 @@ impl TokenHistory {
 }
 
 impl TxExecutorHandler for TokenHistory {
-    fn handle(&mut self, calldata: &sdk::Calldata) -> anyhow::Result<sdk::HyleOutput> {
+    fn handle(&mut self, calldata: &sdk::Calldata) -> anyhow::Result<sdk::HyliOutput> {
         self.token.handle(calldata)
     }
 
@@ -118,7 +123,7 @@ impl TxExecutorHandler for TokenHistory {
     }
 }
 
-impl ContractHandler<Vec<HistoryEvent>> for TokenHistory {
+impl ContractHandler<Wrap<Vec<HistoryEvent>>> for TokenHistory {
     async fn api(store: ContractHandlerStore<TokenHistory>) -> (Router<()>, OpenApi) {
         let (router, api) = OpenApiRouter::default()
             .routes(routes!(get_history))
@@ -132,7 +137,7 @@ impl ContractHandler<Vec<HistoryEvent>> for TokenHistory {
         tx: &sdk::BlobTransaction,
         _index: sdk::BlobIndex,
         _tx_context: sdk::TxContext,
-    ) -> anyhow::Result<Option<Vec<HistoryEvent>>> {
+    ) -> anyhow::Result<Option<Wrap<Vec<HistoryEvent>>>> {
         let mut events = vec![];
         let tx_hash = tx.hashed();
         self.history.iter_mut().for_each(|(account, history)| {
@@ -145,7 +150,7 @@ impl ContractHandler<Vec<HistoryEvent>> for TokenHistory {
             }
         });
         if !events.is_empty() {
-            Ok(Some(events))
+            Ok(Some(Wrap(events)))
         } else {
             Ok(None)
         }
@@ -156,7 +161,7 @@ impl ContractHandler<Vec<HistoryEvent>> for TokenHistory {
         tx: &sdk::BlobTransaction,
         _index: sdk::BlobIndex,
         _tx_context: sdk::TxContext,
-    ) -> anyhow::Result<Option<Vec<HistoryEvent>>> {
+    ) -> anyhow::Result<Option<Wrap<Vec<HistoryEvent>>>> {
         let mut events = vec![];
         self.history.values_mut().for_each(|history| {
             for t in history.iter_mut().filter(|t| t.id == tx.hashed().0) {
@@ -168,7 +173,7 @@ impl ContractHandler<Vec<HistoryEvent>> for TokenHistory {
             }
         });
         if !events.is_empty() {
-            Ok(Some(events))
+            Ok(Some(Wrap(events)))
         } else {
             Ok(None)
         }
@@ -179,7 +184,7 @@ impl ContractHandler<Vec<HistoryEvent>> for TokenHistory {
         tx: &sdk::BlobTransaction,
         _index: sdk::BlobIndex,
         _tx_context: sdk::TxContext,
-    ) -> anyhow::Result<Option<Vec<HistoryEvent>>> {
+    ) -> anyhow::Result<Option<Wrap<Vec<HistoryEvent>>>> {
         let mut events = vec![];
         self.history.values_mut().for_each(|history| {
             for t in history.iter_mut().filter(|t| t.id == tx.hashed().0) {
@@ -191,7 +196,7 @@ impl ContractHandler<Vec<HistoryEvent>> for TokenHistory {
             }
         });
         if !events.is_empty() {
-            Ok(Some(events))
+            Ok(Some(Wrap(events)))
         } else {
             Ok(None)
         }
@@ -202,7 +207,7 @@ impl ContractHandler<Vec<HistoryEvent>> for TokenHistory {
         tx: &sdk::BlobTransaction,
         index: sdk::BlobIndex,
         tx_context: sdk::TxContext,
-    ) -> anyhow::Result<Option<Vec<HistoryEvent>>> {
+    ) -> anyhow::Result<Option<Wrap<Vec<HistoryEvent>>>> {
         let action = Self::get_action(tx, index)
             .with_context(|| format!("Failed to get action for transaction: {tx:?}"))?;
         let timestamp = tx_context.timestamp.0;
@@ -272,7 +277,7 @@ impl ContractHandler<Vec<HistoryEvent>> for TokenHistory {
             }
         }
         if !events.is_empty() {
-            Ok(Some(events))
+            Ok(Some(Wrap(events)))
         } else {
             Ok(None)
         }
