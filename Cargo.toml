@@ -3,10 +3,10 @@ resolver = "2"
 members = ["contracts", "contracts/wallet", "server"]
 
 [workspace.dependencies]
-sdk = { git = "https://github.com/Hyli-org/hyli.git", package = "hyli-contract-sdk", branch = "main" }
-client-sdk = { git = "https://github.com/Hyli-org/hyli.git", default-features = false, package = "hyli-client-sdk", branch = "main" }
-hyli-smt-token = { git = "https://github.com/Hyli-org/hyli.git", package = "hyli-smt-token", branch = "main" }
-hyli-modules = { git = "https://github.com/Hyli-org/hyli.git", package = "hyli-modules", branch = "main" }
+sdk = { git = "https://github.com/hyli-org/hyli.git", package = "hyli-contract-sdk", branch = "main" }
+client-sdk = { git = "https://github.com/hyli-org/hyli.git", default-features = false, package = "hyli-client-sdk", branch = "main" }
+hyli-smt-token = { git = "https://github.com/hyli-org/hyli.git", package = "hyli-smt-token", branch = "main" }
+hyli-modules = { git = "https://github.com/hyli-org/hyli.git", package = "hyli-modules", branch = "main" }
 
 
 contracts = { path = "contracts", default-features = false, package = "contracts" }
@@ -19,9 +19,9 @@ edition = "2021"
 
 [patch.crates-io]
 sha2 = { git = "https://github.com/risc0/RustCrypto-hashes", tag = "sha2-v0.10.8-risczero.0" }
-# boundless-market = { git = "https://github.com/Hyli-org/boundless.git" }
+# boundless-market = { git = "https://github.com/hyli-org/boundless.git" }
 
-# [patch."https://github.com/Hyli-org/hyli"]
+# [patch."https://github.com/hyli_org/hyli"]
 # hyli-contract-sdk = { path = "../hyli/crates/contract-sdk", package = "hyli-contract-sdk" }
 # hyli-client-sdk = { path = "../hyli/crates/client-sdk", package = "hyli-client-sdk" }
 # hyli-smt-token = { path = "../hyli/crates/contracts/smt-token", package = "hyli-smt-token" }
