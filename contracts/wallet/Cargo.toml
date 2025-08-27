@@ -22,6 +22,7 @@ client-sdk = { workspace = true, default-features = false, features = [
   "indexer",
   "rest",
 ], optional = true }
+hyli-modules = { workspace = true, optional = true }
 
 sparse-merkle-tree = "0.6.1"
 sha2 = { workspace = true }
@@ -44,5 +45,5 @@ risc0-zkvm = { version = "=2.3", default-features = false, features = [
 
 [features]
 default = []
-client = ["dep:client-sdk"]
+client = ["dep:client-sdk", "dep:hyli-modules"]
 risc0 = ["dep:risc0-zkvm", "sdk/risc0"]

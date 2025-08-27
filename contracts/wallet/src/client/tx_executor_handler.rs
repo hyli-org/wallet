@@ -5,7 +5,7 @@ use anyhow::Context;
 use borsh::{BorshDeserialize, BorshSerialize};
 use client_sdk::transaction_builder::TxExecutorHandler;
 use sdk::{
-    merkle_utils::BorshableMerkleProof, utils::as_hyle_output, Blob, Calldata,
+    merkle_utils::BorshableMerkleProof, utils::as_hyli_output, Blob, Calldata,
     RegisterContractEffect, StateCommitment,
 };
 use serde::Serialize;
@@ -126,7 +126,7 @@ impl TxExecutorHandler for Wallet {
         borsh::to_vec(&next_view).map_err(|e| format!("Failed to serialize combined view: {e}"))
     }
 
-    fn handle(&mut self, calldata: &Calldata) -> anyhow::Result<sdk::HyleOutput> {
+    fn handle(&mut self, calldata: &Calldata) -> anyhow::Result<sdk::HyliOutput> {
         self.actual_handle(calldata)
             .map_err(|e| anyhow::anyhow!("Failed to handle Wallet action: {}", e))
     }
@@ -214,7 +214,7 @@ impl Wallet {
             .ok_or_else(|| anyhow::anyhow!("Salt for account {} not found", account))
     }
 
-    fn actual_handle(&mut self, calldata: &Calldata) -> Result<sdk::HyleOutput, String> {
+    fn actual_handle(&mut self, calldata: &Calldata) -> Result<sdk::HyliOutput, String> {
         let initial_state_commitment = self.get_state_commitment();
 
         let (action, exec_ctx) = sdk::utils::parse_raw_calldata::<WalletAction>(calldata)?;
@@ -229,7 +229,7 @@ impl Wallet {
                 return Err("Invite code public key already set".to_string());
             }
             self.invite_code_public_key = invite_code_public_key;
-            return Ok(as_hyle_output(
+            return Ok(as_hyli_output(
                 initial_state_commitment,
                 self.get_state_commitment(),
                 calldata,
@@ -284,7 +284,7 @@ impl Wallet {
         let next_state_commitment = self.get_state_commitment();
 
         let mut res = result.map(|res| (res.into_bytes(), exec_ctx, vec![]));
-        Ok(as_hyle_output(
+        Ok(as_hyli_output(
             initial_state_commitment,
             next_state_commitment,
             calldata,

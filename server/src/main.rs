@@ -6,8 +6,8 @@ use client_sdk::transaction_builder::TxExecutorHandler;
 use client_sdk::{helpers::risc0::Risc0Prover, rest_client::NodeApiHttpClient};
 use conf::Conf;
 use history::{HistoryEvent, TokenHistory};
-use hyle_modules::modules::admin::{AdminApi, AdminApiRunContext};
-use hyle_modules::{
+use hyli_modules::modules::admin::{AdminApi, AdminApiRunContext};
+use hyli_modules::{
     bus::{metrics::BusMetrics, SharedMessageBus},
     modules::{
         contract_state_indexer::{ContractStateIndexer, ContractStateIndexerCtx},
@@ -19,7 +19,7 @@ use hyle_modules::{
     },
     utils::logger::setup_tracing,
 };
-use hyle_smt_token::client::tx_executor_handler::SmtTokenProvableState;
+use hyli_smt_token::client::tx_executor_handler::SmtTokenProvableState;
 use prometheus::Registry;
 use sdk::{api::NodeInfo, info, ContractName};
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
@@ -32,6 +32,8 @@ use wallet::client::{
     indexer::WalletEvent,
     tx_executor_handler::{Wallet, WalletConstructor},
 };
+
+use crate::app::Wrap;
 
 mod app;
 mod conf;
@@ -163,7 +165,7 @@ async fn actual_main() -> Result<()> {
         })
         .await?;
     handler
-        .build_module::<ContractStateIndexer<TokenHistory, Vec<HistoryEvent>>>(
+        .build_module::<ContractStateIndexer<TokenHistory, Wrap<Vec<HistoryEvent>>>>(
             ContractStateIndexerCtx {
                 contract_name: "oranj".into(),
                 data_directory: config.data_directory.clone(),
@@ -172,7 +174,7 @@ async fn actual_main() -> Result<()> {
         )
         .await?;
     handler
-        .build_module::<ContractStateIndexer<TokenHistory, Vec<HistoryEvent>>>(
+        .build_module::<ContractStateIndexer<TokenHistory, Wrap<Vec<HistoryEvent>>>>(
             ContractStateIndexerCtx {
                 contract_name: "vitamin".into(),
                 data_directory: config.data_directory.clone(),
@@ -181,7 +183,7 @@ async fn actual_main() -> Result<()> {
         )
         .await?;
     handler
-        .build_module::<ContractStateIndexer<TokenHistory, Vec<HistoryEvent>>>(
+        .build_module::<ContractStateIndexer<TokenHistory, Wrap<Vec<HistoryEvent>>>>(
             ContractStateIndexerCtx {
                 contract_name: "oxygen".into(),
                 data_directory: config.data_directory.clone(),
@@ -209,7 +211,10 @@ async fn actual_main() -> Result<()> {
         handler
             .build_module::<AutoProver<Wallet>>(Arc::new(AutoProverCtx {
                 data_directory: config.data_directory.clone(),
-                prover: Arc::new(Risc0Prover::new(contracts::WALLET_ELF)),
+                prover: Arc::new(Risc0Prover::new(
+                    contracts::WALLET_ELF,
+                    contracts::WALLET_ID,
+                )),
                 contract_name: wallet_cn.clone(),
                 node: app_ctx.node_client.clone(),
                 default_state: wallet.clone(),
@@ -226,7 +231,8 @@ async fn actual_main() -> Result<()> {
             .build_module::<AutoProver<SmtTokenProvableState>>(Arc::new(AutoProverCtx {
                 data_directory: config.data_directory.clone(),
                 prover: Arc::new(Risc0Prover::new(
-                    hyle_smt_token::client::tx_executor_handler::metadata::SMT_TOKEN_ELF,
+                    hyli_smt_token::client::tx_executor_handler::metadata::SMT_TOKEN_ELF,
+                    hyli_smt_token::client::tx_executor_handler::metadata::PROGRAM_ID,
                 )),
                 contract_name: "oranj".into(),
                 node: app_ctx.node_client.clone(),
@@ -241,7 +247,8 @@ async fn actual_main() -> Result<()> {
             .build_module::<AutoProver<SmtTokenProvableState>>(Arc::new(AutoProverCtx {
                 data_directory: config.data_directory.clone(),
                 prover: Arc::new(Risc0Prover::new(
-                    hyle_smt_token::client::tx_executor_handler::metadata::SMT_TOKEN_ELF,
+                    hyli_smt_token::client::tx_executor_handler::metadata::SMT_TOKEN_ELF,
+                    hyli_smt_token::client::tx_executor_handler::metadata::PROGRAM_ID,
                 )),
                 contract_name: "vitamin".into(),
                 node: app_ctx.node_client.clone(),
@@ -256,7 +263,8 @@ async fn actual_main() -> Result<()> {
             .build_module::<AutoProver<SmtTokenProvableState>>(Arc::new(AutoProverCtx {
                 data_directory: config.data_directory.clone(),
                 prover: Arc::new(Risc0Prover::new(
-                    hyle_smt_token::client::tx_executor_handler::metadata::SMT_TOKEN_ELF,
+                    hyli_smt_token::client::tx_executor_handler::metadata::SMT_TOKEN_ELF,
+                    hyli_smt_token::client::tx_executor_handler::metadata::PROGRAM_ID,
                 )),
                 contract_name: "oxygen".into(),
                 node: app_ctx.node_client.clone(),
