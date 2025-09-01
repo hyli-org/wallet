@@ -3,9 +3,12 @@ use std::env;
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
 use wallet::client::tx_executor_handler::{Wallet, WalletConstructor};
 
+pub(crate) mod app;
 pub mod conf;
+pub(crate) mod init;
+pub mod sdk_wallet;
 
-pub fn new_wallet() -> Wallet {
+pub fn new_wallet() -> (WalletConstructor, Wallet) {
     let secp = Secp256k1::new();
     let secret_key =
         hex::decode(env::var("INVITE_CODE_PKEY").unwrap_or(
@@ -18,5 +21,9 @@ pub fn new_wallet() -> Wallet {
 
     let hyli_password = env::var("HYLI_PASSWORD").unwrap_or("hylisecure".to_string());
     let wallet_constructor = WalletConstructor::new(hyli_password, public_key.serialize());
-    Wallet::new(&Some(wallet_constructor.clone())).expect("must succeed")
+
+    (
+        wallet_constructor.clone(),
+        Wallet::new(&Some(wallet_constructor)).expect("must succeed"),
+    )
 }

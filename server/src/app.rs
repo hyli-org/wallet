@@ -25,11 +25,11 @@ use wallet::client::indexer::WalletEvent;
 
 use crate::history::HistoryEvent;
 
-pub struct AppModule {
+pub struct WalletModule {
     bus: AppModuleBusClient,
 }
 
-pub struct AppModuleCtx {
+pub struct WalletModuleCtx {
     pub api: Arc<BuildApiContextInner>,
     pub node_client: Arc<dyn NodeApiClient + Send + Sync>,
     pub wallet_cn: ContractName,
@@ -55,8 +55,8 @@ pub struct AppModuleBusClient {
 }
 }
 
-impl Module for AppModule {
-    type Context = Arc<AppModuleCtx>;
+impl Module for WalletModule {
+    type Context = Arc<WalletModuleCtx>;
 
     async fn build(bus: SharedMessageBus, ctx: Self::Context) -> Result<Self> {
         let state = RouterCtx {
@@ -82,7 +82,7 @@ impl Module for AppModule {
         }
         let bus = AppModuleBusClient::new_from_bus(bus.new_handle()).await;
 
-        Ok(AppModule { bus })
+        Ok(WalletModule { bus })
     }
 
     async fn run(&mut self) -> Result<()> {
@@ -129,65 +129,8 @@ struct ConfigResponse {
 //     Routes
 // --------------------------------------------------------
 
-// async fn increment(
-//     State(ctx): State<RouterCtx>,
-//     headers: HeaderMap,
-// ) -> Result<impl IntoResponse, AppError> {
-//     let auth = AuthHeaders::from_headers(&headers)?;
-//     send(ctx.clone(), auth).await
-// }
-
 async fn get_config(State(ctx): State<RouterCtx>) -> impl IntoResponse {
     Json(ConfigResponse {
         contract_name: ctx.wallet_cn.0,
     })
 }
-
-// async fn send(ctx: RouterCtx, auth: AuthHeaders) -> Result<impl IntoResponse, AppError> {
-//     let _header_session_key = auth.session_key.clone();
-//     let _header_signature = auth.signature.clone();
-//     let identity = auth.user.clone();
-//
-//     let action_wallet = WalletAction::Increment;
-//
-//     let blobs = vec![action_wallet.as_blob(ctx.wallet_cn.clone())];
-//
-//     let res = ctx
-//         .client
-//         .send_tx_blob(&BlobTransaction::new(identity.clone(), blobs))
-//         .await;
-//
-//     if let Err(ref e) = res {
-//         let root_cause = e.root_cause().to_string();
-//         return Err(AppError(
-//             StatusCode::BAD_REQUEST,
-//             anyhow::anyhow!("{}", root_cause),
-//         ));
-//     }
-//
-//     let tx_hash = res.unwrap();
-//
-//     let mut bus = {
-//         let app = ctx.app.lock().await;
-//         AppModuleBusClient::new_from_bus(app.bus.new_handle()).await
-//     };
-//
-//     tokio::time::timeout(Duration::from_secs(5), async {
-//         loop {
-//             let a = bus.recv().await?;
-//             match a {
-//                 AppEvent::SequencedTx(sequenced_tx_hash) => {
-//                     if sequenced_tx_hash == tx_hash {
-//                         return Ok(Json(sequenced_tx_hash));
-//                     }
-//                 }
-//                 AppEvent::FailedTx(sequenced_tx_hash, error) => {
-//                     if sequenced_tx_hash == tx_hash {
-//                         return Err(AppError(StatusCode::BAD_REQUEST, anyhow::anyhow!(error)));
-//                     }
-//                 }
-//             }
-//         }
-//     })
-//     .await?
-// }
