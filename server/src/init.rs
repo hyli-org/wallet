@@ -4,14 +4,17 @@ use sdk::{api::APIRegisterContract, info, ContractName, ProgramId, StateCommitme
 use std::{sync::Arc, time::Duration};
 use tokio::time::timeout;
 
-pub struct ContractInit {
+pub(crate) struct ContractInit {
     pub name: ContractName,
     pub program_id: [u8; 32],
     pub initial_state: StateCommitment,
     pub constructor_metadata: Vec<u8>,
 }
 
-pub async fn init_node(node: Arc<dyn NodeApiClient>, contracts: Vec<ContractInit>) -> Result<()> {
+pub(crate) async fn init_node(
+    node: Arc<dyn NodeApiClient>,
+    contracts: Vec<ContractInit>,
+) -> Result<()> {
     for contract in contracts {
         init_contract(node.as_ref(), contract).await?;
     }

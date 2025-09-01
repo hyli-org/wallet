@@ -1,8 +1,7 @@
 use anyhow::{Context, Result};
-use app::{AppOutWsEvent, AppWsInMessage, WalletModule, WalletModuleCtx};
+use app::{AppOutWsEvent, AppWsInMessage};
 use axum::Router;
 use clap::Parser;
-use client_sdk::transaction_builder::TxExecutorHandler;
 use client_sdk::{helpers::risc0::Risc0Prover, rest_client::NodeApiHttpClient};
 use conf::Conf;
 use history::{HistoryEvent, TokenHistory};
@@ -24,8 +23,6 @@ use prometheus::Registry;
 use sdk::{api::NodeInfo, info, ContractName};
 use server::new_wallet;
 use std::sync::{Arc, Mutex};
-use tracing::error;
-use wallet::client::{indexer::WalletEvent, tx_executor_handler::Wallet};
 
 use crate::sdk_wallet::SdkWalletConfig;
 
@@ -122,11 +119,11 @@ async fn actual_main() -> Result<()> {
             data_directory: config.data_directory.clone(),
             auto_prove: args.wallet_auto_prover,
             wallet_buffer_blocks: config.wallet_buffer_blocks,
-            wallet_max_txs_per_proof: conig.wallet_max_txs_per_proof,
+            wallet_max_txs_per_proof: config.wallet_max_txs_per_proof,
             wallet_tx_working_window_size: config.wallet_tx_working_window_size,
         },
         &mut handler,
-        api_ctx,
+        api_ctx.clone(),
         node_client.clone(),
     )
     .await
@@ -183,7 +180,7 @@ async fn actual_main() -> Result<()> {
                     hyli_smt_token::client::tx_executor_handler::metadata::PROGRAM_ID,
                 )),
                 contract_name: "oranj".into(),
-                node: app_ctx.node_client.clone(),
+                node: node_client.clone(),
                 default_state: Default::default(),
                 buffer_blocks: config.smt_buffer_blocks,
                 max_txs_per_proof: config.smt_max_txs_per_proof,
@@ -199,7 +196,7 @@ async fn actual_main() -> Result<()> {
                     hyli_smt_token::client::tx_executor_handler::metadata::PROGRAM_ID,
                 )),
                 contract_name: "vitamin".into(),
-                node: app_ctx.node_client.clone(),
+                node: node_client.clone(),
                 default_state: Default::default(),
                 buffer_blocks: config.smt_buffer_blocks,
                 max_txs_per_proof: config.smt_max_txs_per_proof,
@@ -215,7 +212,7 @@ async fn actual_main() -> Result<()> {
                     hyli_smt_token::client::tx_executor_handler::metadata::PROGRAM_ID,
                 )),
                 contract_name: "oxygen".into(),
-                node: app_ctx.node_client.clone(),
+                node: node_client.clone(),
                 default_state: Default::default(),
                 buffer_blocks: config.smt_buffer_blocks,
                 max_txs_per_proof: config.smt_max_txs_per_proof,
