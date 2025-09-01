@@ -5,6 +5,7 @@ use wallet::client::tx_executor_handler::{Wallet, WalletConstructor};
 
 pub(crate) mod app;
 pub mod conf;
+pub(crate) mod history;
 pub(crate) mod init;
 pub mod sdk_wallet;
 

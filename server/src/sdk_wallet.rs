@@ -47,7 +47,7 @@ pub(crate) async fn setup_wallet_modules(
     if config.noinit {
         info!("Skipping initialization, using existing contracts");
     } else {
-        match init::init_node(node_client, contracts).await {
+        match init::init_node(node_client.clone(), contracts).await {
             Ok(_) => {}
             Err(e) => {
                 error!("Error initializing node: {:?}", e);
