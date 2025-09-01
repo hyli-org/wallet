@@ -6,13 +6,13 @@ use client_sdk::helpers::risc0::Risc0Prover;
 use client_sdk::transaction_builder::TxExecutorHandler;
 
 use client_sdk::rest_client::NodeApiClient;
-use hyle_modules::modules::contract_state_indexer::{
+use hyli_modules::modules::contract_state_indexer::{
     ContractStateIndexer, ContractStateIndexerCtx,
 };
-use hyle_modules::modules::prover::AutoProver;
-use hyle_modules::modules::prover::AutoProverCtx;
-use hyle_modules::modules::BuildApiContextInner;
-use hyle_modules::modules::ModulesHandler;
+use hyli_modules::modules::prover::AutoProver;
+use hyli_modules::modules::prover::AutoProverCtx;
+use hyli_modules::modules::BuildApiContextInner;
+use hyli_modules::modules::ModulesHandler;
 use sdk::ContractName;
 use std::path::PathBuf;
 use std::sync::Arc;
