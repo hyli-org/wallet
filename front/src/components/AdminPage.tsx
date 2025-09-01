@@ -155,7 +155,7 @@ const AdminPage: React.FC = () => {
             } else if (actionType === "delete" && value) {
                 const action = serializeDeleteContractAction(value);
                 setResult(`DeleteContractAction: ${value}`);
-                const actionBlob = { contract_name: "hyle", data: Array.from(action) };
+                const actionBlob = { contract_name: "hyli", data: Array.from(action) };
                 blobs = [blob0, blob1, actionBlob];
             } else if (actionType === "nuke" && value) {
                 const hashes = value
@@ -164,17 +164,17 @@ const AdminPage: React.FC = () => {
                     .filter(Boolean);
                 const action = serializeNukeTxAction(hashes);
                 setResult(`NukeTxAction: ${hashes.join(", ")}`);
-                const actionBlob = { contract_name: "hyle", data: Array.from(action) };
+                const actionBlob = { contract_name: "hyli", data: Array.from(action) };
                 blobs = [actionBlob];
             } else if (actionType === "update") {
                 const action = serializeUpdateContractProgramIdAction(updateContractName, newProgramId);
                 setResult(`UpdateContractProgramIdAction: ${updateContractName} with new ProgramId: ${newProgramId}`);
-                const actionBlob = { contract_name: "hyle", data: Array.from(action) };
+                const actionBlob = { contract_name: "hyli", data: Array.from(action) };
                 blobs = [blob0, actionBlob, blob1];
             } else if (actionType === "update_timeout") {
                 const action = serializeUpgradeContractTimeoutAction(updateContractName, newTimeout);
                 setResult(`UpgradeContractTimeoutAction: ${updateContractName} with new Timeout: ${newTimeout}`);
-                const actionBlob = { contract_name: "hyle", data: Array.from(action) };
+                const actionBlob = { contract_name: "hyli", data: Array.from(action) };
                 blobs = [blob0, actionBlob, blob1];
             }
             const actionTypeLabels: Record<typeof actionType, string> = {

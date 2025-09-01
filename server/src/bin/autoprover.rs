@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use axum::Router;
 use clap::Parser;
 use client_sdk::rest_client::NodeApiHttpClient;
-use hyle_modules::{
+use hyli_modules::{
     bus::{metrics::BusMetrics, SharedMessageBus},
     modules::{
         admin::{AdminApi, AdminApiRunContext},
@@ -80,6 +80,7 @@ async fn main() -> Result<()> {
             data_directory: config.data_directory.clone(),
             prover: Arc::new(client_sdk::helpers::risc0::Risc0Prover::new(
                 contracts::WALLET_ELF,
+                contracts::WALLET_ID,
             )),
             contract_name: wallet_cn,
             node: node_client.clone(),

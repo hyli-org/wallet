@@ -79,7 +79,10 @@ pub(crate) async fn setup_wallet_modules(
         handler
             .build_module::<AutoProver<Wallet>>(Arc::new(AutoProverCtx {
                 data_directory: config.data_directory.clone(),
-                prover: Arc::new(Risc0Prover::new(contracts::WALLET_ELF)),
+                prover: Arc::new(Risc0Prover::new(
+                    contracts::WALLET_ELF,
+                    contracts::WALLET_ID,
+                )),
                 contract_name: config.wallet_cn.clone(),
                 node: app_ctx.node_client.clone(),
                 default_state: wallet.clone(),

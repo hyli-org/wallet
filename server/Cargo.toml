@@ -6,8 +6,8 @@ edition = "2021"
 sdk = { workspace = true, features = ["tracing"] }
 client-sdk = { workspace = true, features = ["risc0", "rest"] }
 wallet = { workspace = true, features = ["client"] }
-hyle-smt-token = { workspace = true, features = ["client"] }
-hyle-modules = { workspace = true }
+hyli-smt-token = { workspace = true, features = ["client"] }
+hyli-modules = { workspace = true }
 # Remove features if you want reproducible builds with docker
 contracts = { workspace = true, features = ["all"] }
 

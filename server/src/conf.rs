@@ -1,5 +1,5 @@
 use config::{Config, Environment, File};
-use hyle_modules::modules::websocket::WebSocketConfig;
+use hyli_modules::modules::websocket::WebSocketConfig;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -46,7 +46,7 @@ impl Conf {
         }
         let conf: Self = s
             .add_source(
-                Environment::with_prefix("hyle")
+                Environment::with_prefix("hyli")
                     .separator("__")
                     .prefix_separator("_"),
             )
