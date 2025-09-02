@@ -3,10 +3,10 @@ use std::env;
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
 use wallet::client::tx_executor_handler::{Wallet, WalletConstructor};
 
-pub(crate) mod app;
+mod app;
 pub mod conf;
-pub(crate) mod history;
-pub(crate) mod init;
+mod history;
+mod init;
 pub mod sdk_wallet;
 
 pub fn new_wallet() -> (WalletConstructor, Wallet) {

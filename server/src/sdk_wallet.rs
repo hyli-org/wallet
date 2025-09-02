@@ -1,6 +1,7 @@
 use crate::app::WalletModule;
 use crate::app::WalletModuleCtx;
-use crate::init;
+use crate::init::init_node;
+use crate::init::ContractInit;
 use crate::new_wallet;
 use client_sdk::helpers::risc0::Risc0Prover;
 use client_sdk::transaction_builder::TxExecutorHandler;
@@ -37,7 +38,7 @@ pub(crate) async fn setup_wallet_modules(
     node_client: Arc<dyn NodeApiClient + Send + Sync>,
 ) -> anyhow::Result<()> {
     let (wallet_constructor, wallet) = new_wallet();
-    let contracts = vec![init::ContractInit {
+    let contracts = vec![ContractInit {
         name: config.wallet_cn.clone(),
         program_id: contracts::WALLET_ID,
         initial_state: wallet.get_state_commitment(),
@@ -47,7 +48,7 @@ pub(crate) async fn setup_wallet_modules(
     if config.noinit {
         info!("Skipping initialization, using existing contracts");
     } else {
-        match init::init_node(node_client.clone(), contracts).await {
+        match init_node(node_client.clone(), contracts).await {
             Ok(_) => {}
             Err(e) => {
                 error!("Error initializing node: {:?}", e);
