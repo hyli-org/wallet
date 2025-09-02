@@ -6,6 +6,7 @@ import { nodeService } from "../../services/NodeService";
 import { Transaction, webSocketService } from "../../services/WebSocketService";
 import { ErrorMessage } from "../ErrorMessage";
 import { indexerService } from "../../services/IndexerService";
+import { ConfigService } from "../../services/ConfigService";
 
 interface SendProps {
     onSend?: (transaction: Omit<Transaction, "id" | "timestamp">) => void;
@@ -279,9 +280,9 @@ export const Send = ({ wallet, onSend }: SendProps) => {
                     <div className="transaction-hash">
                         Transaction:&nbsp;
                         <code>
-                            <a href={`${import.meta.env.VITE_TX_EXPLORER_URL}/tx/${transactionHash}`} target="_blank">
-                                {`${transactionHash.slice(0, 10)}...${transactionHash.slice(-10)}`}
-                            </a>
+                                                    <a href={`${ConfigService.getTxExplorerUrl()}/tx/${transactionHash}`} target="_blank">
+                            {`${transactionHash.slice(0, 10)}...${transactionHash.slice(-10)}`}
+                        </a>
                         </code>
                     </div>
                 )}

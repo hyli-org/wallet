@@ -9,6 +9,7 @@ import { WalletProvider, useWallet } from "hyli-wallet";
 import { WebSocketProvider } from "./providers/WebSocketProvider";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { declareCustomElement } from "testnet-maintenance-widget";
+import { ConfigService } from "./services/ConfigService";
 declareCustomElement();
 
 function AppContent() {
@@ -67,9 +68,9 @@ export default function App() {
             <BrowserRouter>
                 <WalletProvider
                     config={{
-                        nodeBaseUrl: import.meta.env.VITE_NODE_BASE_URL,
-                        walletServerBaseUrl: import.meta.env.VITE_WALLET_SERVER_BASE_URL,
-                        applicationWsUrl: import.meta.env.VITE_WALLET_WS_URL,
+                        nodeBaseUrl: ConfigService.getNodeBaseUrl(),
+                        walletServerBaseUrl: ConfigService.getWalletServerBaseUrl(),
+                        applicationWsUrl: ConfigService.getApplicationWsUrl(),
                     }}
                     sessionKeyConfig={{
                         duration: 60 * 60 * 1000, // 1 hour

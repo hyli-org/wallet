@@ -5,6 +5,16 @@
     <link rel="icon" type="image/png" href="/Favicon2.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Hyli - Wallet</title>
+    <script>
+        window.__ENV__ = {
+            NODE_BASE_URL: '${NODE_BASE_URL}',
+            WALLET_SERVER_BASE_URL: '${WALLET_SERVER_BASE_URL}',
+            WALLET_WS_URL: '${WALLET_WS_URL}',
+            INDEXER_BASE_URL: '${INDEXER_BASE_URL}',
+            TX_EXPLORER_URL: '${TX_EXPLORER_URL}',
+            FAUCET_URL: '${FAUCET_URL}'
+        };
+    </script>
   </head>
   <body>
     <div id="root"></div>

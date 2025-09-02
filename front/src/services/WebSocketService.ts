@@ -1,3 +1,5 @@
+import { ConfigService } from "./ConfigService";
+
 export interface Transaction {
     id: string;
     type: "Send" | "Receive" | "Approve" | "Send TransferFrom" | "Receive TransferFrom";
@@ -48,7 +50,7 @@ export class WebSocketService {
         }
 
         this.currentAccount = account;
-        this.ws = new WebSocket(import.meta.env.VITE_WALLET_WS_URL);
+        this.ws = new WebSocket(ConfigService.getApplicationWsUrl());
 
         this.ws.onopen = () => {
             console.log("WebSocket connected");
