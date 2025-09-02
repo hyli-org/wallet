@@ -313,29 +313,10 @@ impl Wallet {
             }
             Err(e) => {
                 // Check for a registration tx
-                let Some(frst) = calldata.blobs.first() else {
-                    return Err("No blobs in calldata".to_string());
-                };
-                if frst.1.contract_name.0 != "hyli" {
-                    return Err("First blob is not for hyli contract".to_string());
-                }
-
-                let Ok(hyli_register_contract_action) =
-                    borsh::from_slice::<RegisterContractAction>(&frst.1.data.0)
-                else {
-                    return Err(format!("Could not deserialize Blob at index 0: {}", e));
-                };
-
-                if hyli_register_contract_action.contract_name != "wallet".into() {
-                    return Err(format!(
-                        "First blob is not for wallet contract, got {}",
-                        hyli_register_contract_action.contract_name
-                    ));
-                }
 
                 return Ok(as_hyli_output(
-                    StateCommitment::default(),
-                    StateCommitment(frst.1.data.0.clone()),
+                    initial_state_commitment.clone(),
+                    initial_state_commitment,
                     calldata,
                     &mut Ok((
                         "Registered wallet contract".as_bytes().to_vec(),
