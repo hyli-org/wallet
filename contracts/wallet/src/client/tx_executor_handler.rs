@@ -319,7 +319,7 @@ impl Wallet {
                     initial_state_commitment,
                     calldata,
                     &mut Ok((
-                        "Registered wallet contract".as_bytes().to_vec(),
+                        "Ignoring placeholder blob".as_bytes().to_vec(),
                         ExecutionContext::default(),
                         vec![],
                     )),
