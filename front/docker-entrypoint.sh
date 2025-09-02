@@ -1,10 +1,10 @@
 #!/bin/sh
 
-# Remplacer les variables d'environnement dans le bundle JavaScript
+# Replace environment variables in the JavaScript bundle
 cd /usr/share/nginx/html
 
-# Remplacer les variables dans le HTML
+# Replace variables in the HTML
 envsubst < index.html > index.html.tmp && mv index.html.tmp index.html
 
-# Démarrer nginx
+# Start nginx
 exec "$@"
