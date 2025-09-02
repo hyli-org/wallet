@@ -5,8 +5,8 @@ use anyhow::Context;
 use borsh::{BorshDeserialize, BorshSerialize};
 use client_sdk::transaction_builder::TxExecutorHandler;
 use sdk::{
-    merkle_utils::BorshableMerkleProof, utils::as_hyli_output, Blob, Calldata, Contract,
-    ContractName, StateCommitment,
+    caller::ExecutionContext, info, merkle_utils::BorshableMerkleProof, utils::as_hyli_output,
+    Blob, Calldata, Contract, ContractName, HyliOutput, RegisterContractAction, StateCommitment,
 };
 use serde::Serialize;
 
@@ -127,8 +127,13 @@ impl TxExecutorHandler for Wallet {
     }
 
     fn handle(&mut self, calldata: &Calldata) -> anyhow::Result<sdk::HyliOutput> {
-        self.actual_handle(calldata)
-            .map_err(|e| anyhow::anyhow!("Failed to handle Wallet action: {}", e))
+        self.actual_handle(calldata).map_err(|e| {
+            anyhow::anyhow!(
+                "Failed to handle Wallet action with calldata {:?}: {}",
+                calldata,
+                e
+            )
+        })
     }
 
     fn get_state_commitment(&self) -> StateCommitment {
@@ -219,11 +224,13 @@ impl Wallet {
             .ok_or_else(|| anyhow::anyhow!("Salt for account {} not found", account))
     }
 
-    fn actual_handle(&mut self, calldata: &Calldata) -> Result<sdk::HyliOutput, String> {
-        let initial_state_commitment = self.get_state_commitment();
-
-        let (action, exec_ctx) = sdk::utils::parse_raw_calldata::<WalletAction>(calldata)?;
-
+    fn handle_action(
+        &mut self,
+        action: WalletAction,
+        initial_state_commitment: StateCommitment,
+        exec_ctx: ExecutionContext,
+        calldata: &Calldata,
+    ) -> Result<HyliOutput, String> {
         if let WalletAction::UpdateInviteCodePublicKey {
             invite_code_public_key,
             ..
@@ -295,6 +302,49 @@ impl Wallet {
             calldata,
             &mut res,
         ))
+    }
+
+    fn actual_handle(&mut self, calldata: &Calldata) -> Result<sdk::HyliOutput, String> {
+        let initial_state_commitment = self.get_state_commitment();
+
+        match sdk::utils::parse_raw_calldata::<WalletAction>(calldata) {
+            Ok((action, exec_ctx)) => {
+                return self.handle_action(action, initial_state_commitment, exec_ctx, calldata);
+            }
+            Err(e) => {
+                // Check for a registration tx
+                let Some(frst) = calldata.blobs.first() else {
+                    return Err("No blobs in calldata".to_string());
+                };
+                if frst.1.contract_name.0 != "hyli" {
+                    return Err("First blob is not for hyli contract".to_string());
+                }
+
+                let Ok(hyli_register_contract_action) =
+                    borsh::from_slice::<RegisterContractAction>(&frst.1.data.0)
+                else {
+                    return Err(format!("Could not deserialize Blob at index 0: {}", e));
+                };
+
+                if hyli_register_contract_action.contract_name != "wallet".into() {
+                    return Err(format!(
+                        "First blob is not for wallet contract, got {}",
+                        hyli_register_contract_action.contract_name
+                    ));
+                }
+
+                return Ok(as_hyli_output(
+                    StateCommitment::default(),
+                    StateCommitment(frst.1.data.0.clone()),
+                    calldata,
+                    &mut Ok((
+                        "Registered wallet contract".as_bytes().to_vec(),
+                        ExecutionContext::default(),
+                        vec![],
+                    )),
+                ));
+            }
+        };
     }
 }
 
