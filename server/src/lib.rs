@@ -9,7 +9,7 @@ mod history;
 mod init;
 pub mod sdk_wallet;
 
-pub fn new_wallet() -> (WalletConstructor, Wallet) {
+pub fn new_wallet(contract_name: &sdk::ContractName) -> (WalletConstructor, Wallet) {
     let secp = Secp256k1::new();
     let secret_key =
         hex::decode(env::var("INVITE_CODE_PKEY").unwrap_or(
@@ -25,6 +25,6 @@ pub fn new_wallet() -> (WalletConstructor, Wallet) {
 
     (
         wallet_constructor.clone(),
-        Wallet::new(&Some(wallet_constructor)).expect("must succeed"),
+        Wallet::new(&contract_name, &Some(wallet_constructor)).expect("must succeed"),
     )
 }

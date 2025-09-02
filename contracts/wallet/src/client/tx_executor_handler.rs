@@ -5,8 +5,8 @@ use anyhow::Context;
 use borsh::{BorshDeserialize, BorshSerialize};
 use client_sdk::transaction_builder::TxExecutorHandler;
 use sdk::{
-    merkle_utils::BorshableMerkleProof, utils::as_hyli_output, Blob, Calldata,
-    RegisterContractEffect, StateCommitment,
+    merkle_utils::BorshableMerkleProof, utils::as_hyli_output, Blob, Calldata, Contract,
+    ContractName, StateCommitment,
 };
 use serde::Serialize;
 
@@ -136,7 +136,8 @@ impl TxExecutorHandler for Wallet {
     }
 
     fn construct_state(
-        _register_blob: &RegisterContractEffect,
+        _contract_name: &ContractName,
+        _register_blob: &Contract,
         metadata: &Option<Vec<u8>>,
     ) -> anyhow::Result<Self> {
         let mut this = Self {
@@ -173,9 +174,13 @@ impl TxExecutorHandler for Wallet {
 }
 
 impl Wallet {
-    pub fn new(constructor: &Option<WalletConstructor>) -> anyhow::Result<Self> {
+    pub fn new(
+        contract_name: &ContractName,
+        constructor: &Option<WalletConstructor>,
+    ) -> anyhow::Result<Self> {
         Wallet::construct_state(
-            &RegisterContractEffect::default(),
+            contract_name,
+            &Contract::default(),
             &constructor
                 .as_ref()
                 .map(|c| borsh::to_vec(&c).context("serializing wallet constructor"))
@@ -304,7 +309,8 @@ mod tests {
 
     #[test]
     fn test_proof_of_failure() {
-        let wallet = Wallet::new(&None).expect("Failed to create wallet");
+        let wallet =
+            Wallet::new(&ContractName::new("Test"), &None).expect("Failed to create wallet");
 
         // Create a dummy blob
         let blob = Blob {

@@ -1,4 +1,4 @@
-use std::str;
+use std::{str, sync::Arc};
 
 use anyhow::{anyhow, Context, Result};
 use client_sdk::{
@@ -36,7 +36,7 @@ impl Wallet {
         &mut self,
         tx: &sdk::BlobTransaction,
         index: sdk::BlobIndex,
-        tx_context: sdk::TxContext,
+        tx_context: Arc<sdk::TxContext>,
     ) -> Result<Option<WalletEvent>> {
         let sdk::Blob {
             contract_name,
@@ -49,7 +49,7 @@ impl Wallet {
             blobs: tx.blobs.clone().into(),
             tx_blob_count: tx.blobs.len(),
             tx_hash: tx.hashed(),
-            tx_ctx: Some(tx_context),
+            tx_ctx: Some((*tx_context).clone()),
             private_input: vec![],
         };
 
@@ -87,7 +87,7 @@ impl ContractHandler<WalletEvent> for Wallet {
         &mut self,
         tx: &sdk::BlobTransaction,
         index: sdk::BlobIndex,
-        tx_context: sdk::TxContext,
+        tx_context: Arc<sdk::TxContext>,
     ) -> Result<Option<WalletEvent>> {
         self.handle_transaction(tx, index, tx_context)
     }
@@ -96,7 +96,7 @@ impl ContractHandler<WalletEvent> for Wallet {
         &mut self,
         tx: &sdk::BlobTransaction,
         _index: sdk::BlobIndex,
-        _tx_context: sdk::TxContext,
+        _tx_context: Arc<sdk::TxContext>,
     ) -> Result<Option<WalletEvent>> {
         Ok(Some(WalletEvent {
             account: tx.identity.clone(),
@@ -108,7 +108,7 @@ impl ContractHandler<WalletEvent> for Wallet {
         &mut self,
         tx: &sdk::BlobTransaction,
         _index: sdk::BlobIndex,
-        _tx_context: sdk::TxContext,
+        _tx_context: Arc<sdk::TxContext>,
     ) -> Result<Option<WalletEvent>> {
         Ok(Some(WalletEvent {
             account: tx.identity.clone(),

@@ -37,7 +37,7 @@ pub(crate) async fn setup_wallet_modules(
     api_ctx: Arc<BuildApiContextInner>,
     node_client: Arc<dyn NodeApiClient + Send + Sync>,
 ) -> anyhow::Result<()> {
-    let (wallet_constructor, wallet) = new_wallet();
+    let (wallet_constructor, wallet) = new_wallet(&config.wallet_cn);
     let contracts = vec![ContractInit {
         name: config.wallet_cn.clone(),
         program_id: contracts::WALLET_ID,
