@@ -4,6 +4,7 @@ import { webSocketService } from "../../services/WebSocketService";
 import { indexerService } from "../../services/IndexerService";
 import { ErrorMessage } from "../ErrorMessage";
 import "./SessionKeys.css";
+import { ConfigService } from "../../services/ConfigService";
 
 interface SessionKey {
     key: string;
@@ -273,7 +274,7 @@ export const SessionKeys = () => {
                     Transaction:&nbsp;
                     <code>
                         <a
-                            href={`${import.meta.env.VITE_TX_EXPLORER_URL}/tx/${transactionHash}`}
+                            href={`${ConfigService.getTxExplorerUrl()}/tx/${transactionHash}`}
                             target="_blank"
                             rel="noreferrer"
                         >

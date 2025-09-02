@@ -1,4 +1,5 @@
 import { Transaction } from "../../services/WebSocketService";
+import { ConfigService } from "../../services/ConfigService";
 
 interface HistoryProps {
     transactions: Transaction[];
@@ -23,7 +24,7 @@ export const History = ({ transactions }: HistoryProps) => {
                             <p>
                                 Transaction:{" "}
                                 <a
-                                    href={`${import.meta.env.VITE_TX_EXPLORER_URL}/tx/${tx.id}`}
+                                    href={`${ConfigService.getTxExplorerUrl()}/tx/${tx.id}`}
                                     target="_blank"
                                 >{`${tx.id.slice(0, 10)}...${tx.id.slice(-10)}`}</a>
                             </p>

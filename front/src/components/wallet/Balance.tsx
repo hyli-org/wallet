@@ -1,5 +1,6 @@
 import { Wallet } from "hyli-wallet";
 import { useWalletBalance } from "../../hooks/useWalletBalance";
+import { ConfigService } from "../../services/ConfigService";
 
 interface BalanceProps {
     wallet: Wallet;
@@ -46,7 +47,7 @@ export const Balance = ({ wallet }: BalanceProps) => {
                     <div className="faucet-link">
                         <a
                             className="btn-primary btn-sm"
-                            href={`${import.meta.env.VITE_FAUCET_URL}/?wallet=${wallet.address}`}
+                            href={`${ConfigService.getFaucetUrl()}/?wallet=${wallet.address}`}
                             target="_blank"
                             rel="noopener noreferrer"
                         >

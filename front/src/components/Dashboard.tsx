@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Wallet } from "hyli-wallet";
 import { useWalletBalance } from "../hooks/useWalletBalance";
 import { useWalletTransactions } from "../hooks/useWalletTransactions";
+import { ConfigService } from "../services/ConfigService";
 import "./Dashboard.css";
 
 interface DashboardProps {
@@ -110,7 +111,7 @@ export const Dashboard = ({ wallet, onSendClick }: DashboardProps) => {
                                 className="activity-item"
                                 style={{ cursor: "pointer" }}
                                 onClick={() =>
-                                    window.open(`${import.meta.env.VITE_TX_EXPLORER_URL}/tx/${tx.id}`, "_blank")
+                                    window.open(`${ConfigService.getTxExplorerUrl()}/tx/${tx.id}`, "_blank")
                                 }
                             >
                                 <div className="activity-icon">

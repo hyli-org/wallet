@@ -1,6 +1,7 @@
 import { IndexerApiHttpClient } from "hyli";
 import { AccountInfo, walletContractName } from "hyli-wallet";
 import { Transaction } from "./WebSocketService";
+import { ConfigService } from "./ConfigService";
 
 interface BalanceResponse {
     account: string;
@@ -17,8 +18,8 @@ class IndexerService {
     server: IndexerApiHttpClient;
 
     constructor() {
-        this.client = new IndexerApiHttpClient(import.meta.env.VITE_INDEXER_BASE_URL);
-        this.server = new IndexerApiHttpClient(import.meta.env.VITE_WALLET_SERVER_BASE_URL);
+        this.client = new IndexerApiHttpClient(ConfigService.getIndexerBaseUrl());
+        this.server = new IndexerApiHttpClient(ConfigService.getWalletServerBaseUrl());
     }
 
     async getBalance(address: string, token: string): Promise<number> {
