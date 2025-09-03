@@ -1,8 +1,7 @@
 use anyhow::{Context, Result};
-use app::{AppModule, AppModuleCtx, AppOutWsEvent, AppWsInMessage};
+use app::{AppOutWsEvent, AppWsInMessage};
 use axum::Router;
 use clap::Parser;
-use client_sdk::transaction_builder::TxExecutorHandler;
 use client_sdk::{helpers::risc0::Risc0Prover, rest_client::NodeApiHttpClient};
 use conf::Conf;
 use history::{HistoryEvent, TokenHistory};
@@ -22,16 +21,10 @@ use hyli_modules::{
 use hyli_smt_token::client::tx_executor_handler::SmtTokenProvableState;
 use prometheus::Registry;
 use sdk::{api::NodeInfo, info, ContractName};
-use secp256k1::{PublicKey, Secp256k1, SecretKey};
-use std::{
-    env,
-    sync::{Arc, Mutex},
-};
-use tracing::error;
-use wallet::client::{
-    indexer::WalletEvent,
-    tx_executor_handler::{Wallet, WalletConstructor},
-};
+use server::new_wallet;
+use std::sync::{Arc, Mutex};
+
+use crate::sdk_wallet::SdkWalletConfig;
 
 use crate::app::Wrap;
 
@@ -39,6 +32,7 @@ mod app;
 mod conf;
 mod history;
 mod init;
+mod sdk_wallet;
 mod invites {
     pub mod invite;
 }
@@ -94,37 +88,6 @@ async fn actual_main() -> Result<()> {
 
     let wallet_cn: ContractName = args.wallet_cn.clone().into();
 
-    let secp = Secp256k1::new();
-    let secret_key =
-        hex::decode(env::var("INVITE_CODE_PKEY").unwrap_or(
-            "0000000000000001000000000000000100000000000000010000000000000001".to_string(),
-        ))
-        .expect("HYLIGOTCHI_PUBKEY must be a hex string");
-    let secret_key = SecretKey::from_byte_array(secret_key.try_into().expect("32 bytes"))
-        .expect("32 bytes, within curve order");
-    let public_key = PublicKey::from_secret_key(&secp, &secret_key);
-
-    let hyli_password = env::var("HYLI_PASSWORD").unwrap_or("hylisecure".to_string());
-    let wallet_constructor = WalletConstructor::new(hyli_password, public_key.serialize());
-    let wallet = Wallet::new(&Some(wallet_constructor.clone())).expect("must succeed");
-    let contracts = vec![init::ContractInit {
-        name: wallet_cn.clone(),
-        program_id: contracts::WALLET_ID,
-        initial_state: wallet.get_state_commitment(),
-        constructor_metadata: borsh::to_vec(&wallet_constructor).expect("must succeed"),
-    }];
-
-    if args.noinit {
-        info!("Skipping initialization, using existing contracts");
-    } else {
-        match init::init_node(node_client.clone(), contracts).await {
-            Ok(_) => {}
-            Err(e) => {
-                error!("Error initializing node: {:?}", e);
-                return Ok(());
-            }
-        }
-    }
     let bus = SharedMessageBus::new(BusMetrics::global(config.id.clone()));
 
     std::fs::create_dir_all(&config.data_directory).context("creating data directory")?;
@@ -149,21 +112,23 @@ async fn actual_main() -> Result<()> {
         openapi: Default::default(),
     });
 
-    let app_ctx = Arc::new(AppModuleCtx {
-        api: api_ctx.clone(),
-        node_client,
-        wallet_cn: wallet_cn.clone(),
-    });
-
-    handler.build_module::<AppModule>(app_ctx.clone()).await?;
-
-    handler
-        .build_module::<ContractStateIndexer<Wallet, WalletEvent>>(ContractStateIndexerCtx {
-            contract_name: wallet_cn.clone(),
+    sdk_wallet::setup_wallet_modules(
+        &SdkWalletConfig {
+            wallet_cn: wallet_cn.clone(),
+            noinit: args.noinit,
             data_directory: config.data_directory.clone(),
-            api: api_ctx.clone(),
-        })
-        .await?;
+            auto_prove: args.wallet_auto_prover,
+            wallet_buffer_blocks: config.wallet_buffer_blocks,
+            wallet_max_txs_per_proof: config.wallet_max_txs_per_proof,
+            wallet_tx_working_window_size: config.wallet_tx_working_window_size,
+        },
+        &mut handler,
+        api_ctx.clone(),
+        node_client.clone(),
+    )
+    .await
+    .context("initializing wallet modules")?;
+
     handler
         .build_module::<ContractStateIndexer<TokenHistory, Wrap<Vec<HistoryEvent>>>>(
             ContractStateIndexerCtx {
@@ -206,26 +171,6 @@ async fn actual_main() -> Result<()> {
         })
         .await?;
 
-    if args.wallet_auto_prover {
-        // Wallet auto prover
-        handler
-            .build_module::<AutoProver<Wallet>>(Arc::new(AutoProverCtx {
-                data_directory: config.data_directory.clone(),
-                prover: Arc::new(Risc0Prover::new(
-                    contracts::WALLET_ELF,
-                    contracts::WALLET_ID,
-                )),
-                contract_name: wallet_cn.clone(),
-                node: app_ctx.node_client.clone(),
-                default_state: wallet.clone(),
-                buffer_blocks: config.wallet_buffer_blocks,
-                max_txs_per_proof: config.wallet_max_txs_per_proof,
-                tx_working_window_size: config.wallet_tx_working_window_size,
-                api: Some(api_ctx.clone()),
-            }))
-            .await?;
-    }
-
     if args.auto_provers {
         handler
             .build_module::<AutoProver<SmtTokenProvableState>>(Arc::new(AutoProverCtx {
@@ -235,7 +180,7 @@ async fn actual_main() -> Result<()> {
                     hyli_smt_token::client::tx_executor_handler::metadata::PROGRAM_ID,
                 )),
                 contract_name: "oranj".into(),
-                node: app_ctx.node_client.clone(),
+                node: node_client.clone(),
                 default_state: Default::default(),
                 buffer_blocks: config.smt_buffer_blocks,
                 max_txs_per_proof: config.smt_max_txs_per_proof,
@@ -251,7 +196,7 @@ async fn actual_main() -> Result<()> {
                     hyli_smt_token::client::tx_executor_handler::metadata::PROGRAM_ID,
                 )),
                 contract_name: "vitamin".into(),
-                node: app_ctx.node_client.clone(),
+                node: node_client.clone(),
                 default_state: Default::default(),
                 buffer_blocks: config.smt_buffer_blocks,
                 max_txs_per_proof: config.smt_max_txs_per_proof,
@@ -267,7 +212,7 @@ async fn actual_main() -> Result<()> {
                     hyli_smt_token::client::tx_executor_handler::metadata::PROGRAM_ID,
                 )),
                 contract_name: "oxygen".into(),
-                node: app_ctx.node_client.clone(),
+                node: node_client.clone(),
                 default_state: Default::default(),
                 buffer_blocks: config.smt_buffer_blocks,
                 max_txs_per_proof: config.smt_max_txs_per_proof,
