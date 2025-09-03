@@ -1,6 +1,6 @@
 {
   "name": "hyli-wallet-script",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "type": "module",
   "description": "Node.js script to manage wallet accounts using the Hyli wallet system",
   "main": "hyli-wallet.js",
@@ -12,9 +12,9 @@
     "buffer": "^6.0.3",
     "crypto-js": "^4.2.0",
     "elliptic": "^6.6.1",
-    "hyli": "^0.4.0",
+    "hyli": "^0.4.1",
     "hyli-check-secret": "^0.4.1",
-    "hyli-wallet": "file:../hyli-wallet",
+    "hyli-wallet": "^0.3.7",
     "js-sha3": "^0.9.3"
   },
   "devDependencies": {
