@@ -217,6 +217,7 @@ async function main() {
     console.log("Configuration:");
     console.log(`  Node URL: ${CONFIG.NODE_BASE_URL}`);
     console.log(`  Indexer URL: ${CONFIG.INDEXER_BASE_URL}`);
+    console.log(`  Wallet API URL: ${CONFIG.WALLET_API_BASE_URL}`);
     console.log(`  Username: ${username}`);
     console.log(`  Salt: ${salt}`);
     console.log(`  Enable Session Key: ${enableSessionKey}`);
