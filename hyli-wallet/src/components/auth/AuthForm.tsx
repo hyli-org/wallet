@@ -85,7 +85,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
     const [credentials, setCredentials] = useState<
         (PasswordAuthCredentials & { inviteCode: string }) | (GoogleAuthCredentials & { inviteCode: string })
     >({
-        username: isLocalhost ? "bob" : "",
+        username: isGoogle ? "" : isLocalhost ? "bob" : "",
         ...(isGoogle
             ? ({ googleToken: "", inviteCode: isLocalhost ? "vip" : "" } as any)
             : ({ password: isLocalhost ? "hylisecure" : "", confirmPassword: isLocalhost ? "hylisecure" : "" } as any)),
@@ -98,6 +98,16 @@ export const AuthForm: React.FC<AuthFormProps> = ({
     // Session key checkbox state logic
     const [autoSessionKey, setAutoSessionKey] = useState<boolean>(forceSessionKey === true ? true : true);
     const [funFact, setFunFact] = useState<string>(getRandomFact());
+
+    const extractEmailFromJwt = (jwt: string): string | undefined => {
+        try {
+            const [, payload] = jwt.split(".");
+            const json = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+            return (json.email as string | undefined)?.toLowerCase();
+        } catch {
+            return undefined;
+        }
+    };
 
     // If forceSessionKey changes, update autoSessionKey accordingly
     useEffect(() => {
@@ -172,21 +182,40 @@ export const AuthForm: React.FC<AuthFormProps> = ({
         setError("");
 
         // Validate required fields depending on provider
-        if (!credentials.username) {
-            setError("Please provide a username");
-            return;
-        }
         if (isGoogle) {
             const cred = credentials as GoogleAuthCredentials & { inviteCode: string };
-            if (!cred.googleToken) {
-                setError("Google token is required");
-                return;
-            }
-            if (mode === "register" && !cred.inviteCode) {
-                setError("Invite code is required.");
-                return;
+            // For register: transparently fetch token if missing
+            if (mode === "register") {
+                if (!cred.inviteCode) {
+                    setError("Invite code is required.");
+                    return;
+                }
+                if (!cred.googleToken) {
+                    try {
+                        const token = await (window as any).hyliRequestGoogleIdToken?.();
+                        if (!token) {
+                            setError("Google sign-in failed or was cancelled");
+                            return;
+                        }
+                        const email = extractEmailFromJwt(token);
+                        setCredentials((prev) => ({ ...(prev as any), googleToken: token, username: email ?? (prev as any).username }));
+                    } catch (e) {
+                        setError("Google sign-in failed");
+                        return;
+                    }
+                }
+            } else {
+                // login path should be reached only via Google button auto-submit
+                if (!cred.googleToken) {
+                    setError("Google token is required");
+                    return;
+                }
             }
         } else {
+            if (!credentials.username) {
+                setError("Please provide a username");
+                return;
+            }
             const cred = credentials as PasswordAuthCredentials & { inviteCode: string };
             if (!cred.password) {
                 setError("Please provide a password");
@@ -224,7 +253,26 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                     registerSessionKey: autoSessionKey,
                 });
             } else if (mode === "register") {
-                await registerWallet(provider, credentials, onWalletEventWithStage, onErrorWithStage, {
+                let finalCreds = credentials as any;
+                if (provider === "google") {
+                    let token = (credentials as any).googleToken as string | undefined;
+                    if (!token) {
+                        try {
+                            token = await (window as any).hyliRequestGoogleIdToken?.();
+                        } catch (e) {}
+                    }
+                    if (!token) {
+                        setError("Google sign-in failed or was cancelled");
+                        return;
+                    }
+                    const email = extractEmailFromJwt(token);
+                    finalCreds = {
+                        ...(credentials as any),
+                        googleToken: token,
+                        username: email ?? (credentials as any).username,
+                    };
+                }
+                await registerWallet(provider, finalCreds, onWalletEventWithStage, onErrorWithStage, {
                     registerSessionKey: autoSessionKey,
                 });
             }
@@ -296,66 +344,63 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                 </div>
             ) : (
                 <form onSubmit={handleSubmit} className={`${classPrefix}-auth-form`}>
-                    <div className={`${classPrefix}-form-group`}>
-                        <label htmlFor="username" className={`${classPrefix}-form-label`}>
-                            Username
-                        </label>
-                        <input
-                            id="username"
-                            name="username"
-                            type="text"
-                            value={credentials.username}
-                            onChange={handleInputChange}
-                            placeholder="Enter your username"
-                            disabled={isSubmitting}
-                            className={`${classPrefix}-form-input`}
-                        />
-                    </div>
+                    {!isGoogle && (
+                        <div className={`${classPrefix}-form-group`}>
+                            <label htmlFor="username" className={`${classPrefix}-form-label`}>
+                                Username
+                            </label>
+                            <input
+                                id="username"
+                                name="username"
+                                type="text"
+                                value={credentials.username}
+                                onChange={handleInputChange}
+                                placeholder="Enter your username"
+                                disabled={isSubmitting}
+                                className={`${classPrefix}-form-input`}
+                            />
+                        </div>
+                    )}
 
                     {isGoogle ? (
-                        <div className={`${classPrefix}-form-group`}>
-                            <button
-                                type="button"
-                                className={`${classPrefix}-auth-submit-button`}
-                                onClick={async () => {
-                                    try {
-                                        setIsSubmitting(true);
-                                        const token = await (window as any).hyliRequestGoogleIdToken?.();
-                                        if (!token) {
-                                            setError("Google sign-in failed or was cancelled");
-                                            setIsSubmitting(false);
-                                            return;
-                                        }
+                        mode === "login" ? (
+                            <div className={`${classPrefix}-form-group`}>
+                                <button
+                                    type="button"
+                                    className={`${classPrefix}-auth-submit-button`}
+                                    onClick={async () => {
                                         try {
-                                            console.log("[Hyli][AuthForm] received Google token", token.slice(0, 20) + "…");
-                                        } catch {}
-                                        setCredentials((prev) => ({ ...(prev as any), googleToken: token }));
-                                    } catch (e) {
-                                        setError("Google sign-in failed");
-                                    } finally {
-                                        setIsSubmitting(false);
-                                    }
-                                }}
-                                disabled={isSubmitting}
-                            >
-                                {isSubmitting ? "Requesting Google token..." : "Sign in with Google"}
-                            </button>
-                            <div className={`${classPrefix}-form-group`} style={{ marginTop: 12 }}>
-                                <label htmlFor="googleToken" className={`${classPrefix}-form-label`}>
-                                    Or paste Google ID Token
-                                </label>
-                                <input
-                                    id="googleToken"
-                                    name="googleToken"
-                                    type="text"
-                                    value={(credentials as any).googleToken ?? ""}
-                                    onChange={handleInputChange}
-                                    placeholder="Paste Google ID token"
+                                            setIsSubmitting(true);
+                                            const token = await (window as any).hyliRequestGoogleIdToken?.();
+                                            if (!token) {
+                                                setError("Google sign-in failed or was cancelled");
+                                                setIsSubmitting(false);
+                                                return;
+                                            }
+                                            try {
+                                                console.log("[Hyli][AuthForm] received Google token", token.slice(0, 20) + "…");
+                                            } catch {}
+                                            const email = extractEmailFromJwt(token);
+                                            setCredentials((prev) => ({ ...(prev as any), googleToken: token, username: email ?? (prev as any).username }));
+                                            await login(
+                                                provider.type as ProviderOption,
+                                                { googleToken: token } as any,
+                                                onWalletEventWithStage,
+                                                onErrorWithStage,
+                                                { registerSessionKey: autoSessionKey }
+                                            );
+                                        } catch (e) {
+                                            setError("Google sign-in failed");
+                                        } finally {
+                                            setIsSubmitting(false);
+                                        }
+                                    }}
                                     disabled={isSubmitting}
-                                    className={`${classPrefix}-form-input`}
-                                />
+                                >
+                                    {isSubmitting ? "Requesting Google token..." : "Sign in with Google"}
+                                </button>
                             </div>
-                        </div>
+                        ) : null
                     ) : (
                         <div className={`${classPrefix}-form-group`}>
                             <label htmlFor="password" className={`${classPrefix}-form-label`}>
@@ -444,9 +489,11 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                     {error && <div className={`${classPrefix}-error-message`}>{error}</div>}
                     {statusMessage && <div className={`${classPrefix}-status-message`}>{statusMessage}</div>}
 
-                    <button type="submit" className={`${classPrefix}-auth-submit-button`} disabled={isSubmitting}>
-                        {isSubmitting ? "Processing..." : mode === "login" ? "Login" : "Create Account"}
-                    </button>
+                    {!(isGoogle && mode === "login") && (
+                        <button type="submit" className={`${classPrefix}-auth-submit-button`} disabled={isSubmitting}>
+                            {isSubmitting ? "Processing..." : mode === "login" ? "Login" : "Create Account"}
+                        </button>
+                    )}
                 </form>
             )}
         </div>

@@ -236,35 +236,6 @@ export const HyliWallet = ({
                 onClick={() => {
                     if (disabled) return;
                     console.log('Provider clicked:', { providerType, defaultAuthMode, willSetShowLoginTo: defaultAuthMode === 'login' });
-                    if (providerType === 'google') {
-                        // Direct Google popup + login using token
-                        (async () => {
-                            try {
-                                setLockOpen?.(true);
-                                const token = await (window as any).hyliRequestGoogleIdToken?.();
-                                if (!token) {
-                                    (onError ?? console.error)?.(new Error('Google sign-in cancelled'));
-                                    return;
-                                }
-                                await login(
-                                    'google',
-                                    { username: 'google', googleToken: token } as any,
-                                    onWalletEvent,
-                                    onError,
-                                    { registerSessionKey: forceSessionKey === false ? false : true }
-                                );
-                                if (controlledIsOpen === undefined) {
-                                    setInternalIsOpen(false);
-                                }
-                                if (controlledOnClose) controlledOnClose();
-                            } catch (e) {
-                                (onError ?? console.error)?.(e as Error);
-                            } finally {
-                                setLockOpen?.(false);
-                            }
-                        })();
-                        return;
-                    }
                     setSelectedProvider(providerType);
                     setShowLogin(defaultAuthMode === 'login');
                 }}
@@ -320,7 +291,9 @@ export const HyliWallet = ({
                 <div className={`${classPrefix}-password-provider-flow`}>
                     {showLogin ? (
                         <>
-                            <h2 className={`${classPrefix}-auth-title`}>Log in</h2>
+                            {selectedProvider !== 'google' && (
+                                <h2 className={`${classPrefix}-auth-title`}>Log in</h2>
+                            )}
                             <AuthForm
                                 provider={authProviderManager.getProvider(selectedProvider)!}
                                 mode="login"
