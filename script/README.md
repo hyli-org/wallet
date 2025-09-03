@@ -1,144 +1,132 @@
-# Hyli Wallet Script
+# Hyli Wallet CLI
 
-This Node.js script allows you to register new wallet accounts using the Hyli wallet system. It implements the same registration logic as the `PasswordAuthProvider` from the main wallet application.
+A standalone command-line tool for managing Hyli wallet accounts.
 
-## Prerequisites
+## 🚀 Quick Start
 
-- Node.js 18+ (with ES modules support)
-- Access to a Hyli node service
-- Access to a Hyli indexer service
-- A valid invite code
+### Option 1: Install from NPM (Recommended)
 
-## Installation
-
-1. Install dependencies:
 ```bash
+# Install globally
+npm install -g hyli-wallet-cli
+
+# Use the command
+hyli-wallet --help
+```
+
+### Option 2: Install from Source
+
+```bash
+# Clone just this package
+git clone https://github.com/hyli-org/wallet.git
+cd wallet/script
+
+# Install dependencies
 npm install
+
+# Make it globally available
+npm link
+
+# Use the command
+hyli-wallet --help
 ```
 
-2. Make the script executable:
-```bash
-chmod +x hyli-wallet.js
-```
-
-## Configuration
-
-The script uses environment variables for configuration:
-
-- `NODE_BASE_URL`: URL of the Hyli node service (default: `http://localhost:4321`)
-- `INDEXER_BASE_URL`: URL of the Hyli indexer service (default: `http://localhost:4322`)
-- `WALLET_CONTRACT_NAME`: Wallet contract name (default: `wallet`)
-
-## Usage
-
-### Basic Registration
+## 📖 Usage
 
 ```bash
-node hyli-wallet.js <username> <password> <inviteCode>
+hyli-wallet <username> <password> <inviteCode> [salt] [enableSessionKey]
 ```
 
-### With Custom Configuration
+### Arguments
 
-```bash
-NODE_BASE_URL=http://your-node-url:4321 \
-INDEXER_BASE_URL=http://your-indexer-url:4322 \
-WALLET
-node hyli-wallet.js myuser mypassword123 INVITE123
-```
+- **username** - The username for the account
+- **password** - The password (must be at least 8 characters)
+- **inviteCode** - The invite code to use
+- **salt** - Optional salt (defaults to random string)
+- **enableSessionKey** - Optional: 'true' to enable session key (default: false)
 
-### With Custom Salt
+### Environment Variables
 
-```bash
-node hyli-wallet.js myuser mypassword123 INVITE123 mysalt123
-```
+- `NODE_BASE_URL` - Node service URL (default: http://localhost:4321)
+- `INDEXER_BASE_URL` - Indexer service URL (default: http://localhost:4322)
+- `WALLET_API_BASE_URL` - Wallet API URL (default: http://localhost:4000)
 
-### With Session Key Enabled
-
-```bash
-node hyli-wallet.js myuser mypassword123 INVITE123 mysalt123 true
-```
-
-## Arguments
-
-1. **username** (required): The username for the account
-2. **password** (required): The password (must be at least 8 characters)
-3. **inviteCode** (required): The invite code to use
-4. **salt** (optional): Custom salt (defaults to random string)
-5. **enableSessionKey** (optional): Set to 'true' to enable session key (default: false)
-
-## Example
+### Examples
 
 ```bash
 # Basic registration
-node hyli-wallet.js alice mysecretpassword INVITE123
+hyli-wallet myuser mypassword123 INVITE123
 
-# With custom configuration and session key
+# With custom salt
+hyli-wallet myuser mypassword123 INVITE123 mysalt
+
+# With session key enabled
+hyli-wallet myuser mypassword123 INVITE123 mysalt true
+
+# With custom service URLs
 NODE_BASE_URL=http://localhost:4321 \
 INDEXER_BASE_URL=http://localhost:4322 \
-node hyli-wallet.js bob mypassword123 INVITE456 bobssalt true
+hyli-wallet myuser mypassword123 INVITE123
 ```
 
-## What the Script Does
+## 🔧 Configuration
 
-1. **Validation**: Checks if the account already exists and validates the password
-2. **Invite Code**: Claims the provided invite code
-3. **Blob Creation**: Creates the necessary blobs for registration
-4. **Contract Registration**: Ensures the wallet contract is registered
-5. **Transaction Submission**: Sends blob and proof transactions
-6. **Session Key** (optional): Generates and registers a session key if requested
-
-## Output
-
-The script provides detailed logging of each step and outputs:
-
-- Success/failure status
-- Transaction hashes
-- Wallet information (including session key if enabled)
-
-## Error Handling
-
-The script includes comprehensive error handling for:
-- Invalid credentials
-- Network issues
-- Service unavailability
-- Invalid invite codes
-- Account already exists
-
-
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Connection refused**: Check that your node and indexer services are running
-2. **Invalid invite code**: Ensure the invite code is valid and not already used
-3. **Password too short**: Password must be at least 8 characters
-4. **Account exists**: The username is already taken
-
-### Debug Mode
-
-For more detailed logging, you can modify the script to add console.log statements or use Node.js debugging:
+The script automatically detects your environment and uses sensible defaults. You can override these by setting environment variables:
 
 ```bash
-node --inspect hyli-wallet.js myuser mypassword123 INVITE123
+export NODE_BASE_URL="http://your-node:4321"
+export INDEXER_BASE_URL="http://your-indexer:4322"
+export WALLET_API_BASE_URL="http://your-wallet-api:4000"
 ```
 
-## Security Notes
+## 📦 What's Included
 
-- The script handles sensitive information (passwords, private keys)
-- Session keys are generated locally and should be kept secure
-- Consider using environment variables for sensitive configuration
-- The script does not store credentials permanently
+This standalone package includes:
 
-## Dependencies
+- ✅ Complete wallet registration functionality
+- ✅ Session key generation
+- ✅ Invite code validation
+- ✅ Blob transaction handling
+- ✅ Proof transaction generation
 
-- `hyli`: Core Hyli blockchain library
-- `hyli-check-secret`: Secret checking and proof generation
-- `js-sha3`: SHA3 hashing
-- `elliptic`: Elliptic curve cryptography
-- `crypto-js`: Cryptographic utilities
-- `buffer`: Buffer polyfill for Node.js
+## 🛠️ Development
 
-## License
+### Prerequisites
+
+- Node.js 16.0.0 or higher
+- npm or yarn
+
+### Local Development
+
+```bash
+# Clone the repository
+git clone https://github.com/hyli/wallet.git
+cd wallet/script
+
+# Install dependencies
+bun install
+
+# Run the script
+bun register myuser mypassword123 INVITE123
+```
+
+### Building for Distribution
+
+```bash
+# Publish to NPM (if you have access)
+bun run pub
+```
+
+## 🐛 Troubleshooting
+
+## 📄 License
 
 MIT License
+
+## 🤝 Contributing
+
+Contributions are welcome! Please see the [contributing guide](https://github.com/hyli-org/hyli/blob/main/CONTRIBUTING.md) for details.
+
+---
+
+**Made with ❤️ by the Hyli Team**

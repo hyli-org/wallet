@@ -1,12 +1,28 @@
 {
-  "name": "hyli-wallet-script",
+  "name": "hyli-wallet-cli",
   "version": "0.1.0",
   "type": "module",
-  "description": "Node.js script to manage wallet accounts using the Hyli wallet system",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hyli-org/wallet.git"
+  },
+  "description": "Standalone CLI tool for managing Hyli wallet accounts",
+  "bugs": {
+    "url": "https://github.com/hyli-org/wallet/issues"
+  },
   "main": "hyli-wallet.js",
+  "bin": {
+    "hyli-wallet": "./hyli-wallet.js"
+  },
+  "files": [
+    "hyli-wallet.js",
+    "README.md"
+  ],
   "scripts": {
     "start": "node hyli-wallet.js",
-    "register": "node hyli-wallet.js"
+    "register": "node hyli-wallet.js",
+    "pub": "npm publish"
   },
   "dependencies": {
     "buffer": "^6.0.3",
@@ -25,8 +41,8 @@
     "wallet",
     "registration",
     "hyli",
-    "blockchain"
-  ],
-  "author": "",
-  "license": "MIT"
+    "blockchain",
+    "cli",
+    "command-line"
+  ]
 }
