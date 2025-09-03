@@ -11,8 +11,8 @@ const { sha3_256 } = pkg;
 // Configuration - update these values
 const CONFIG = {
     NODE_BASE_URL: process.env.NODE_BASE_URL || "http://localhost:4321",
-    INDEXER_BASE_URL: process.env.INDEXER_BASE_URL || "http://localhost:8082",
-    WALLET_API_BASE_URL: process.env.WALLET_API_BASE_URL || "http://localhost:8081",
+    INDEXER_BASE_URL: process.env.INDEXER_BASE_URL || "http://localhost:4322",
+    WALLET_API_BASE_URL: process.env.WALLET_API_BASE_URL || "http://localhost:4000",
     WALLET_CONTRACT_NAME: "wallet"
 };
 
@@ -163,7 +163,7 @@ async function registerAccount(username, password, inviteCode, salt, enableSessi
         console.log("Generating proof transaction...");
         const proofTx = await build_proof_transaction(identity, salted_password, txHash, 0, blobTx.blobs.length);
         
-        console.log("Sending proof transaction...", proofTx);
+        console.log("Sending proof transaction...");
         const proofTxHash = await nodeService.sendProofTx(proofTx);
         console.log(`Proof transaction hash: ${proofTxHash}`);
         
@@ -205,10 +205,10 @@ async function main() {
         console.log("");
         console.log("Environment variables:");
         console.log("  NODE_BASE_URL   - Node service URL (default: http://localhost:4321)");
-        console.log("  INDEXER_BASE_URL - Indexer service URL (default: http://localhost:8082)");
+        console.log("  INDEXER_BASE_URL - Indexer service URL (default: http://localhost:4322)");
         console.log("");
         console.log("Example:");
-        console.log("  NODE_BASE_URL=http://localhost:4321 INDEXER_BASE_URL=http://localhost:8082 node hyli-wallet.js myuser mypassword123 INVITE123");
+        console.log("  NODE_BASE_URL=http://localhost:4321 INDEXER_BASE_URL=http://localhost:4322 node hyli-wallet.js myuser mypassword123 INVITE123");
         process.exit(1);
     }
     
