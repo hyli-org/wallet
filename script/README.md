@@ -27,6 +27,7 @@ The script uses environment variables for configuration:
 
 - `NODE_BASE_URL`: URL of the Hyli node service (default: `http://localhost:4321`)
 - `INDEXER_BASE_URL`: URL of the Hyli indexer service (default: `http://localhost:8082`)
+- `WALLET_CONTRACT_NAME`: Wallet contract name (default: `wallet`)
 
 ## Usage
 
@@ -41,6 +42,7 @@ node hyli-wallet.js <username> <password> <inviteCode>
 ```bash
 NODE_BASE_URL=http://your-node-url:4321 \
 INDEXER_BASE_URL=http://your-indexer-url:8082 \
+WALLET
 node hyli-wallet.js myuser mypassword123 INVITE123
 ```
 
@@ -71,8 +73,8 @@ node hyli-wallet.js myuser mypassword123 INVITE123 mysalt123 true
 node hyli-wallet.js alice mysecretpassword INVITE123
 
 # With custom configuration and session key
-NODE_BASE_URL=http://localhost:8080 \
-INDEXER_BASE_URL=http://localhost:8081 \
+NODE_BASE_URL=http://localhost:4321 \
+INDEXER_BASE_URL=http://localhost:8082 \
 node hyli-wallet.js bob mypassword123 INVITE456 bobssalt true
 ```
 
@@ -101,6 +103,8 @@ The script includes comprehensive error handling for:
 - Service unavailability
 - Invalid invite codes
 - Account already exists
+
+
 
 ## Troubleshooting
 

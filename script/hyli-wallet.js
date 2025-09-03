@@ -1,16 +1,18 @@
 #!/usr/bin/env node
 
 import { Buffer } from "buffer";
-import { NodeApiHttpClient, IndexerApiHttpClient, Blob, BlobTransaction } from "hyli";
-import { build_proof_transaction, build_blob as check_secret_blob, register_contract, sha256, stringToBytes } from "hyli-check-secret";
-import { sha3_256 } from "js-sha3";
+import { NodeApiHttpClient, IndexerApiHttpClient } from "hyli";
+import { build_proof_transaction, build_blob as check_secret_blob, register_contract } from "hyli-check-secret";
 import EC from "elliptic";
-import { SHA256 } from "crypto-js";
+import pkg from "js-sha3";
+import { register as registerBlob, addSessionKey as addSessionKeyBlob } from "hyli-wallet";
+const { sha3_256 } = pkg;
 
 // Configuration - update these values
 const CONFIG = {
     NODE_BASE_URL: process.env.NODE_BASE_URL || "http://localhost:4321",
     INDEXER_BASE_URL: process.env.INDEXER_BASE_URL || "http://localhost:8082",
+    WALLET_API_BASE_URL: process.env.WALLET_API_BASE_URL || "http://localhost:8081",
     WALLET_CONTRACT_NAME: "wallet"
 };
 
@@ -67,42 +69,7 @@ function generateSessionKey(expiration, whitelist = []) {
     };
 }
 
-// Blob builders
-function registerBlob(account, nonce, salt, hash, invite_code) {
-    const action = {
-        RegisterIdentity: {
-            account,
-            nonce,
-            salt,
-            auth_method: { Password: { hash } },
-            invite_code,
-        },
-    };
-    
-    // For simplicity, we'll create a basic blob structure
-    // In a real implementation, you'd need proper Borsh serialization
-    return {
-        contract_name: CONFIG.WALLET_CONTRACT_NAME,
-        data: action
-    };
-}
 
-function addSessionKeyBlob(account, key, expiration_date, whitelist = [], laneId) {
-    const action = {
-        AddSessionKey: { 
-            account, 
-            key, 
-            expiration_date, 
-            whitelist, 
-            laneId 
-        },
-    };
-    
-    return {
-        contract_name: CONFIG.WALLET_CONTRACT_NAME,
-        data: action
-    };
-}
 
 // Main registration function
 async function registerAccount(username, password, inviteCode, salt, enableSessionKey = false) {
@@ -133,7 +100,7 @@ async function registerAccount(username, password, inviteCode, salt, enableSessi
         console.log("Claiming invite code...");
         let inviteCodeBlob;
         try {
-            const response = await fetch(`${CONFIG.INDEXER_BASE_URL}/api/consume_invite`, {
+            const response = await fetch(`${CONFIG.WALLET_API_BASE_URL}/api/consume_invite`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -188,6 +155,7 @@ async function registerAccount(username, password, inviteCode, salt, enableSessi
         console.log(`Blob transaction hash: ${txHash}`);
         
         // Send the actual blob transaction
+        console.log("Sending blob transaction...", blobTx);
         await nodeService.sendBlobTx(blobTx);
         console.log("Blob transaction sent successfully");
         
@@ -195,7 +163,7 @@ async function registerAccount(username, password, inviteCode, salt, enableSessi
         console.log("Generating proof transaction...");
         const proofTx = await build_proof_transaction(identity, salted_password, txHash, 0, blobTx.blobs.length);
         
-        console.log("Sending proof transaction...");
+        console.log("Sending proof transaction...", proofTx);
         const proofTxHash = await nodeService.sendProofTx(proofTx);
         console.log(`Proof transaction hash: ${proofTxHash}`);
         
@@ -216,7 +184,7 @@ async function registerAccount(username, password, inviteCode, salt, enableSessi
         return { success: true, wallet };
         
     } catch (error) {
-        console.error("Registration failed:", error.message);
+        console.error("Registration failed:", error);
         return { success: false, error: error.message };
     }
 }
@@ -236,11 +204,11 @@ async function main() {
         console.log("  enableSessionKey - Optional: 'true' to enable session key (default: false)");
         console.log("");
         console.log("Environment variables:");
-        console.log("  NODE_BASE_URL   - Node service URL (default: http://localhost:8080)");
-        console.log("  INDEXER_BASE_URL - Indexer service URL (default: http://localhost:8081)");
+        console.log("  NODE_BASE_URL   - Node service URL (default: http://localhost:4321)");
+        console.log("  INDEXER_BASE_URL - Indexer service URL (default: http://localhost:8082)");
         console.log("");
         console.log("Example:");
-        console.log("  NODE_BASE_URL=http://localhost:8080 INDEXER_BASE_URL=http://localhost:8081 node hyli-wallet.js myuser mypassword123 INVITE123");
+        console.log("  NODE_BASE_URL=http://localhost:4321 INDEXER_BASE_URL=http://localhost:8082 node hyli-wallet.js myuser mypassword123 INVITE123");
         process.exit(1);
     }
     

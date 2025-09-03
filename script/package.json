@@ -9,12 +9,13 @@
     "register": "node hyli-wallet.js"
   },
   "dependencies": {
-    "hyli": "^0.4.0",
-    "hyli-check-secret": "^0.3.4",
-    "js-sha3": "^0.9.3",
-    "elliptic": "^6.6.1",
+    "buffer": "^6.0.3",
     "crypto-js": "^4.2.0",
-    "buffer": "^6.0.3"
+    "elliptic": "^6.6.1",
+    "hyli": "^0.4.0",
+    "hyli-check-secret": "^0.4.1",
+    "hyli-wallet": "file:../hyli-wallet",
+    "js-sha3": "^0.9.3"
   },
   "devDependencies": {
     "@types/crypto-js": "^4.2.2",
