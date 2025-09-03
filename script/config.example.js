@@ -6,7 +6,7 @@ export const CONFIG = {
     NODE_BASE_URL: process.env.NODE_BASE_URL || "http://localhost:4321",
     
     // Hyli Indexer Service URL  
-    INDEXER_BASE_URL: process.env.INDEXER_BASE_URL || "http://localhost:8082",
+    INDEXER_BASE_URL: process.env.INDEXER_BASE_URL || "http://localhost:4322",
     
     // Wallet Contract Name
     WALLET_CONTRACT_NAME: "wallet",
@@ -40,19 +40,22 @@ export const CONFIG = {
 export const ENV_CONFIGS = {
     local: {
         NODE_BASE_URL: "http://localhost:4321",
-        INDEXER_BASE_URL: "http://localhost:8082",
+        INDEXER_BASE_URL: "http://localhost:4322",
+        WALLET_API_BASE_URL: "http://localhost:4000",
         LOGGING: { level: "debug" }
     },
     
     devnet: {
         NODE_BASE_URL: "https://node.devnet.hyli.org",
         INDEXER_BASE_URL: "https://indexer.devnet.hyli.org",
+        WALLET_API_BASE_URL: "https://wallet.devnet.hyli.org",
         LOGGING: { level: "info" }
     },
     
     testnet: {
         NODE_BASE_URL: "https://node.testnet.hyli.org",
         INDEXER_BASE_URL: "https://indexer.testnet.hyli.org",
+        WALLET_API_BASE_URL: "https://wallet.testnet.hyli.org",
         LOGGING: { level: "warn" }
     }
 };
@@ -65,7 +68,7 @@ export function getConfig(environment = process.env.NODE_ENV || "local") {
 
 // Helper function to validate configuration
 export function validateConfig(config) {
-    const required = ['NODE_BASE_URL', 'INDEXER_BASE_URL', 'WALLET_CONTRACT_NAME'];
+    const required = ['NODE_BASE_URL', 'INDEXER_BASE_URL', 'WALLET_CONTRACT_NAME', 'WALLET_API_BASE_URL'];
     const missing = required.filter(key => !config[key]);
     
     if (missing.length > 0) {
@@ -76,6 +79,7 @@ export function validateConfig(config) {
     try {
         new URL(config.NODE_BASE_URL);
         new URL(config.INDEXER_BASE_URL);
+        new URL(config.WALLET_API_BASE_URL);
     } catch (error) {
         throw new Error(`Invalid URL in configuration: ${error.message}`);
     }
