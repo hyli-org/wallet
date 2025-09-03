@@ -8,9 +8,9 @@ use hyli_smt_token::SmtTokenAction;
 use sdk::BlobIndex;
 use sdk::Calldata;
 use sdk::Hashed;
-use sdk::RegisterContractEffect;
 use sdk::StateCommitment;
 use std::collections::{BTreeMap, VecDeque};
+use std::sync::Arc;
 
 use client_sdk::contract_indexer::axum;
 use client_sdk::contract_indexer::utoipa;
@@ -116,7 +116,8 @@ impl TxExecutorHandler for TokenHistory {
     }
 
     fn construct_state(
-        _register_blob: &RegisterContractEffect,
+        _contract_name: &sdk::ContractName,
+        _register_blob: &sdk::Contract,
         _metadata: &Option<Vec<u8>>,
     ) -> anyhow::Result<Self> {
         Ok(Default::default())
@@ -136,7 +137,7 @@ impl ContractHandler<Wrap<Vec<HistoryEvent>>> for TokenHistory {
         &mut self,
         tx: &sdk::BlobTransaction,
         _index: sdk::BlobIndex,
-        _tx_context: sdk::TxContext,
+        _tx_context: Arc<sdk::TxContext>,
     ) -> anyhow::Result<Option<Wrap<Vec<HistoryEvent>>>> {
         let mut events = vec![];
         let tx_hash = tx.hashed();
@@ -160,7 +161,7 @@ impl ContractHandler<Wrap<Vec<HistoryEvent>>> for TokenHistory {
         &mut self,
         tx: &sdk::BlobTransaction,
         _index: sdk::BlobIndex,
-        _tx_context: sdk::TxContext,
+        _tx_context: Arc<sdk::TxContext>,
     ) -> anyhow::Result<Option<Wrap<Vec<HistoryEvent>>>> {
         let mut events = vec![];
         self.history.values_mut().for_each(|history| {
@@ -183,7 +184,7 @@ impl ContractHandler<Wrap<Vec<HistoryEvent>>> for TokenHistory {
         &mut self,
         tx: &sdk::BlobTransaction,
         _index: sdk::BlobIndex,
-        _tx_context: sdk::TxContext,
+        _tx_context: Arc<sdk::TxContext>,
     ) -> anyhow::Result<Option<Wrap<Vec<HistoryEvent>>>> {
         let mut events = vec![];
         self.history.values_mut().for_each(|history| {
@@ -206,7 +207,7 @@ impl ContractHandler<Wrap<Vec<HistoryEvent>>> for TokenHistory {
         &mut self,
         tx: &sdk::BlobTransaction,
         index: sdk::BlobIndex,
-        tx_context: sdk::TxContext,
+        tx_context: Arc<sdk::TxContext>,
     ) -> anyhow::Result<Option<Wrap<Vec<HistoryEvent>>>> {
         let action = Self::get_action(tx, index)
             .with_context(|| format!("Failed to get action for transaction: {tx:?}"))?;

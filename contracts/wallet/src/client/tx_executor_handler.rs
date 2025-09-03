@@ -5,8 +5,8 @@ use anyhow::Context;
 use borsh::{BorshDeserialize, BorshSerialize};
 use client_sdk::transaction_builder::TxExecutorHandler;
 use sdk::{
-    merkle_utils::BorshableMerkleProof, utils::as_hyli_output, Blob, Calldata,
-    RegisterContractEffect, StateCommitment,
+    caller::ExecutionContext, info, merkle_utils::BorshableMerkleProof, utils::as_hyli_output,
+    Blob, Calldata, Contract, ContractName, HyliOutput, RegisterContractAction, StateCommitment,
 };
 use serde::Serialize;
 
@@ -127,8 +127,13 @@ impl TxExecutorHandler for Wallet {
     }
 
     fn handle(&mut self, calldata: &Calldata) -> anyhow::Result<sdk::HyliOutput> {
-        self.actual_handle(calldata)
-            .map_err(|e| anyhow::anyhow!("Failed to handle Wallet action: {}", e))
+        self.actual_handle(calldata).map_err(|e| {
+            anyhow::anyhow!(
+                "Failed to handle Wallet action with calldata {:?}: {}",
+                calldata,
+                e
+            )
+        })
     }
 
     fn get_state_commitment(&self) -> StateCommitment {
@@ -136,7 +141,8 @@ impl TxExecutorHandler for Wallet {
     }
 
     fn construct_state(
-        _register_blob: &RegisterContractEffect,
+        _contract_name: &ContractName,
+        _register_blob: &Contract,
         metadata: &Option<Vec<u8>>,
     ) -> anyhow::Result<Self> {
         let mut this = Self {
@@ -173,9 +179,13 @@ impl TxExecutorHandler for Wallet {
 }
 
 impl Wallet {
-    pub fn new(constructor: &Option<WalletConstructor>) -> anyhow::Result<Self> {
+    pub fn new(
+        contract_name: &ContractName,
+        constructor: &Option<WalletConstructor>,
+    ) -> anyhow::Result<Self> {
         Wallet::construct_state(
-            &RegisterContractEffect::default(),
+            contract_name,
+            &Contract::default(),
             &constructor
                 .as_ref()
                 .map(|c| borsh::to_vec(&c).context("serializing wallet constructor"))
@@ -214,11 +224,13 @@ impl Wallet {
             .ok_or_else(|| anyhow::anyhow!("Salt for account {} not found", account))
     }
 
-    fn actual_handle(&mut self, calldata: &Calldata) -> Result<sdk::HyliOutput, String> {
-        let initial_state_commitment = self.get_state_commitment();
-
-        let (action, exec_ctx) = sdk::utils::parse_raw_calldata::<WalletAction>(calldata)?;
-
+    fn handle_action(
+        &mut self,
+        action: WalletAction,
+        initial_state_commitment: StateCommitment,
+        exec_ctx: ExecutionContext,
+        calldata: &Calldata,
+    ) -> Result<HyliOutput, String> {
         if let WalletAction::UpdateInviteCodePublicKey {
             invite_code_public_key,
             ..
@@ -291,6 +303,30 @@ impl Wallet {
             &mut res,
         ))
     }
+
+    fn actual_handle(&mut self, calldata: &Calldata) -> Result<sdk::HyliOutput, String> {
+        let initial_state_commitment = self.get_state_commitment();
+
+        match sdk::utils::parse_raw_calldata::<WalletAction>(calldata) {
+            Ok((action, exec_ctx)) => {
+                return self.handle_action(action, initial_state_commitment, exec_ctx, calldata);
+            }
+            Err(e) => {
+                // Check for a registration tx
+
+                return Ok(as_hyli_output(
+                    initial_state_commitment.clone(),
+                    initial_state_commitment,
+                    calldata,
+                    &mut Ok((
+                        "Ignoring placeholder blob".as_bytes().to_vec(),
+                        ExecutionContext::default(),
+                        vec![],
+                    )),
+                ));
+            }
+        };
+    }
 }
 
 #[cfg(test)]
@@ -304,7 +340,8 @@ mod tests {
 
     #[test]
     fn test_proof_of_failure() {
-        let wallet = Wallet::new(&None).expect("Failed to create wallet");
+        let wallet =
+            Wallet::new(&ContractName::new("Test"), &None).expect("Failed to create wallet");
 
         // Create a dummy blob
         let blob = Blob {

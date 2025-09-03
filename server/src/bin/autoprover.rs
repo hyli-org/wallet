@@ -74,7 +74,7 @@ async fn main() -> Result<()> {
 
     // Ajout de l'autoprover du wallet
     let wallet_cn: ContractName = "wallet".into();
-    let wallet = new_wallet();
+    let (_, wallet) = new_wallet(&wallet_cn);
     handler
         .build_module::<AutoProver<Wallet>>(Arc::new(AutoProverCtx {
             data_directory: config.data_directory.clone(),
