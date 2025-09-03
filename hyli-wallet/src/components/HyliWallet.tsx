@@ -120,8 +120,8 @@ export const HyliWallet = ({
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-    const { wallet, logout } = useWallet();
-    const { forceSessionKey } = useWalletInternal();
+    const { wallet, logout, login } = useWallet();
+    const { forceSessionKey, onWalletEvent, onError } = useWalletInternal();
     const [isDarkMode, setIsDarkMode] = useState(false);
 
     // To prevent closing while registering or logging in
@@ -234,11 +234,39 @@ export const HyliWallet = ({
                 key={providerType}
                 className={`provider-row${disabled ? " disabled" : ""}`}
                 onClick={() => {
-                    if (!disabled) {
-                        console.log('Provider clicked:', { providerType, defaultAuthMode, willSetShowLoginTo: defaultAuthMode === 'login' });
-                        setSelectedProvider(providerType);
-                        setShowLogin(defaultAuthMode === 'login');
+                    if (disabled) return;
+                    console.log('Provider clicked:', { providerType, defaultAuthMode, willSetShowLoginTo: defaultAuthMode === 'login' });
+                    if (providerType === 'google') {
+                        // Direct Google popup + login using token
+                        (async () => {
+                            try {
+                                setLockOpen?.(true);
+                                const token = await (window as any).hyliRequestGoogleIdToken?.();
+                                if (!token) {
+                                    (onError ?? console.error)?.(new Error('Google sign-in cancelled'));
+                                    return;
+                                }
+                                await login(
+                                    'google',
+                                    { username: 'google', googleToken: token } as any,
+                                    onWalletEvent,
+                                    onError,
+                                    { registerSessionKey: forceSessionKey === false ? false : true }
+                                );
+                                if (controlledIsOpen === undefined) {
+                                    setInternalIsOpen(false);
+                                }
+                                if (controlledOnClose) controlledOnClose();
+                            } catch (e) {
+                                (onError ?? console.error)?.(e as Error);
+                            } finally {
+                                setLockOpen?.(false);
+                            }
+                        })();
+                        return;
                     }
+                    setSelectedProvider(providerType);
+                    setShowLogin(defaultAuthMode === 'login');
                 }}
             >
                 <span className={`label ${classPrefix}-provider-label`}>

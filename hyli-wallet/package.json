@@ -40,6 +40,7 @@
         "@types/react-router-dom": "^5.3.3",
         "crypto-js": "^4.2.0",
         "elliptic": "^6.6.1",
+        "google-auth-library": "^10.3.0",
         "hyli": "^0.3.0",
         "js-sha3": "^0.9.3"
     },

@@ -124,14 +124,33 @@ export const addSessionKeyBlob = (
     key: string,
     expiration_date: number,
     whitelist?: string[],
-    laneId?: string
+    laneId?: string,
 ): Blob => {
     const action: WalletAction = {
-        AddSessionKey: { account, key, expiration_date, whitelist, laneId },
+        AddSessionKey: {
+            account,
+            key,
+            expiration_date,
+            whitelist,
+            // ⚠️ Le schéma BORSH attend "lane_id"
+            laneId, // ← si ton type WalletAction conserve "laneId",
+            // on mappe juste avant la sérialisation (voir ci-dessous)
+        },
     };
+    // --- mapping vers le schéma ---
+    const raw = {
+        AddSessionKey: {
+            account: action.AddSessionKey.account,
+            key: action.AddSessionKey.key,
+            expiration_date: action.AddSessionKey.expiration_date,
+            whitelist: action.AddSessionKey.whitelist,
+            lane_id: action.AddSessionKey.laneId, // <= IMPORTANT
+        },
+    } as any;
+
     const blob: Blob = {
         contract_name: walletContractName,
-        data: serializeIdentityAction(action),
+        data: Array.from(borshSerialize(schema, raw)),
     };
     return blob;
 };
