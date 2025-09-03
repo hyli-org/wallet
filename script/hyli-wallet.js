@@ -235,7 +235,8 @@ async function main() {
 }
 
 // Run the script
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Check if this is the main module being executed
+if (import.meta.url.endsWith('hyli-wallet.js') || process.argv[1].includes('hyli-wallet')) {
     main().catch(error => {
         console.error("Script execution failed:", error);
         process.exit(1);
