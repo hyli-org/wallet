@@ -119,8 +119,9 @@ async function errorHandlingExample() {
 // Run examples
 async function runExamples() {
     // Set environment variables for the examples
-    process.env.NODE_BASE_URL = "http://localhost:8080";
-    process.env.INDEXER_BASE_URL = "http://localhost:8081";
+    process.env.NODE_BASE_URL = "http://localhost:4321";
+    process.env.INDEXER_BASE_URL = "http://localhost:4322";
+    process.env.WALLET_API_BASE_URL = "http://localhost:4000";
     
     await exampleUsage();
     await batchRegistration();
