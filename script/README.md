@@ -34,16 +34,34 @@ hyli-wallet --help
 ## 📖 Usage
 
 ```bash
-hyli-wallet <username> <password> <inviteCode> [salt] [enableSessionKey]
+hyli-wallet <command> [options]
 ```
 
-### Arguments
+### Commands
 
+#### Register Account
+```bash
+hyli-wallet register <username> <password> <inviteCode> [salt] [enableSessionKey]
+```
+
+**Arguments:**
 - **username** - The username for the account
 - **password** - The password (must be at least 8 characters)
 - **inviteCode** - The invite code to use
 - **salt** - Optional salt (defaults to random string)
 - **enableSessionKey** - Optional: 'true' to enable session key (default: false)
+
+#### Transfer Funds
+```bash
+hyli-wallet transfer <username> <password> <amount> <token> <destination>
+```
+
+**Arguments:**
+- **username** - The username of the sender account
+- **password** - The password for the sender account
+- **amount** - The amount to transfer (positive number)
+- **token** - The token/currency to transfer (e.g., 'oranj')
+- **destination** - The destination address or username
 
 ### Environment Variables
 
@@ -54,19 +72,22 @@ hyli-wallet <username> <password> <inviteCode> [salt] [enableSessionKey]
 ### Examples
 
 ```bash
-# Basic registration
-hyli-wallet myuser mypassword123 INVITE123
+# Register a new account
+hyli-wallet register myuser mypassword123 INVITE123
 
-# With custom salt
-hyli-wallet myuser mypassword123 INVITE123 mysalt
+# Register with custom salt
+hyli-wallet register myuser mypassword123 INVITE123 mysalt
 
-# With session key enabled
-hyli-wallet myuser mypassword123 INVITE123 mysalt true
+# Register with session key enabled
+hyli-wallet register myuser mypassword123 INVITE123 mysalt true
 
-# With custom service URLs
+# Transfer funds
+hyli-wallet transfer myuser mypassword123 100 oranj otheruser@wallet
+
+# Transfer with custom service URLs
 NODE_BASE_URL=http://localhost:4321 \
 INDEXER_BASE_URL=http://localhost:4322 \
-hyli-wallet myuser mypassword123 INVITE123
+hyli-wallet transfer myuser mypassword123 50 oranj recipient@wallet
 ```
 
 ## 🔧 Configuration
@@ -84,6 +105,7 @@ export WALLET_API_BASE_URL="http://your-wallet-api:4000"
 This standalone package includes:
 
 - ✅ Complete wallet registration functionality
+- ✅ Fund transfer functionality
 - ✅ Session key generation
 - ✅ Invite code validation
 - ✅ Blob transaction handling
@@ -107,7 +129,8 @@ cd wallet/script
 bun install
 
 # Run the script
-bun register myuser mypassword123 INVITE123
+bun hyli-wallet.js register myuser mypassword123 INVITE123
+bun hyli-wallet.js transfer myuser mypassword123 100 oranj otheruser@wallet
 ```
 
 ### Building for Distribution
