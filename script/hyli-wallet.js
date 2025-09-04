@@ -97,21 +97,21 @@ async function registerAccount(username, password, inviteCode, salt, enableSessi
         const nodeService = new NodeApiHttpClient(CONFIG.NODE_BASE_URL);
         
         // Check if account already exists
+        let accountInfo;
         try {
             const response = await fetch(`${CONFIG.WALLET_API_BASE_URL}/v1/indexer/contract/${CONFIG.WALLET_CONTRACT_NAME}/account/${username}`);
-
             if (!response.ok) {
                 throw new Error(`Failed to check account existence: ${response.statusText}`);
             }
-            
-            const accountInfo = await response.json();
-
-            if (accountInfo) {
-                throw new Error(`Account with username "${username}" already exists.`);
-            }
+            accountInfo = await response.json();
         } catch (error) {
             // If error, assume account does not exist and continue
-            console.log("Account does not exist, proceeding with registration...");
+            console.log(`Account ${username} does not exist, proceeding with registration...`);
+        }
+
+        if (accountInfo) {
+            console.log(`Account ${username} already exists`);
+            return { success: true, wallet: accountInfo };
         }
         
         // Validate password
@@ -178,7 +178,7 @@ async function registerAccount(username, password, inviteCode, salt, enableSessi
         console.log(`Blob transaction hash: ${txHash}`);
         
         // Send the actual blob transaction
-        console.log("Sending blob transaction...", blobTx);
+        console.log("Sending blob transaction...");
         await nodeService.sendBlobTx(blobTx);
         console.log("Blob transaction sent successfully");
         
@@ -259,17 +259,19 @@ async function transferFunds(username, password, amount, token, destination) {
         const identity = `${username}@${CONFIG.WALLET_CONTRACT_NAME}`;
         const salted_password = `${password}:${accountInfo.salt}`;
         
-
         // Check that account has enough balance
         console.log("Checking balance...");
+        let balance;
         try {
-            const balance = await indexerService.get(`v1/indexer/contract/${token}/balance/${identity}`, "Checking balance");
-            console.log("Balance...", balance);
-            if (balance < parsedAmount) {
-                throw new Error(`Account "${username}" does not have enough balance to transfer ${amount} ${token}`);
-            }
+            const result = await indexerService.get(`v1/indexer/contract/${token}/balance/${identity}`, "Checking balance");
+            balance = result.balance;
         } catch (error) {
             throw new Error(`Failed to get balance: ${error.message}. User might have no balance for this token.`);
+        }
+        console.log(`Balance for ${username} is`, balance);
+
+        if (balance < parsedAmount) {
+            throw new Error(`Account "${username}" does not have enough balance to transfer ${amount} ${token}`);
         }
         
         // Create blobs for transfer
@@ -289,7 +291,7 @@ async function transferFunds(username, password, amount, token, destination) {
         console.log(`Blob transaction hash: ${txHash}`);
         
         // Send the actual blob transaction
-        console.log("Sending blob transaction...", blobTx);
+        console.log("Sending blob transaction...");
         await nodeService.sendBlobTx(blobTx);
         console.log("Blob transaction sent successfully");
         
