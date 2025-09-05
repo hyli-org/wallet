@@ -40,3 +40,21 @@ from server's Cargo.toml and build the contracts using:
 ```bash
 cargo build -p contracts --features build --features all
 ```
+
+## Scripts
+
+For wallet account registration and management, see the [`script/`](./script/) folder which contains:
+
+- **Wallet Registration Script**: A standalone Node.js script for registering wallet accounts
+- **Examples**: Usage examples and batch registration scripts
+- **Configuration**: Environment-specific configuration templates
+
+### Quick Script Usage
+
+```bash
+cd script
+npm install
+node hyli-wallet.js <username> <password> <inviteCode>
+```
+
+For detailed documentation, see [script/README.md](./script/README.md).
