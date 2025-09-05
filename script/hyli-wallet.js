@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
 import { Buffer } from "buffer";
-import { NodeApiHttpClient, IndexerApiHttpClient } from "hyli";
-import { build_proof_transaction, build_blob as check_secret_blob, register_contract } from "hyli-check-secret";
+import { NodeApiHttpClient, IndexerApiHttpClient, blob_builder } from "hyli";
+import { build_proof_transaction, build_blob as check_secret_blob, register_contract, sha256, stringToBytes } from "hyli-check-secret";
 import EC from "elliptic";
 import pkg from "js-sha3";
-import { register as registerBlob, addSessionKey as addSessionKeyBlob } from "hyli-wallet";
+import { register as registerBlob, addSessionKey as addSessionKeyBlob, verifyIdentity } from "hyli-wallet";
 const { sha3_256 } = pkg;
 
 // Configuration - update these values
@@ -46,6 +46,23 @@ async function hashBlobTransaction(tx) {
     return encodeToHex(new Uint8Array(sha3_256.arrayBuffer(input)));
 }
 
+// Password validation function
+async function validatePassword(username, password, accountInfo) {
+    const identity = `${username}@${CONFIG.WALLET_CONTRACT_NAME}`;
+    const storedHash = accountInfo.auth_method.Password.hash;
+    const storedSalt = accountInfo.salt;
+    
+    const salted_password = `${password}:${storedSalt}`;
+    const hashed_password_bytes = await sha256(stringToBytes(salted_password));
+    const encoder = new TextEncoder();
+    const id_prefix = encoder.encode(`${identity}:`);
+    const extended_id = new Uint8Array([...id_prefix, ...hashed_password_bytes]);
+    const computedHash = await sha256(extended_id);
+    const computedHashHex = Buffer.from(computedHash).toString("hex");
+    
+    return computedHashHex === storedHash;
+}
+
 // Session key generation
 function generateSessionKey(expiration, whitelist = []) {
     const ec = new EC.ec("secp256k1");
@@ -78,11 +95,17 @@ async function registerAccount(username, password, inviteCode, salt, enableSessi
     try {
         // Initialize services
         const nodeService = new NodeApiHttpClient(CONFIG.NODE_BASE_URL);
-        const indexerService = new IndexerApiHttpClient(CONFIG.INDEXER_BASE_URL);
         
         // Check if account already exists
         try {
-            const accountInfo = await indexerService.get(`v1/indexer/contract/${CONFIG.WALLET_CONTRACT_NAME}/account/${username}`);
+            const response = await fetch(`${CONFIG.WALLET_API_BASE_URL}/v1/indexer/contract/${CONFIG.WALLET_CONTRACT_NAME}/account/${username}`);
+
+            if (!response.ok) {
+                throw new Error(`Failed to check account existence: ${response.statusText}`);
+            }
+            
+            const accountInfo = await response.json();
+
             if (accountInfo) {
                 throw new Error(`Account with username "${username}" already exists.`);
             }
@@ -189,26 +212,174 @@ async function registerAccount(username, password, inviteCode, salt, enableSessi
     }
 }
 
+// Transfer function
+async function transferFunds(username, password, amount, token, destination) {
+    console.log(`Starting transfer from ${username} to ${destination}`);
+    console.log(`Amount: ${amount} ${token}`);
+    
+    try {
+        // Initialize services
+        const nodeService = new NodeApiHttpClient(CONFIG.NODE_BASE_URL);
+        const indexerService = new IndexerApiHttpClient(CONFIG.INDEXER_BASE_URL);
+        
+        // Validate inputs
+        const parsedAmount = parseFloat(amount);
+        if (isNaN(parsedAmount) || parsedAmount <= 0) {
+            throw new Error("Amount must be a positive number");
+        }
+        
+        if (!token || !destination) {
+            throw new Error("Token and destination are required");
+        }
+        
+        // Check if account exists and get account info
+        console.log("Checking account information...");
+        let accountInfo;
+        try {
+            const response = await fetch(`${CONFIG.WALLET_API_BASE_URL}/v1/indexer/contract/${CONFIG.WALLET_CONTRACT_NAME}/account/${username}`);
+            if (!response.ok) {
+                throw new Error(`Failed to get account info: ${response.statusText}`);
+            }
+            
+            accountInfo = await response.json();
+            if (!accountInfo) {
+                throw new Error(`Account with username "${username}" does not exist.`);
+            }
+        } catch (error) {
+            throw new Error(`Failed to get account info: ${error.message}`);
+        }
+        
+        // Validate password
+        console.log("Validating password...");
+        const isPasswordValid = await validatePassword(username, password, accountInfo);
+        if (!isPasswordValid) {
+            throw new Error("Invalid password");
+        }
+
+        const identity = `${username}@${CONFIG.WALLET_CONTRACT_NAME}`;
+        const salted_password = `${password}:${accountInfo.salt}`;
+        
+
+        // Check that account has enough balance
+        console.log("Checking balance...");
+        try {
+            const balance = await indexerService.get(`v1/indexer/contract/${token}/balance/${identity}`, "Checking balance");
+            console.log("Balance...", balance);
+            if (balance < parsedAmount) {
+                throw new Error(`Account "${username}" does not have enough balance to transfer ${amount} ${token}`);
+            }
+        } catch (error) {
+            throw new Error(`Failed to get balance: ${error.message}. User might have no balance for this token.`);
+        }
+        
+        // Create blobs for transfer
+        console.log("Creating transfer blobs...");
+        const blob0 = await check_secret_blob(identity, salted_password);
+        const blob1 = verifyIdentity(username, Date.now());
+        const blob2 = blob_builder.smt_token.transfer(identity, destination, token, BigInt(parsedAmount), null);
+        
+        const blobTx = {
+            identity,
+            blobs: [blob0, blob1, blob2],
+        };
+        
+        // Send blob transaction
+        console.log("Sending blob transaction...");
+        const txHash = await hashBlobTransaction(blobTx);
+        console.log(`Blob transaction hash: ${txHash}`);
+        
+        // Send the actual blob transaction
+        console.log("Sending blob transaction...", blobTx);
+        await nodeService.sendBlobTx(blobTx);
+        console.log("Blob transaction sent successfully");
+        
+        // Generate and send proof transaction
+        console.log("Generating proof transaction...");
+        const proofTx = await build_proof_transaction(identity, salted_password, txHash, 0, blobTx.blobs.length);
+        
+        console.log("Sending proof transaction...");
+        const proofTxHash = await nodeService.sendProofTx(proofTx);
+        console.log(`Proof transaction hash: ${proofTxHash}`);
+        
+        console.log("Transfer completed successfully!");
+        console.log(`Transferred ${amount} ${token} from ${username} to ${destination}`);
+        
+        return { 
+            success: true, 
+            transactionHash: txHash,
+            proofTransactionHash: proofTxHash,
+            transfer: {
+                from: username,
+                to: destination,
+                amount: parsedAmount,
+                token: token
+            }
+        };
+        
+    } catch (error) {
+        console.error("Transfer failed:", error);
+        return { success: false, error: error.message };
+    }
+}
+
 // CLI interface
 async function main() {
     const args = process.argv.slice(2);
     
+    if (args.length < 1) {
+        showUsage();
+        process.exit(1);
+    }
+    
+    const command = args[0];
+    
+    if (command === 'register') {
+        await handleRegisterCommand(args.slice(1));
+    } else if (command === 'transfer') {
+        await handleTransferCommand(args.slice(1));
+    } else {
+        console.log(`Unknown command: ${command}`);
+        showUsage();
+        process.exit(1);
+    }
+}
+
+function showUsage() {
+    console.log("Usage: hyli-wallet <command> [options]");
+    console.log("");
+    console.log("Commands:");
+    console.log("  register <username> <password> <inviteCode> [salt] [enableSessionKey]");
+    console.log("  transfer <username> <password> <amount> <token> <destination>");
+    console.log("");
+    console.log("Register command:");
+    console.log("  username        - The username for the account");
+    console.log("  password        - The password (must be at least 8 characters)");
+    console.log("  inviteCode      - The invite code to use");
+    console.log("  salt            - Optional salt (defaults to random string)");
+    console.log("  enableSessionKey - Optional: 'true' to enable session key (default: false)");
+    console.log("");
+    console.log("Transfer command:");
+    console.log("  username        - The username of the sender account");
+    console.log("  password        - The password for the sender account");
+    console.log("  amount          - The amount to transfer (positive number)");
+    console.log("  token           - The token/currency to transfer (e.g., 'oranj')");
+    console.log("  destination     - The destination address or username");
+    console.log("");
+    console.log("Environment variables:");
+    console.log("  NODE_BASE_URL   - Node service URL (default: http://localhost:4321)");
+    console.log("  INDEXER_BASE_URL - Indexer service URL (default: http://localhost:4322)");
+    console.log("  WALLET_API_BASE_URL - Wallet API URL (default: http://localhost:4000)");
+    console.log("");
+    console.log("Examples:");
+    console.log("  hyli-wallet register myuser mypassword123 INVITE123");
+    console.log("  hyli-wallet transfer myuser mypassword123 100 oranj otheruser@wallet");
+    console.log("  NODE_BASE_URL=http://localhost:4321 hyli-wallet register myuser mypassword123 INVITE123");
+}
+
+async function handleRegisterCommand(args) {
     if (args.length < 3) {
-        console.log("Usage: node hyli-wallet.js <username> <password> <inviteCode> [salt] [enableSessionKey]");
-        console.log("");
-        console.log("Arguments:");
-        console.log("  username        - The username for the account");
-        console.log("  password        - The password (must be at least 8 characters)");
-        console.log("  inviteCode      - The invite code to use");
-        console.log("  salt            - Optional salt (defaults to random string)");
-        console.log("  enableSessionKey - Optional: 'true' to enable session key (default: false)");
-        console.log("");
-        console.log("Environment variables:");
-        console.log("  NODE_BASE_URL   - Node service URL (default: http://localhost:4321)");
-        console.log("  INDEXER_BASE_URL - Indexer service URL (default: http://localhost:4322)");
-        console.log("");
-        console.log("Example:");
-        console.log("  NODE_BASE_URL=http://localhost:4321 INDEXER_BASE_URL=http://localhost:4322 node hyli-wallet.js myuser mypassword123 INVITE123");
+        console.log("Register command requires at least 3 arguments: username, password, inviteCode");
+        console.log("Usage: hyli-wallet register <username> <password> <inviteCode> [salt] [enableSessionKey]");
         process.exit(1);
     }
     
@@ -234,6 +405,37 @@ async function main() {
     }
 }
 
+async function handleTransferCommand(args) {
+    if (args.length < 5) {
+        console.log("Transfer command requires 5 arguments: username, password, amount, token, destination");
+        console.log("Usage: hyli-wallet transfer <username> <password> <amount> <token> <destination>");
+        process.exit(1);
+    }
+    
+    const [username, password, amount, token, destination] = args;
+    
+    console.log("Configuration:");
+    console.log(`  Node URL: ${CONFIG.NODE_BASE_URL}`);
+    console.log(`  Indexer URL: ${CONFIG.INDEXER_BASE_URL}`);
+    console.log(`  Wallet API URL: ${CONFIG.WALLET_API_BASE_URL}`);
+    console.log(`  From: ${username}`);
+    console.log(`  To: ${destination}`);
+    console.log(`  Amount: ${amount} ${token}`);
+    console.log("");
+    
+    const result = await transferFunds(username, password, amount, token, destination);
+    
+    if (result.success) {
+        console.log("✅ Transfer successful!");
+        console.log(`Transaction Hash: ${result.transactionHash}`);
+        console.log(`Proof Transaction Hash: ${result.proofTransactionHash}`);
+        process.exit(0);
+    } else {
+        console.log("❌ Transfer failed!");
+        process.exit(1);
+    }
+}
+
 // Run the script
 // Check if this is the main module being executed
 if (import.meta.url.endsWith('hyli-wallet.js') || process.argv[1].includes('hyli-wallet')) {
@@ -243,4 +445,4 @@ if (import.meta.url.endsWith('hyli-wallet.js') || process.argv[1].includes('hyli
     });
 }
 
-export { registerAccount };
+export { registerAccount, transferFunds };
