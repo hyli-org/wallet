@@ -17,7 +17,6 @@ export interface Wallet {
 
 import { borshSerialize, BorshSchema, borshDeserialize } from "borsher";
 import { Blob } from "hyli";
-
 export let walletContractName = "wallet";
 
 //
@@ -31,7 +30,13 @@ export type Secp256k1Blob = {
     signature: Uint8Array;
 };
 
-export type AuthMethod = { Password: { hash: string } };
+export type AuthMethod = { Password: { hash: string } } | { Jwt: {} };
+
+export type JsonWebToken = {
+    client_id: string;
+    algorithm: string;
+    provider_rsa_infos?: [string, string];
+};
 
 export type WalletAction =
     | {
@@ -41,12 +46,14 @@ export type WalletAction =
               salt: string;
               auth_method: AuthMethod;
               invite_code: string;
+              jwt?: JsonWebToken;
           };
       }
     | {
           VerifyIdentity: {
               nonce: number;
               account: string;
+              jwt?: JsonWebToken;
           };
       }
     | {
@@ -56,12 +63,16 @@ export type WalletAction =
               expiration_date: number;
               whitelist?: string[];
               laneId?: string;
+              nonce: number;
+              jwt?: JsonWebToken;
           };
       }
     | {
           RemoveSessionKey: {
               account: string;
               key: string;
+              nonce: number;
+              jwt?: JsonWebToken;
           };
       }
     | {
@@ -90,13 +101,19 @@ export interface WalletEvent {
 // Builders
 //
 
-export const registerBlob = (account: string, nonce: number, salt: string, hash: string, invite_code: string): Blob => {
+export const registerBlob = (
+    account: string,
+    nonce: number,
+    salt: string,
+    auth_method: AuthMethod,
+    invite_code: string,
+): Blob => {
     const action: WalletAction = {
         RegisterIdentity: {
             account,
             nonce,
             salt,
-            auth_method: { Password: { hash } },
+            auth_method,
             invite_code,
         },
     };
@@ -123,8 +140,10 @@ export const addSessionKeyBlob = (
     account: string,
     key: string,
     expiration_date: number,
+    nonce: number,
     whitelist?: string[],
     laneId?: string,
+    jwt?: JsonWebToken,
 ): Blob => {
     const action: WalletAction = {
         AddSessionKey: {
@@ -135,6 +154,8 @@ export const addSessionKeyBlob = (
             // ⚠️ Le schéma BORSH attend "lane_id"
             laneId, // ← si ton type WalletAction conserve "laneId",
             // on mappe juste avant la sérialisation (voir ci-dessous)
+            nonce,
+            jwt,
         },
     };
     // --- mapping vers le schéma ---
@@ -155,9 +176,9 @@ export const addSessionKeyBlob = (
     return blob;
 };
 
-export const removeSessionKeyBlob = (account: string, key: string): Blob => {
+export const removeSessionKeyBlob = (account: string, key: string, nonce: number, jwt?: JsonWebToken): Blob => {
     const action: WalletAction = {
-        RemoveSessionKey: { account, key },
+        RemoveSessionKey: { account, key, nonce, jwt },
     };
     const blob: Blob = {
         contract_name: walletContractName,

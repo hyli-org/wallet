@@ -8,9 +8,17 @@ import {
     verifyIdentityBlob,
     addSessionKeyBlob, // <- version corrigée ci-dessus
     WalletEventCallback,
+    walletContractName,
 } from "../types/wallet"; // ajuste le chemin si besoin
 
-import { Blob as HyliBlob } from "hyli"; // ajuste le chemin si besoin
+import { BlobTransaction, Blob as HyliBlob } from "hyli"; // ajuste le chemin si besoin
+import { NodeService } from "../services/NodeService";
+import { IndexerService } from "../services/IndexerService";
+import { registerSessionKey } from "../services/WalletOperations";
+import { sessionKeyService } from "../services/SessionKeyService";
+import { hashBlobTransaction } from "../utils/hash";
+
+import * as WalletOperations from "../services/WalletOperations";
 
 export interface GoogleAuthCredentials {
     username: string; // requis par AuthCredentials
@@ -18,23 +26,11 @@ export interface GoogleAuthCredentials {
     inviteCode?: string; // requis en register()
 }
 
-// Dépendances d’infra
-type SubmitBlob = (blob: HyliBlob) => Promise<string>; // retourne txHash
-
-export interface GoogleAuthProviderDeps {
-    submitBlob: SubmitBlob;
-    getNonce(account: string): Promise<number>;
-    resolveAccountAddress(username: string, googleSub: string): Promise<string>;
-}
-
 export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
     type = "google";
     private clientIdStr: string;
 
-    constructor(
-        private clientId: string,
-        private deps: GoogleAuthProviderDeps,
-    ) {
+    constructor(private clientId: string) {
         this.clientIdStr = clientId;
     }
 
@@ -86,12 +82,6 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
         return this.toHex(new Uint8Array(digest));
     }
 
-    private randomSalt(bytes = 16): string {
-        const arr = new Uint8Array(bytes);
-        globalThis.crypto.getRandomValues(arr);
-        return this.toHex(arr);
-    }
-
     private async newSessionKey(durationMs: number, wl?: string[], laneId?: string): Promise<SessionKey> {
         const priv = new Uint8Array(32);
         globalThis.crypto.getRandomValues(priv);
@@ -120,37 +110,22 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
     }
 
     private async addSessionKeyOnChain(account: string, sessionKey: SessionKey, onWalletEvent?: WalletEventCallback) {
+        const nonce = await IndexerService.getInstance()
+            .getAccountInfo(account)
+            .then((info) => info.nonce + 1)
+            .catch(() => 1);
         const blob = addSessionKeyBlob(
             account,
             sessionKey.publicKey,
             sessionKey.expiration,
+            nonce,
             sessionKey.whitelist,
             sessionKey.laneId,
+            //{},
         );
-        const txHash = await this.deps.submitBlob(blob);
+        const txHash = await this.deps.submitBlob(account, blob);
         // On émet un WalletEvent (pas un TransactionCallback)
         this.notifyTxAsWalletEvent(onWalletEvent, account, txHash, "AddSessionKey");
-    }
-
-    private async registerIfNeeded(
-        account: string,
-        salt: string,
-        inviteCode: string,
-        onWalletEvent?: WalletEventCallback,
-    ) {
-        const nonce = await this.deps.getNonce(account);
-
-        const passwordHash = await this.sha256Hex(`${account}:${salt}`);
-
-        // RegisterIdentity
-        const regBlob = registerBlob(account, nonce, salt, passwordHash, inviteCode);
-        const regTx = await this.deps.submitBlob(regBlob);
-        this.notifyTxAsWalletEvent(onWalletEvent, account, regTx, "RegisterIdentity");
-
-        // VerifyIdentity (optionnel selon ton protocole)
-        const verBlob = verifyIdentityBlob(account, nonce + 1);
-        const verTx = await this.deps.submitBlob(verBlob);
-        this.notifyTxAsWalletEvent(onWalletEvent, account, verTx, "VerifyIdentity");
     }
 
     // ---------- AuthProvider API ----------
@@ -163,20 +138,18 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
 
             const g = await this.verifyGoogleIdToken(credentials.googleToken);
             const username = (g.email as string).toLowerCase();
-            const account = await this.deps.resolveAccountAddress(username, g.sub);
-            try {
-                console.log("[Hyli][Google] Login flow", {
-                    username,
-                    sub: g.sub,
-                    email: g.email,
-                    account,
-                });
-            } catch {}
+            const account = `${username}@${walletContractName}`;
+
+            console.log("[Hyli][Google] Login flow", {
+                username,
+                sub: g.sub,
+                email: g.email,
+                account,
+            });
 
             onWalletEvent?.({ account, type: "checking_password", message: "Verifying Google identity…" });
 
-            const salt = this.randomSalt();
-            const wallet: Wallet = { username, address: account, salt };
+            const wallet: Wallet = { username, address: account, salt: "" };
 
             if (registerSessionKey?.duration) {
                 const sk = await this.newSessionKey(
@@ -197,50 +170,86 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
     }
 
     async register(params: RegisterAccountParams<GoogleAuthCredentials>): Promise<AuthResult> {
-        const { credentials, onWalletEvent, onError, registerSessionKey } = params;
+        const nodeService = NodeService.getInstance();
+        const { onError, registerSessionKey, onWalletEvent } = params;
         try {
-            if (!credentials?.googleToken) {
-                return { success: false, error: "Google token is required" };
-            }
-            if (!credentials.inviteCode) {
-                return { success: false, error: "Invite code is required" };
-            }
+            const { username, inviteCode } = params.credentials;
 
-            const g = await this.verifyGoogleIdToken(credentials.googleToken);
-            const username = (g.email as string).toLowerCase();
-            const account = await this.deps.resolveAccountAddress(username, g.sub);
+            console.log("[Hyli][Google] Register flow CALLLLLL", { username, inviteCode });
+
+            const indexerService = IndexerService.getInstance();
             try {
-                console.log("[Hyli][Google] Register flow", {
-                    username,
-                    sub: g.sub,
-                    email: g.email,
-                    account,
-                });
-            } catch {}
-            const salt = this.randomSalt();
-
-            onWalletEvent?.({ account, type: "sending_blob", message: "Registering identity…" });
-            await this.registerIfNeeded(account, salt, credentials.inviteCode, onWalletEvent);
-            onWalletEvent?.({ account, type: "blob_sent", message: "Identity registered" });
-
-            const wallet: Wallet = { username, address: account, salt };
-
-            if (registerSessionKey?.duration) {
-                onWalletEvent?.({ account, type: "sending_proof", message: "Adding session key…" });
-                const sk = await this.newSessionKey(
-                    registerSessionKey.duration,
-                    registerSessionKey.whitelist,
-                );
-                await this.addSessionKeyOnChain(account, sk, onWalletEvent);
-                wallet.sessionKey = sk;
-                onWalletEvent?.({ account, type: "proof_sent", message: "Session key added" });
+                const accountInfo = await indexerService.getAccountInfo(username);
+                if (accountInfo) {
+                    const error = `Account with username "${username}" already exists.`;
+                    onError?.(new Error(error));
+                    return { success: false, error: error };
+                }
+            } catch (error) {
+                // If error, assume account does not exist and continue
             }
 
-            onWalletEvent?.({ account, type: "logged_in", message: "Registration complete" });
-            return { success: true, wallet };
-        } catch (e: any) {
-            onError?.(e);
-            return { success: false, error: e?.message ?? "Google registration failed" };
+            let inviteCodeBlob;
+            try {
+                inviteCodeBlob = await indexerService.claimInviteCode(inviteCode, username);
+            } catch (error) {
+                console.warn("Failed to claim invite code:", error);
+                return {
+                    success: false,
+                    error: `Failed to claim invite code.`,
+                };
+            }
+
+            const identity = `${username}@${walletContractName}`;
+
+            const blob1 = registerBlob(username, Date.now(), "", { Jwt: {} }, inviteCode);
+
+            const blobTx: BlobTransaction = {
+                identity,
+                blobs: [blob1, inviteCodeBlob],
+            };
+
+            let newSessionKey;
+            if (registerSessionKey) {
+                const { duration, whitelist } = registerSessionKey;
+                const expiration = Date.now() + duration; // still in milliseconds
+                newSessionKey = sessionKeyService.generateSessionKey(expiration, whitelist);
+                blobTx.blobs.push(
+                    addSessionKeyBlob(username, newSessionKey.publicKey, expiration, Date.now(), whitelist),
+                );
+            }
+
+            onWalletEvent?.({ account: identity, type: "sending_blob", message: `Sending blob transaction` });
+            // Skipped, to make sure we send the proof alongside.
+            const txHash = await hashBlobTransaction(blobTx);
+            //const txHash = await nodeService.client.sendBlobTx(blobTx);
+            onWalletEvent?.({ account: identity, type: "blob_sent", message: `Blob transaction sent: ${txHash}` });
+
+            // Create initial wallet state
+            const wallet: Wallet = {
+                username,
+                address: identity,
+                salt: "",
+            };
+
+            onWalletEvent?.({ account: identity, type: "custom", message: `Generating proof of password` });
+
+            await nodeService.client.sendBlobTx(blobTx);
+
+            if (newSessionKey) {
+                wallet.sessionKey = newSessionKey;
+            }
+            // Create clean wallet state after registration
+            const cleanedWallet = WalletOperations.cleanExpiredSessionKeys(wallet);
+            return { success: true, wallet: cleanedWallet };
+        } catch (errorMessage) {
+            const error = errorMessage instanceof Error ? errorMessage.message : "Failed to register wallet";
+            console.log("Registration error:", errorMessage);
+            onError?.(new Error(error));
+            return {
+                success: false,
+                error: error,
+            };
         }
     }
 }

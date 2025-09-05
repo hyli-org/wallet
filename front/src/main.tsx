@@ -7,8 +7,7 @@ import { authProviderManager, GoogleAuthProvider, NodeService, IndexerService } 
 // Initialize SDK services and register Google provider if configured
 (() => {
     try {
-        const { VITE_GOOGLE_CLIENT_ID, VITE_NODE_BASE_URL, VITE_WALLET_SERVER_BASE_URL } = import.meta
-            .env as any;
+        const { VITE_GOOGLE_CLIENT_ID, VITE_NODE_BASE_URL, VITE_WALLET_SERVER_BASE_URL } = import.meta.env as any;
         const GOOGLE_CLIENT_ID = VITE_GOOGLE_CLIENT_ID as string | undefined;
         const NODE_URL = VITE_NODE_BASE_URL as string | undefined;
         const INDEXER_URL = VITE_WALLET_SERVER_BASE_URL as string | undefined;
@@ -16,24 +15,7 @@ import { authProviderManager, GoogleAuthProvider, NodeService, IndexerService } 
         if (NODE_URL) NodeService.initialize(NODE_URL);
         if (INDEXER_URL) IndexerService.initialize(INDEXER_URL);
         if (GOOGLE_CLIENT_ID) {
-            const deps = {
-                submitBlob: async (blob: any) => {
-                    const node = NodeService.getInstance();
-                    const tx = await node.client.sendBlobTx({ identity: "", blobs: [blob] });
-                    return tx;
-                },
-                getNonce: async (_account: string) => {
-                    const indexer = IndexerService.getInstance();
-                    // account here is username; indexer expects account name
-                    const info = await indexer.getAccountInfo(_account);
-                    return info?.nonce ?? 0;
-                },
-                resolveAccountAddress: async (username: string, _googleSub: string) => {
-                    // Normalize username to email-based ID (already lowercased upstream)
-                    return `${username}@wallet`;
-                },
-            } as const;
-            authProviderManager.registerProvider(new GoogleAuthProvider(GOOGLE_CLIENT_ID, deps));
+            authProviderManager.registerProvider(new GoogleAuthProvider(GOOGLE_CLIENT_ID));
             console.log("[Hyli] Google provider registered");
 
             // Load Google Identity Services and expose a helper to request an ID token
@@ -49,8 +31,12 @@ import { authProviderManager, GoogleAuthProvider, NodeService, IndexerService } 
                     document.head.appendChild(s);
                 });
 
+            // NOTE: 'account' doit être le username attendu par getNonce / Indexer
             (window as any).hyliRequestGoogleIdToken = async (): Promise<string> => {
                 await loadGsi();
+
+                const nonce = Date.now().toString(); // Nonce temporaire, remplacé plus tard par getNonce
+
                 return new Promise<string>((resolve, reject) => {
                     try {
                         const google = (window as any).google;
@@ -66,8 +52,11 @@ import { authProviderManager, GoogleAuthProvider, NodeService, IndexerService } 
                             ux_mode: "popup",
                             auto_select: false,
                             use_fedcm_for_prompt: false,
+                            // IMPORTANT: on injecte le nonce retourné par getNonce
+                            nonce,
                         });
-                        console.log("[Hyli] GIS init with client_id:", GOOGLE_CLIENT_ID);
+                        console.log("[Hyli] GIS init with client_id:", GOOGLE_CLIENT_ID, "nonce:", nonce);
+
                         // Create a hidden container and render the official button (opens popup on click)
                         const container = document.createElement("div");
                         container.style.position = "fixed";
@@ -85,9 +74,13 @@ import { authProviderManager, GoogleAuthProvider, NodeService, IndexerService } 
                         });
                         // Wait a tick for button to mount, then click it programmatically (user-initiated handler)
                         setTimeout(() => {
-                            const btn = container.querySelector("div[role=button], div[aria-label]") as HTMLElement | null;
+                            const btn = container.querySelector(
+                                "div[role=button], div[aria-label]",
+                            ) as HTMLElement | null;
                             if (!btn) {
-                                document.body.removeChild(container);
+                                try {
+                                    document.body.removeChild(container);
+                                } catch {}
                                 return reject(new Error("Google button not rendered"));
                             }
                             // Make it clickable while still offscreen
@@ -96,7 +89,9 @@ import { authProviderManager, GoogleAuthProvider, NodeService, IndexerService } 
                             // Clean up later if no callback
                             setTimeout(() => {
                                 if (!done) {
-                                    try { document.body.removeChild(container); } catch {}
+                                    try {
+                                        document.body.removeChild(container);
+                                    } catch {}
                                     reject(new Error("Google popup was blocked or cancelled"));
                                 }
                             }, 15000);
@@ -117,5 +112,5 @@ import { authProviderManager, GoogleAuthProvider, NodeService, IndexerService } 
 createRoot(document.getElementById("root")!).render(
     <StrictMode>
         <App />
-    </StrictMode>
+    </StrictMode>,
 );

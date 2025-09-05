@@ -5,8 +5,8 @@ use anyhow::Context;
 use borsh::{BorshDeserialize, BorshSerialize};
 use client_sdk::transaction_builder::TxExecutorHandler;
 use sdk::{
-    caller::ExecutionContext, info, merkle_utils::BorshableMerkleProof, utils::as_hyli_output,
-    Blob, Calldata, Contract, ContractName, HyliOutput, RegisterContractAction, StateCommitment,
+    caller::ExecutionContext, merkle_utils::BorshableMerkleProof, utils::as_hyli_output, Blob,
+    Calldata, Contract, ContractName, HyliOutput, StateCommitment,
 };
 use serde::Serialize;
 
@@ -270,6 +270,7 @@ impl Wallet {
                 salt,
                 auth_method,
                 invite_code,
+                jwt,
             } => {
                 check_for_invite_code(
                     &account,
@@ -277,8 +278,13 @@ impl Wallet {
                     calldata,
                     &self.invite_code_public_key,
                 )?;
-                let res =
-                    account_info.handle_registration(account.clone(), nonce, auth_method, calldata);
+                let res = account_info.handle_registration(
+                    account.clone(),
+                    nonce,
+                    auth_method,
+                    calldata,
+                    jwt,
+                );
                 self.salts.insert(account, salt);
                 res
             }
@@ -311,7 +317,7 @@ impl Wallet {
             Ok((action, exec_ctx)) => {
                 return self.handle_action(action, initial_state_commitment, exec_ctx, calldata);
             }
-            Err(e) => {
+            Err(_e) => {
                 // Check for a registration tx
 
                 return Ok(as_hyli_output(

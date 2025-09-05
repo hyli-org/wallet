@@ -1,7 +1,7 @@
 // AuthProviderManager.ts
 import { AuthProvider } from "./BaseAuthProvider";
 import { PasswordAuthProvider } from "./PasswordAuthProvider";
-import { GoogleAuthProvider, GoogleAuthProviderDeps } from "./GoogleAuthProvider";
+import { GoogleAuthProvider } from "./GoogleAuthProvider";
 
 type AuthProviderManagerConfig = {
     /** Active/désactive le provider password (par défaut: true) */
@@ -10,7 +10,6 @@ type AuthProviderManagerConfig = {
     /** Config pour Google (obligatoire pour l’activer) */
     google?: {
         clientId: string;
-        deps: GoogleAuthProviderDeps; // { submitBlob, getNonce, resolveAccountAddress }
     };
 };
 
@@ -29,8 +28,8 @@ export class AuthProviderManager {
         }
 
         // GoogleAuthProvider seulement si la config est complète
-        if (config?.google?.clientId && config.google.deps) {
-            this.registerProvider(new GoogleAuthProvider(config.google.clientId, config.google.deps));
+        if (config?.google?.clientId) {
+            this.registerProvider(new GoogleAuthProvider(config.google.clientId));
         }
     }
 

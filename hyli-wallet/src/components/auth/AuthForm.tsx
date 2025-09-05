@@ -197,8 +197,13 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                             setError("Google sign-in failed or was cancelled");
                             return;
                         }
+
                         const email = extractEmailFromJwt(token);
-                        setCredentials((prev) => ({ ...(prev as any), googleToken: token, username: email ?? (prev as any).username }));
+                        setCredentials((prev) => ({
+                            ...(prev as any),
+                            googleToken: token,
+                            username: email ?? (prev as any).username,
+                        }));
                     } catch (e) {
                         setError("Google sign-in failed");
                         return;
@@ -238,22 +243,27 @@ export const AuthForm: React.FC<AuthFormProps> = ({
         setStage("sending_blob");
         const authAction = async (
             provider: ProviderOption,
-            credentials: (PasswordAuthCredentials & { inviteCode: string }) | (GoogleAuthCredentials & { inviteCode: string })
+            credentials:
+                | (PasswordAuthCredentials & { inviteCode: string })
+                | (GoogleAuthCredentials & { inviteCode: string }),
         ) => {
-            try {
-                console.log("[Hyli][AuthForm] submit", {
-                    provider,
-                    mode,
-                    username: (credentials as any).username,
-                    hasGoogleToken: Boolean((credentials as any).googleToken),
-                });
-            } catch {}
+            console.log("[Hyli][AuthForm] submit", {
+                provider,
+                mode,
+                username: (credentials as any).username,
+                hasGoogleToken: Boolean((credentials as any).googleToken),
+            });
+
             if (mode === "login") {
                 await login(provider, credentials, onWalletEventWithStage, onErrorWithStage, {
                     registerSessionKey: autoSessionKey,
                 });
             } else if (mode === "register") {
                 let finalCreds = credentials as any;
+                console.log("[Hyli][AuthForm] registering with credentials", {
+                    ...finalCreds,
+                    googleToken: Boolean(finalCreds.googleToken),
+                });
                 if (provider === "google") {
                     let token = (credentials as any).googleToken as string | undefined;
                     if (!token) {
@@ -378,16 +388,20 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                                                 return;
                                             }
                                             try {
-                                                console.log("[Hyli][AuthForm] received Google token", token.slice(0, 20) + "…");
+                                                console.log("[Hyli][AuthForm] received Google token", token);
                                             } catch {}
                                             const email = extractEmailFromJwt(token);
-                                            setCredentials((prev) => ({ ...(prev as any), googleToken: token, username: email ?? (prev as any).username }));
+                                            setCredentials((prev) => ({
+                                                ...(prev as any),
+                                                googleToken: token,
+                                                username: email ?? (prev as any).username,
+                                            }));
                                             await login(
                                                 provider.type as ProviderOption,
                                                 { googleToken: token } as any,
                                                 onWalletEventWithStage,
                                                 onErrorWithStage,
-                                                { registerSessionKey: autoSessionKey }
+                                                { registerSessionKey: autoSessionKey },
                                             );
                                         } catch (e) {
                                             setError("Google sign-in failed");
