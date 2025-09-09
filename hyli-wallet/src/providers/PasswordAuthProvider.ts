@@ -168,7 +168,7 @@ export class PasswordAuthProvider implements AuthProvider {
             let salted_password = `${password}:${salt}`;
             const blob0 = await check_secret_blob(identity, salted_password);
             const hash = Buffer.from(blob0.data).toString("hex");
-            const blob1 = registerBlob(username, Date.now(), salt, { Password: { hash } }, inviteCode);
+            const blob1 = registerBlob(username, Date.now(), salt, { Password: { hash } }, inviteCode, null);
 
             const blobTx: BlobTransaction = {
                 identity,

@@ -293,7 +293,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
                 wallet,
                 password,
                 exp,
-                jwt,
+                undefined,
                 wl,
                 laneId,
                 finalOnWalletEvent,

@@ -257,7 +257,7 @@ impl AuthMethod {
                     ));
                 }
 
-                if Some(nonce) != infos.nonce_as_u128() {
+                if nonce <= infos.nonce_as_u128().unwrap_or(0) {
                     return Err(format!(
                         "JWT token nonce does not match {} != {:?}",
                         nonce, infos.nonce
@@ -493,14 +493,14 @@ impl WalletZkView {
 #[serde_with::serde_as]
 #[derive(Serialize, Deserialize, BorshSerialize, BorshDeserialize, Debug, Clone)]
 pub struct JsonWebToken {
-    // The client ID (audience) for which the token is valid
-    pub client_id: String,
     // The JWT token string, split in 3 parts by '.' (HEADER.PAYLOAD.SIGNATURE)
     pub token: String,
+    // The client ID (audience) for which the token is valid
+    pub client_id: String,
     // The algorithm used to sign the token, e.g. "RS256"
     pub algorithm: String,
     // The RSA infos (modulus, exponent) of the provider to verify the token signature
-    pub provider_rsa_infos: Option<(String, String)>, // (modulus, exponent)
+    pub provider_rsa_infos: Option<[String; 2]>, // (modulus, exponent)
 }
 
 #[derive(Serialize, Deserialize, BorshSerialize, BorshDeserialize, Debug, Clone)]
@@ -520,6 +520,7 @@ impl JsonWebToken {
         !self.token.is_empty() && !self.algorithm.is_empty()
     }
     pub fn extract_infos(&self) -> Result<JsonWebTokenExtractedInfo, String> {
+        dbg!(&self);
         let alg = Algorithm::from_str(self.algorithm.as_str()).map_err(|e| {
             format!(
                 "Failed to parse algorithm from string {}: {}",
@@ -528,7 +529,7 @@ impl JsonWebToken {
         })?;
 
         let decoding_key = if alg == Algorithm::RS256 {
-            if let Some((modulus, exponent)) = &self.provider_rsa_infos {
+            if let Some([modulus, exponent]) = &self.provider_rsa_infos {
                 jsonwebtoken::DecodingKey::from_rsa_components(modulus.as_str(), exponent.as_str())
                     .map_err(|err| format!("Wrong rsa format {err}"))?
             } else {
@@ -557,8 +558,8 @@ pub enum WalletAction {
         nonce: u128,
         salt: String, // Not actually used in the circuit, provided as DA
         auth_method: AuthMethod,
-        jwt: Option<JsonWebToken>,
         invite_code: String,
+        jwt: Option<JsonWebToken>,
     },
     VerifyIdentity {
         account: String,
@@ -589,8 +590,6 @@ pub enum WalletAction {
         #[serde_as(as = "[_; 33]")]
         invite_code_public_key: InviteCodePubKey,
         smt_root: [u8; 32],
-        nonce: u128,
-        jwt: Option<JsonWebToken>,
     },
 }
 
@@ -617,7 +616,7 @@ impl WalletAction {
             WalletAction::VerifyIdentity { jwt, nonce, .. } => Some((jwt, *nonce)),
             WalletAction::AddSessionKey { jwt, nonce, .. } => Some((jwt, *nonce)),
             WalletAction::RemoveSessionKey { jwt, nonce, .. } => Some((jwt, *nonce)),
-            WalletAction::UpdateInviteCodePublicKey { jwt, nonce, .. } => Some((jwt, *nonce)),
+            WalletAction::UpdateInviteCodePublicKey { .. } => None,
             WalletAction::UseSessionKey { .. } => None,
         }
     }
@@ -923,8 +922,6 @@ mod tests {
         let change_invite_code_public_key = WalletAction::UpdateInviteCodePublicKey {
             invite_code_public_key: [4; 33],
             smt_root: [0; 32],
-            jwt: None,
-            nonce: 1,
         };
         let pubkey_blob =
             change_invite_code_public_key.as_blob(sdk::ContractName("wallet".to_string()));
@@ -1069,7 +1066,7 @@ mod tests {
                     "411006444783-4knei671ucqfo22ps9uc5tpj11dviav7.apps.googleusercontent.com"
                         .to_string(),
                 algorithm: "RS256".to_string(),
-                provider_rsa_infos: Some((pubkey.to_string(), "AQAB".to_string())),
+                provider_rsa_infos: Some([pubkey.to_string(), "AQAB".to_string()]),
             }),
         }
         .as_blob(sdk::ContractName("wallet".to_string()));

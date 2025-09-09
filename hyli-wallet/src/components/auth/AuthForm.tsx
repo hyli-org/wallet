@@ -6,6 +6,10 @@ import { getAuthErrorMessage } from "../../utils/errorMessages";
 import "./AuthForm.css";
 import { PasswordAuthCredentials } from "../../providers/PasswordAuthProvider";
 import type { GoogleAuthCredentials } from "../../providers/GoogleAuthProvider";
+import { bytesToBigInt, JWTCircuitHelper, pubkeyModulusFromJWK } from "../../utils/jwt";
+import { fetchGooglePublicKey } from "../../utils/google";
+import { blake2s } from "@noble/hashes/blake2";
+import { Barretenberg, Fr } from "@aztec/bb.js";
 
 type AuthStage =
     | "idle" // Initial state, no authentication in progress
@@ -103,6 +107,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
         try {
             const [, payload] = jwt.split(".");
             const json = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+            console.log("Decoded JWT payload:", json);
             return (json.email as string | undefined)?.toLowerCase();
         } catch {
             return undefined;
@@ -372,50 +377,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                         </div>
                     )}
 
-                    {isGoogle ? (
-                        mode === "login" ? (
-                            <div className={`${classPrefix}-form-group`}>
-                                <button
-                                    type="button"
-                                    className={`${classPrefix}-auth-submit-button`}
-                                    onClick={async () => {
-                                        try {
-                                            setIsSubmitting(true);
-                                            const token = await (window as any).hyliRequestGoogleIdToken?.();
-                                            if (!token) {
-                                                setError("Google sign-in failed or was cancelled");
-                                                setIsSubmitting(false);
-                                                return;
-                                            }
-                                            try {
-                                                console.log("[Hyli][AuthForm] received Google token", token);
-                                            } catch {}
-                                            const email = extractEmailFromJwt(token);
-                                            setCredentials((prev) => ({
-                                                ...(prev as any),
-                                                googleToken: token,
-                                                username: email ?? (prev as any).username,
-                                            }));
-                                            await login(
-                                                provider.type as ProviderOption,
-                                                { googleToken: token } as any,
-                                                onWalletEventWithStage,
-                                                onErrorWithStage,
-                                                { registerSessionKey: autoSessionKey },
-                                            );
-                                        } catch (e) {
-                                            setError("Google sign-in failed");
-                                        } finally {
-                                            setIsSubmitting(false);
-                                        }
-                                    }}
-                                    disabled={isSubmitting}
-                                >
-                                    {isSubmitting ? "Requesting Google token..." : "Sign in with Google"}
-                                </button>
-                            </div>
-                        ) : null
-                    ) : (
+                    {!isGoogle && (
                         <div className={`${classPrefix}-form-group`}>
                             <label htmlFor="password" className={`${classPrefix}-form-label`}>
                                 Password
@@ -500,10 +462,128 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                         </div>
                     )}
 
+                    {isGoogle ? (
+                        <div className={`${classPrefix}-form-group`}>
+                            <button
+                                type="button"
+                                className={`${classPrefix}-auth-submit-button`}
+                                onClick={async () => {
+                                    try {
+                                        setIsSubmitting(true);
+                                        const idToken = await (window as any).hyliRequestGoogleIdToken?.();
+                                        if (!idToken) {
+                                            setError("Google sign-in failed or was cancelled");
+                                            setIsSubmitting(false);
+                                            return;
+                                        }
+                                        try {
+                                            console.log("[Hyli][AuthForm] received Google token", idToken);
+                                        } catch {}
+                                        const email = extractEmailFromJwt(idToken);
+                                        setCredentials((prev) => ({
+                                            ...(prev as any),
+                                            googleToken: idToken,
+                                            username: email ?? (prev as any).username,
+                                        }));
+
+                                        const [headersB64, payloadB64] = idToken.split(".");
+                                        const headers = JSON.parse(atob(headersB64));
+                                        const payload = JSON.parse(atob(payloadB64));
+
+                                        // Get Google pubkey
+                                        const keyId = headers.kid;
+                                        const googleJWTPubkey = await fetchGooglePublicKey(keyId);
+
+                                        let mail_hash: Fr = Fr.ZERO;
+
+                                        try {
+                                            console.log("Computing mail_hash for email", email);
+                                            const bb = await Barretenberg.new();
+                                            const selected_mail = email || "undefined email";
+                                            console.log("selected_mail", selected_mail);
+                                            console.log("email byte array", new TextEncoder().encode(selected_mail));
+                                            console.log(
+                                                "email bigint:",
+                                                bytesToBigInt(new TextEncoder().encode(email || "undefined email")),
+                                            );
+                                            mail_hash = await bb
+                                                .poseidon2Hash([
+                                                    new Fr(
+                                                        bytesToBigInt(
+                                                            new TextEncoder().encode(email || "undefined email"),
+                                                        ),
+                                                    ),
+                                                ])
+                                                .catch((err) => {
+                                                    console.error("Error computing poseidon hash:", err);
+                                                    throw err;
+                                                });
+
+                                            console.log("Computed mail_hash:", mail_hash);
+                                            console.log("mail_hash as bigint:", bytesToBigInt(mail_hash.value));
+                                            console.log("mail_hash as hex:", mail_hash.toString());
+                                        } catch (err) {
+                                            console.error("Error computing mail_hash:", err);
+                                            throw new Error("Failed to compute email hash");
+                                        }
+                                        const mailHashBigInt = bytesToBigInt(mail_hash.value);
+                                        // Generate proof using JWT circuit
+                                        const proof = await JWTCircuitHelper.generateProof({
+                                            idToken,
+                                            jwtPubkey: googleJWTPubkey,
+                                            mail_hash: mailHashBigInt.toString(), // simple hash to field,
+
+                                            nonce: payload.nonce || "0",
+                                        });
+
+                                        console.log("[Hyli][AuthForm] generated JWT proof", proof);
+                                        // const googleJWTPubkeyModulus = await pubkeyModulusFromJWK(googleJWTPubkey);
+                                        if (mode == "login") {
+                                            await login(
+                                                provider.type as ProviderOption,
+                                                {
+                                                    username: email,
+                                                    googleToken: idToken,
+                                                    inviteCode: credentials.inviteCode,
+                                                } as any,
+                                                onWalletEventWithStage,
+                                                onErrorWithStage,
+                                                { registerSessionKey: autoSessionKey },
+                                            );
+                                        } else {
+                                            await registerWallet(
+                                                provider.type as ProviderOption,
+                                                {
+                                                    username: email,
+                                                    googleToken: idToken,
+                                                    inviteCode: credentials.inviteCode,
+                                                } as any,
+                                                onWalletEventWithStage,
+                                                onErrorWithStage,
+                                                { registerSessionKey: autoSessionKey },
+                                            );
+                                        }
+                                    } catch (e) {
+                                        setError("Google sign-in failed");
+                                    } finally {
+                                        setIsSubmitting(false);
+                                    }
+                                }}
+                                disabled={isSubmitting}
+                            >
+                                {mode == "login"
+                                    ? isSubmitting
+                                        ? "Requesting Google token..."
+                                        : "Sign in with Google"
+                                    : "Bind Account with Google"}
+                            </button>
+                        </div>
+                    ) : null}
+
                     {error && <div className={`${classPrefix}-error-message`}>{error}</div>}
                     {statusMessage && <div className={`${classPrefix}-status-message`}>{statusMessage}</div>}
 
-                    {!(isGoogle && mode === "login") && (
+                    {!isGoogle && (
                         <button type="submit" className={`${classPrefix}-auth-submit-button`} disabled={isSubmitting}>
                             {isSubmitting ? "Processing..." : mode === "login" ? "Login" : "Create Account"}
                         </button>

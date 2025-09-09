@@ -33,6 +33,7 @@ export type Secp256k1Blob = {
 export type AuthMethod = { Password: { hash: string } } | { Jwt: {} };
 
 export type JsonWebToken = {
+    token: string;
     client_id: string;
     algorithm: string;
     provider_rsa_infos?: [string, string];
@@ -107,6 +108,7 @@ export const registerBlob = (
     salt: string,
     auth_method: AuthMethod,
     invite_code: string,
+    jwt: JsonWebToken | null,
 ): Blob => {
     const action: WalletAction = {
         RegisterIdentity: {
@@ -115,6 +117,7 @@ export const registerBlob = (
             salt,
             auth_method,
             invite_code,
+            jwt: jwt || undefined,
         },
     };
     const blob: Blob = {
@@ -234,8 +237,19 @@ const schema = BorshSchema.Enum({
             Password: BorshSchema.Struct({
                 hash: BorshSchema.String,
             }),
+            Jwt: BorshSchema.Struct({
+                // empty
+            }),
         }),
         invite_code: BorshSchema.String,
+        jwt: BorshSchema.Option(
+            BorshSchema.Struct({
+                token: BorshSchema.String,
+                client_id: BorshSchema.String,
+                algorithm: BorshSchema.String,
+                provider_rsa_infos: BorshSchema.Option(BorshSchema.Array(BorshSchema.String, 2)),
+            }),
+        ),
     }),
     VerifyIdentity: BorshSchema.Struct({
         account: BorshSchema.String,

@@ -9,6 +9,7 @@ import {
     addSessionKeyBlob, // <- version corrigée ci-dessus
     WalletEventCallback,
     walletContractName,
+    JsonWebToken,
 } from "../types/wallet"; // ajuste le chemin si besoin
 
 import { BlobTransaction, Blob as HyliBlob } from "hyli"; // ajuste le chemin si besoin
@@ -26,6 +27,18 @@ export interface GoogleAuthCredentials {
     inviteCode?: string; // requis en register()
 }
 
+const createJsonWebToken = (token: string): JsonWebToken => {
+    return {
+        client_id: "411006444783-4knei671ucqfo22ps9uc5tpj11dviav7.apps.googleusercontent.com",
+        token,
+        algorithm: "RS256",
+        provider_rsa_infos: [
+            "v85Io5Rp7vwbSlkuAowWVcfUxZdPckijmLAZ3WEl3nTUTkz9YfmKJUiqdZMRuJxL50F3TRBKDxvfFbWX602sPTShoK6H2pdbQNrKsGV_KIlLLsIkcVnG-KNuY-ZnkZ9ppCH9yqjGw08imHlLsIngSK8VF03nCwUiv_VtZ27FltUttRxkoZGxCYX0-MRicIXPNKILml-xmknGNLsDCvAYqhbg3tZRKi1dZuHLhCb_YTov5YhprvVzm5OagvrvZuia_qilk-ctgqRJRPFGrVm75gkV4WdwxQQukCPqf5UfIopdOAB4wBdovddX3jjpjphq8-gKMPO-t_6siCt1xETSOQ",
+            "AQAB",
+        ],
+    };
+};
+
 export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
     type = "google";
     private clientIdStr: string;
@@ -40,6 +53,9 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
 
     // ---------- Google token ----------
     private async verifyGoogleIdToken(idToken: string) {
+        try {
+            console.log("[Hyli][Google] verifyGoogleIdToken() called");
+        } catch {}
         // Browser-friendly validation using Google's tokeninfo endpoint
         const res = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`);
         if (!res.ok) throw new Error("Failed to verify Google token");
@@ -109,27 +125,39 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
         });
     }
 
-    private async addSessionKeyOnChain(account: string, sessionKey: SessionKey, onWalletEvent?: WalletEventCallback) {
+    private async addSessionKeyOnChain(username: string, sessionKey: SessionKey, onWalletEvent?: WalletEventCallback) {
+        try {
+            console.log("[Hyli][Google] addSessionKeyOnChain() called", {
+                username,
+                hasWhitelist: !!sessionKey.whitelist,
+            });
+        } catch {}
+        // username is the on-chain account name (e.g., email), identity is `${username}@wallet`
+        const identity = `${username}@${walletContractName}`;
         const nonce = await IndexerService.getInstance()
-            .getAccountInfo(account)
+            .getAccountInfo(username)
             .then((info) => info.nonce + 1)
             .catch(() => 1);
+        // Build blob for the wallet contract with the account field set to the username
         const blob = addSessionKeyBlob(
-            account,
+            username,
             sessionKey.publicKey,
             sessionKey.expiration,
             nonce,
             sessionKey.whitelist,
             sessionKey.laneId,
-            //{},
         );
-        const txHash = await this.deps.submitBlob(account, blob);
+        try {
+            console.log("[Hyli][Google] addSessionKeyOnChain() sending blob", { identity, nonce });
+        } catch {}
+        const txHash = await NodeService.getInstance().client.sendBlobTx({ identity, blobs: [blob] } as any);
         // On émet un WalletEvent (pas un TransactionCallback)
-        this.notifyTxAsWalletEvent(onWalletEvent, account, txHash, "AddSessionKey");
+        this.notifyTxAsWalletEvent(onWalletEvent, identity, txHash, "AddSessionKey");
     }
 
     // ---------- AuthProvider API ----------
     async login(params: LoginParams<GoogleAuthCredentials>): Promise<AuthResult> {
+        console.log("[Hyli][Google] login() called");
         const { credentials, onWalletEvent, onError, registerSessionKey } = params;
         try {
             if (!credentials?.googleToken) {
@@ -157,7 +185,7 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
                     registerSessionKey.whitelist,
                     registerSessionKey.laneId,
                 );
-                await this.addSessionKeyOnChain(account, sk, onWalletEvent);
+                await this.addSessionKeyOnChain(username, sk, onWalletEvent);
                 wallet.sessionKey = sk;
             }
 
@@ -170,18 +198,23 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
     }
 
     async register(params: RegisterAccountParams<GoogleAuthCredentials>): Promise<AuthResult> {
+        try {
+            console.log("[Hyli][Google] register() called");
+        } catch {}
         const nodeService = NodeService.getInstance();
         const { onError, registerSessionKey, onWalletEvent } = params;
         try {
-            const { username, inviteCode } = params.credentials;
+            const { username, inviteCode, googleToken } = params.credentials;
 
-            console.log("[Hyli][Google] Register flow CALLLLLL", { username, inviteCode });
+            const identity = `${username}@${walletContractName}`;
+
+            console.log("[Hyli][Google] Register flow CALLLLLL", { username, inviteCode, googleToken });
 
             const indexerService = IndexerService.getInstance();
             try {
-                const accountInfo = await indexerService.getAccountInfo(username);
+                const accountInfo = await indexerService.getAccountInfo(identity);
                 if (accountInfo) {
-                    const error = `Account with username "${username}" already exists.`;
+                    const error = `Account with username "${identity}" already exists.`;
                     onError?.(new Error(error));
                     return { success: false, error: error };
                 }
@@ -200,9 +233,14 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
                 };
             }
 
-            const identity = `${username}@${walletContractName}`;
-
-            const blob1 = registerBlob(username, Date.now(), "", { Jwt: {} }, inviteCode);
+            const blob1 = registerBlob(
+                username,
+                Date.now(),
+                "",
+                { Jwt: {} },
+                inviteCode,
+                createJsonWebToken(googleToken),
+            );
 
             const blobTx: BlobTransaction = {
                 identity,
@@ -214,9 +252,11 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
                 const { duration, whitelist } = registerSessionKey;
                 const expiration = Date.now() + duration; // still in milliseconds
                 newSessionKey = sessionKeyService.generateSessionKey(expiration, whitelist);
-                blobTx.blobs.push(
-                    addSessionKeyBlob(username, newSessionKey.publicKey, expiration, Date.now(), whitelist),
-                );
+                const skNonce = await IndexerService.getInstance()
+                    .getAccountInfo(username)
+                    .then((info) => info.nonce + 1)
+                    .catch(() => Date.now());
+                blobTx.blobs.push(addSessionKeyBlob(username, newSessionKey.publicKey, expiration, skNonce, whitelist));
             }
 
             onWalletEvent?.({ account: identity, type: "sending_blob", message: `Sending blob transaction` });

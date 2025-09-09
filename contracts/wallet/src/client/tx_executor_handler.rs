@@ -325,7 +325,9 @@ impl Wallet {
                     initial_state_commitment,
                     calldata,
                     &mut Ok((
-                        "Ignoring placeholder blob".as_bytes().to_vec(),
+                        format!("Ignoring placeholder blob {}", _e)
+                            .as_bytes()
+                            .to_vec(),
                         ExecutionContext::default(),
                         vec![],
                     )),

@@ -50,7 +50,7 @@ import { authProviderManager, GoogleAuthProvider, NodeService, IndexerService } 
                                 }
                             },
                             ux_mode: "popup",
-                            auto_select: false,
+                            auto_select: true,
                             use_fedcm_for_prompt: false,
                             // IMPORTANT: on injecte le nonce retourné par getNonce
                             nonce,
