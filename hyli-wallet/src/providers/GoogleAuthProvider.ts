@@ -198,9 +198,7 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
     }
 
     async register(params: RegisterAccountParams<GoogleAuthCredentials>): Promise<AuthResult> {
-        try {
-            console.log("[Hyli][Google] register() called");
-        } catch {}
+        console.log("[Hyli][Google] register() called");
         const nodeService = NodeService.getInstance();
         const { onError, registerSessionKey, onWalletEvent } = params;
         try {

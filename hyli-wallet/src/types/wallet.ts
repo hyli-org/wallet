@@ -30,7 +30,7 @@ export type Secp256k1Blob = {
     signature: Uint8Array;
 };
 
-export type AuthMethod = { Password: { hash: string } } | { Jwt: {} };
+export type AuthMethod = { Password: { hash: string } } | { Jwt: { hash: string } };
 
 export type JsonWebToken = {
     token: string;
@@ -238,7 +238,7 @@ const schema = BorshSchema.Enum({
                 hash: BorshSchema.String,
             }),
             Jwt: BorshSchema.Struct({
-                // empty
+                hash: BorshSchema.String,
             }),
         }),
         invite_code: BorshSchema.String,

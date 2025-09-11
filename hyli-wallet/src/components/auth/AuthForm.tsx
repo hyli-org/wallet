@@ -103,12 +103,18 @@ export const AuthForm: React.FC<AuthFormProps> = ({
     const [autoSessionKey, setAutoSessionKey] = useState<boolean>(forceSessionKey === true ? true : true);
     const [funFact, setFunFact] = useState<string>(getRandomFact());
 
-    const extractEmailFromJwt = (jwt: string): string | undefined => {
+    const extractClaimsFromJwt = (jwt: string): { email: string; nonce: string; kid: string } | undefined => {
         try {
-            const [, payload] = jwt.split(".");
-            const json = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+            const [header, payload] = jwt.split(".");
+            const headers = JSON.parse(atob(header));
+            const json = JSON.parse(atob(payload));
             console.log("Decoded JWT payload:", json);
-            return (json.email as string | undefined)?.toLowerCase();
+            console.log("Decoded JWT headers payload:", headers);
+            const email = json.email.toLowerCase();
+            const nonce = json.nonce.toLowerCase();
+            const kid = headers.kid;
+
+            return { email, nonce, kid };
         } catch {
             return undefined;
         }
@@ -203,7 +209,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                             return;
                         }
 
-                        const email = extractEmailFromJwt(token);
+                        const email = extractClaimsFromJwt(token);
                         setCredentials((prev) => ({
                             ...(prev as any),
                             googleToken: token,
@@ -280,7 +286,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                         setError("Google sign-in failed or was cancelled");
                         return;
                     }
-                    const email = extractEmailFromJwt(token);
+                    const email = extractClaimsFromJwt(token);
                     finalCreds = {
                         ...(credentials as any),
                         googleToken: token,
@@ -476,44 +482,39 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                                             setIsSubmitting(false);
                                             return;
                                         }
-                                        try {
-                                            console.log("[Hyli][AuthForm] received Google token", idToken);
-                                        } catch {}
-                                        const email = extractEmailFromJwt(idToken);
+
+                                        console.log("[Hyli][AuthForm] received Google token", idToken);
+
+                                        const { email, nonce, kid } = extractClaimsFromJwt(idToken) || {};
+
+                                        if (!email || !nonce || !kid) {
+                                            setError("Failed to extract email/nonce/kid from Google token");
+                                            setIsSubmitting(false);
+                                            return;
+                                        }
+
+                                        // Get Google pubkey
+                                        const googleJWTPubkey = await fetchGooglePublicKey(kid);
+
                                         setCredentials((prev) => ({
                                             ...(prev as any),
                                             googleToken: idToken,
                                             username: email ?? (prev as any).username,
                                         }));
 
-                                        const [headersB64, payloadB64] = idToken.split(".");
-                                        const headers = JSON.parse(atob(headersB64));
-                                        const payload = JSON.parse(atob(payloadB64));
-
-                                        // Get Google pubkey
-                                        const keyId = headers.kid;
-                                        const googleJWTPubkey = await fetchGooglePublicKey(keyId);
-
                                         let mail_hash: Fr = Fr.ZERO;
 
                                         try {
                                             console.log("Computing mail_hash for email", email);
                                             const bb = await Barretenberg.new();
-                                            const selected_mail = email || "undefined email";
-                                            console.log("selected_mail", selected_mail);
-                                            console.log("email byte array", new TextEncoder().encode(selected_mail));
+                                            console.log("selected_mail", email);
+                                            console.log("email byte array", new TextEncoder().encode(email));
                                             console.log(
                                                 "email bigint:",
-                                                bytesToBigInt(new TextEncoder().encode(email || "undefined email")),
+                                                bytesToBigInt(new TextEncoder().encode(email)),
                                             );
                                             mail_hash = await bb
-                                                .poseidon2Hash([
-                                                    new Fr(
-                                                        bytesToBigInt(
-                                                            new TextEncoder().encode(email || "undefined email"),
-                                                        ),
-                                                    ),
-                                                ])
+                                                .poseidon2Hash([new Fr(bytesToBigInt(new TextEncoder().encode(email)))])
                                                 .catch((err) => {
                                                     console.error("Error computing poseidon hash:", err);
                                                     throw err;
@@ -523,21 +524,20 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                                             console.log("mail_hash as bigint:", bytesToBigInt(mail_hash.value));
                                             console.log("mail_hash as hex:", mail_hash.toString());
                                         } catch (err) {
-                                            console.error("Error computing mail_hash:", err);
-                                            throw new Error("Failed to compute email hash");
+                                            setError("Failed to compute email hash");
+                                            setIsSubmitting(false);
+                                            return;
                                         }
                                         const mailHashBigInt = bytesToBigInt(mail_hash.value);
                                         // Generate proof using JWT circuit
                                         const proof = await JWTCircuitHelper.generateProof({
                                             idToken,
                                             jwtPubkey: googleJWTPubkey,
-                                            mail_hash: mailHashBigInt.toString(), // simple hash to field,
-
-                                            nonce: payload.nonce || "0",
+                                            mail_hash: mailHashBigInt.toString(),
+                                            nonce,
                                         });
 
                                         console.log("[Hyli][AuthForm] generated JWT proof", proof);
-                                        // const googleJWTPubkeyModulus = await pubkeyModulusFromJWK(googleJWTPubkey);
                                         if (mode == "login") {
                                             await login(
                                                 provider.type as ProviderOption,
