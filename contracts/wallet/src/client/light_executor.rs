@@ -152,7 +152,6 @@ impl LightWalletExecutor {
                 salt,
                 auth_method,
                 invite_code,
-                jwt,
             } => {
                 check_for_invite_code(
                     &account,
@@ -160,13 +159,8 @@ impl LightWalletExecutor {
                     calldata,
                     &self.invite_code_public_key,
                 )?;
-                let res = account_info.handle_registration(
-                    account.clone(),
-                    nonce,
-                    auth_method,
-                    calldata,
-                    jwt,
-                );
+                let res =
+                    account_info.handle_registration(account.clone(), nonce, auth_method, calldata);
                 self.salts.insert(account, salt);
                 res
             }

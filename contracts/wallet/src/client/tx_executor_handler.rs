@@ -5,8 +5,8 @@ use anyhow::Context;
 use borsh::{BorshDeserialize, BorshSerialize};
 use client_sdk::transaction_builder::TxExecutorHandler;
 use sdk::{
-    caller::ExecutionContext, merkle_utils::BorshableMerkleProof, utils::as_hyli_output, Blob,
-    Calldata, Contract, ContractName, HyliOutput, StateCommitment,
+    caller::ExecutionContext, info, merkle_utils::BorshableMerkleProof, utils::as_hyli_output,
+    Blob, Calldata, Contract, ContractName, HyliOutput, RegisterContractAction, StateCommitment,
 };
 use serde::Serialize;
 
@@ -270,7 +270,6 @@ impl Wallet {
                 salt,
                 auth_method,
                 invite_code,
-                jwt,
             } => {
                 check_for_invite_code(
                     &account,
@@ -278,13 +277,8 @@ impl Wallet {
                     calldata,
                     &self.invite_code_public_key,
                 )?;
-                let res = account_info.handle_registration(
-                    account.clone(),
-                    nonce,
-                    auth_method,
-                    calldata,
-                    jwt,
-                );
+                let res =
+                    account_info.handle_registration(account.clone(), nonce, auth_method, calldata);
                 self.salts.insert(account, salt);
                 res
             }
@@ -317,7 +311,7 @@ impl Wallet {
             Ok((action, exec_ctx)) => {
                 return self.handle_action(action, initial_state_commitment, exec_ctx, calldata);
             }
-            Err(_e) => {
+            Err(e) => {
                 // Check for a registration tx
 
                 return Ok(as_hyli_output(
@@ -325,9 +319,7 @@ impl Wallet {
                     initial_state_commitment,
                     calldata,
                     &mut Ok((
-                        format!("Ignoring placeholder blob {}", _e)
-                            .as_bytes()
-                            .to_vec(),
+                        "Ignoring placeholder blob".as_bytes().to_vec(),
                         ExecutionContext::default(),
                         vec![],
                     )),

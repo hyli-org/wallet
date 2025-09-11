@@ -1,9 +1,8 @@
-use std::{str::FromStr, vec};
+use std::vec;
 
 use borsh::{io::Error, BorshDeserialize, BorshSerialize};
 #[cfg(feature = "client")]
 use client_sdk::contract_indexer::utoipa;
-use jsonwebtoken::Algorithm;
 use sdk::{
     hyli_model_utils::TimestampMs,
     merkle_utils::{BorshableMerkleProof, SHA256Hasher},
@@ -51,7 +50,6 @@ impl sdk::ZkContract for WalletZkView {
         if let WalletAction::UpdateInviteCodePublicKey {
             invite_code_public_key,
             smt_root,
-            ..
         } = action
         {
             // Source of trust is trust me bro for this one.
@@ -104,7 +102,6 @@ impl sdk::ZkContract for WalletZkView {
                 account,
                 nonce,
                 auth_method,
-                jwt,
                 invite_code,
                 salt: _,
             } => {
@@ -114,7 +111,7 @@ impl sdk::ZkContract for WalletZkView {
                     calldata,
                     &self.invite_code_public_key,
                 )?;
-                account_info.handle_registration(account, nonce, auth_method, calldata, jwt)?
+                account_info.handle_registration(account, nonce, auth_method, calldata)?
             }
             WalletAction::UseSessionKey { account, nonce } => {
                 account_info.handle_session_key_usage(account, nonce, calldata)?
@@ -197,8 +194,6 @@ pub enum AuthMethod {
     Password {
         hash: String, // Salted hash of the password
     },
-    // Jwt token from external providers
-    Jwt,
     // Special "0" value to indicate uninitialized wallet - second for retrocomp
     #[default]
     Uninitialized,
@@ -207,12 +202,7 @@ pub enum AuthMethod {
 
 impl AuthMethod {
     // Verifies the authentication method during use
-    fn verify(
-        &self,
-        calldata: &sdk::Calldata,
-        nonce: u128,
-        jwt: Option<JsonWebToken>,
-    ) -> Result<String, String> {
+    fn verify(&self, calldata: &sdk::Calldata) -> Result<String, String> {
         match self {
             AuthMethod::Uninitialized => Err("Wallet is not initialized".to_string()),
             AuthMethod::Password { hash } => {
@@ -230,44 +220,6 @@ impl AuthMethod {
                     ));
                 }
                 Ok("Authentication successful".to_string())
-            }
-            AuthMethod::Jwt => {
-                let token = jwt.ok_or("Missing JWT authentication".to_string())?;
-
-                // In a real implementation, you would verify the JWT token here.
-                // For simplicity, we'll just check if the token is non-empty.
-                if !token.is_valid() {
-                    return Err("Invalid JWT authentication".to_string());
-                }
-
-                let infos = token.extract_infos()?;
-
-                // Get contract name from calldata
-                let contract_name = calldata
-                    .blobs
-                    .iter()
-                    .find(|(index, _)| index == &calldata.index)
-                    .map(|(_, b)| b.contract_name.0.clone())
-                    .ok_or("Missing contract blob")?;
-
-                if format!("{}@{contract_name}", infos.email) != calldata.identity.0 {
-                    return Err(format!(
-                        "JWT token email does not match identity {}@{contract_name} != {}",
-                        infos.email, calldata.identity.0,
-                    ));
-                }
-
-                if nonce <= infos.nonce_as_u128().unwrap_or(0) {
-                    return Err(format!(
-                        "JWT token nonce does not match {} != {:?}",
-                        nonce, infos.nonce
-                    ));
-                }
-
-                Ok(format!(
-                    "JWT authentication successful for email: {}",
-                    infos.email
-                ))
             }
         }
     }
@@ -305,9 +257,8 @@ impl AccountInfo {
         nonce: u128,
         auth_method: AuthMethod,
         calldata: &sdk::Calldata,
-        jwt: Option<JsonWebToken>,
     ) -> Result<String, String> {
-        auth_method.verify(calldata, nonce, jwt)?;
+        auth_method.verify(calldata)?;
         self.register_identity(account, nonce, auth_method)
     }
 
@@ -331,14 +282,11 @@ impl AccountInfo {
         action: WalletAction,
         calldata: &sdk::Calldata,
     ) -> Result<String, String> {
-        match action {
-            WalletAction::VerifyIdentity {
-                account,
-                nonce,
-                jwt,
-            } => {
-                self.auth_method.verify(calldata, nonce, jwt)?;
+        // Verify identity before executing the action
+        self.auth_method.verify(calldata)?;
 
+        match action {
+            WalletAction::VerifyIdentity { nonce, account } => {
                 if self.identity != account {
                     return Err("Account does not match registered identity".to_string());
                 }
@@ -350,23 +298,13 @@ impl AccountInfo {
                 expiration_date,
                 whitelist,
                 lane_id,
-                jwt,
-                nonce,
             } => {
-                self.auth_method.verify(calldata, nonce, jwt)?;
-
                 if self.identity != account {
                     return Err("Account does not match registered identity".to_string());
                 }
                 self.add_session_key(key, expiration_date, whitelist, lane_id)
             }
-            WalletAction::RemoveSessionKey {
-                key, jwt, nonce, ..
-            } => {
-                self.auth_method.verify(calldata, nonce, jwt)?;
-
-                self.remove_session_key(key)
-            }
+            WalletAction::RemoveSessionKey { key, .. } => self.remove_session_key(key),
             _ => unreachable!(),
         }
     }
@@ -490,65 +428,6 @@ impl WalletZkView {
     }
 }
 
-#[serde_with::serde_as]
-#[derive(Serialize, Deserialize, BorshSerialize, BorshDeserialize, Debug, Clone)]
-pub struct JsonWebToken {
-    // The JWT token string, split in 3 parts by '.' (HEADER.PAYLOAD.SIGNATURE)
-    pub token: String,
-    // The client ID (audience) for which the token is valid
-    pub client_id: String,
-    // The algorithm used to sign the token, e.g. "RS256"
-    pub algorithm: String,
-    // The RSA infos (modulus, exponent) of the provider to verify the token signature
-    pub provider_rsa_infos: Option<[String; 2]>, // (modulus, exponent)
-}
-
-#[derive(Serialize, Deserialize, BorshSerialize, BorshDeserialize, Debug, Clone)]
-pub struct JsonWebTokenExtractedInfo {
-    pub email: String,
-    pub nonce: Option<String>,
-}
-
-impl JsonWebTokenExtractedInfo {
-    pub fn nonce_as_u128(&self) -> Option<u128> {
-        self.nonce.as_ref().and_then(|n| n.parse::<u128>().ok())
-    }
-}
-
-impl JsonWebToken {
-    pub fn is_valid(&self) -> bool {
-        !self.token.is_empty() && !self.algorithm.is_empty()
-    }
-    pub fn extract_infos(&self) -> Result<JsonWebTokenExtractedInfo, String> {
-        dbg!(&self);
-        let alg = Algorithm::from_str(self.algorithm.as_str()).map_err(|e| {
-            format!(
-                "Failed to parse algorithm from string {}: {}",
-                self.algorithm, e
-            )
-        })?;
-
-        let decoding_key = if alg == Algorithm::RS256 {
-            if let Some([modulus, exponent]) = &self.provider_rsa_infos {
-                jsonwebtoken::DecodingKey::from_rsa_components(modulus.as_str(), exponent.as_str())
-                    .map_err(|err| format!("Wrong rsa format {err}"))?
-            } else {
-                return Err("Missing RSA infos for provider".to_string());
-            }
-        } else {
-            return Err(format!("Unsupported algorithm: {}", self.algorithm));
-        };
-
-        let mut validation = jsonwebtoken::Validation::new(alg);
-        validation.validate_exp = false; // We don't care about expiration for now
-        validation.set_audience(&[self.client_id.as_str()]);
-
-        jsonwebtoken::decode::<JsonWebTokenExtractedInfo>(&self.token, &decoding_key, &validation)
-            .map_err(|e| format!("Failed to decode JWT token: {}", e))
-            .map(|data| data.claims)
-    }
-}
-
 /// Enum representing the actions that can be performed by the IdentityVerification contract.
 #[serde_with::serde_as]
 #[derive(Serialize, Deserialize, BorshSerialize, BorshDeserialize, Debug, Clone)]
@@ -559,12 +438,10 @@ pub enum WalletAction {
         salt: String, // Not actually used in the circuit, provided as DA
         auth_method: AuthMethod,
         invite_code: String,
-        jwt: Option<JsonWebToken>,
     },
     VerifyIdentity {
         account: String,
         nonce: u128,
-        jwt: Option<JsonWebToken>,
     },
     AddSessionKey {
         account: String,
@@ -572,14 +449,10 @@ pub enum WalletAction {
         expiration_date: u128,
         whitelist: Option<Vec<ContractName>>,
         lane_id: Option<LaneId>,
-        nonce: u128,
-        jwt: Option<JsonWebToken>,
     },
     RemoveSessionKey {
         account: String,
         key: String,
-        nonce: u128,
-        jwt: Option<JsonWebToken>,
     },
     UseSessionKey {
         account: String,
@@ -609,17 +482,6 @@ impl WalletAction {
             )
         })
     }
-
-    pub fn jwt_and_nonce(&self) -> Option<(&Option<JsonWebToken>, u128)> {
-        match self {
-            WalletAction::RegisterIdentity { jwt, nonce, .. } => Some((jwt, *nonce)),
-            WalletAction::VerifyIdentity { jwt, nonce, .. } => Some((jwt, *nonce)),
-            WalletAction::AddSessionKey { jwt, nonce, .. } => Some((jwt, *nonce)),
-            WalletAction::RemoveSessionKey { jwt, nonce, .. } => Some((jwt, *nonce)),
-            WalletAction::UpdateInviteCodePublicKey { .. } => None,
-            WalletAction::UseSessionKey { .. } => None,
-        }
-    }
 }
 
 #[cfg(test)]
@@ -628,11 +490,11 @@ mod tests {
 
     use super::*;
     use client_sdk::transaction_builder::TxExecutorHandler;
-    use sdk::{Blob, BlobIndex, Calldata, Identity, IndexedBlobs};
+    use sdk::{Blob, BlobIndex, Calldata, IndexedBlobs};
 
     #[test]
     fn test_wallet_logic() {
-        let mut wallet = Wallet::new(&ContractName::new("test"), &None).unwrap();
+        let mut wallet = Wallet::new(&None).unwrap();
 
         let password_hash = "test_hash".to_string().into_bytes();
         let hex_encoded_hash = hex::encode(password_hash.clone());
@@ -648,7 +510,6 @@ mod tests {
                             hash: hex_encoded_hash.clone(),
                         },
                         invite_code: "test_invite_code".to_string(),
-                        jwt: None,
                     }
                     .as_blob(sdk::ContractName("wallet".to_string())),
                     Blob {
@@ -673,7 +534,6 @@ mod tests {
                             hash: hex_encoded_hash.clone(),
                         },
                         invite_code: "test_invite_code".to_string(),
-                        jwt: None,
                     }
                     .as_blob(sdk::ContractName("wallet".to_string())),
                     Blob {
@@ -693,7 +553,6 @@ mod tests {
                     WalletAction::VerifyIdentity {
                         account: "test_account2".to_string(),
                         nonce: 2,
-                        jwt: None,
                     }
                     .as_blob(sdk::ContractName("wallet".to_string())),
                     Blob {
@@ -713,7 +572,6 @@ mod tests {
                     WalletAction::VerifyIdentity {
                         account: "test_account2".to_string(),
                         nonce: 3,
-                        jwt: None,
                     }
                     .as_blob(sdk::ContractName("wallet".to_string())),
                     Blob {
@@ -733,7 +591,6 @@ mod tests {
                     WalletAction::VerifyIdentity {
                         account: "test_account".to_string(),
                         nonce: 2,
-                        jwt: None,
                     }
                     .as_blob(sdk::ContractName("wallet".to_string())),
                     Blob {
@@ -759,7 +616,6 @@ mod tests {
                             hash: hex_encoded_hash.clone(),
                         },
                         invite_code: "test_invite_code".to_string(),
-                        jwt: None,
                     }
                     .as_blob(sdk::ContractName("wallet".to_string())),
                     Blob {
@@ -789,7 +645,6 @@ mod tests {
                 hash: hex_encoded_hash.clone(),
             },
             invite_code: "test_invite_code".to_string(),
-            jwt: None,
         }
         .as_blob(sdk::ContractName("wallet".to_string()));
         let register_call = &Calldata {
@@ -804,7 +659,7 @@ mod tests {
             ..Default::default()
         };
 
-        let mut wallet = Wallet::new(&ContractName::new("test"), &None).unwrap();
+        let mut wallet = Wallet::new(&None).unwrap();
         let v = wallet
             .build_commitment_metadata(&register_blob)
             .expect("Failed to build commitment metadata");
@@ -823,7 +678,6 @@ mod tests {
                 &WalletAction::VerifyIdentity {
                     account: "test_account".to_string(),
                     nonce: 2,
-                    jwt: None,
                 }
                 .as_blob(sdk::ContractName("wallet".to_string())),
             )
@@ -837,7 +691,6 @@ mod tests {
                     WalletAction::VerifyIdentity {
                         account: "test_account".to_string(),
                         nonce: 2,
-                        jwt: None,
                     }
                     .as_blob(sdk::ContractName("wallet".to_string())),
                     Blob {
@@ -864,13 +717,11 @@ mod tests {
                 hash: hex_encoded_hash.clone(),
             },
             invite_code: "test_invite_code".to_string(),
-            jwt: None,
         }
         .as_blob(sdk::ContractName("wallet".to_string()));
         let identity_blob = WalletAction::VerifyIdentity {
             account: "test_account".to_string(),
             nonce: 2,
-            jwt: None,
         }
         .as_blob(sdk::ContractName("wallet".to_string()));
         let register_call = Calldata {
@@ -888,7 +739,7 @@ mod tests {
         let mut verify_call = register_call.clone();
         verify_call.index = BlobIndex(1);
 
-        let mut wallet = Wallet::new(&ContractName::new("test"), &None).unwrap();
+        let mut wallet = Wallet::new(&None).unwrap();
         let iv = wallet
             .build_commitment_metadata(&register_blob)
             .expect("Failed to build commitment metadata");
@@ -933,7 +784,6 @@ mod tests {
                 hash: hex_encoded_hash.clone(),
             },
             invite_code: "test_invite_code".to_string(),
-            jwt: None,
         }
         .as_blob(sdk::ContractName("wallet".to_string()));
         let blobs = IndexedBlobs::from(vec![
@@ -955,7 +805,7 @@ mod tests {
             ..Default::default()
         };
 
-        let mut wallet = Wallet::new(&ContractName::new("test"), &None).unwrap();
+        let mut wallet = Wallet::new(&None).unwrap();
         {
             let v = wallet.build_commitment_metadata(&pubkey_blob).unwrap();
             let mut zk_view: WalletZkView = borsh::from_slice(&v).unwrap();
@@ -994,7 +844,6 @@ mod tests {
                 hash: hex_encoded_hash.clone(),
             },
             invite_code: "test_invite_code".to_string(),
-            jwt: None,
         }
         .as_blob(sdk::ContractName("wallet".to_string()));
         let register_call = &Calldata {
@@ -1009,7 +858,7 @@ mod tests {
             ..Default::default()
         };
 
-        let mut wallet = Wallet::new(&ContractName::new("test"), &None).unwrap();
+        let mut wallet = Wallet::new(&None).unwrap();
         let v = wallet
             .build_commitment_metadata(&register_blob)
             .expect("Failed to build commitment metadata");
@@ -1023,74 +872,6 @@ mod tests {
             .expect("Failed to execute zk view");
         wallet
             .handle(register_call)
-            .expect("Failed to handle register call");
-    }
-
-    #[test]
-    fn test_google_auth() {
-        /*
-        {
-          "keys": [
-            {
-              "alg": "RS256",
-              "kty": "RSA",
-              "n": "v85Io5Rp7vwbSlkuAowWVcfUxZdPckijmLAZ3WEl3nTUTkz9YfmKJUiqdZMRuJxL50F3TRBKDxvfFbWX602sPTShoK6H2pdbQNrKsGV_KIlLLsIkcVnG-KNuY-ZnkZ9ppCH9yqjGw08imHlLsIngSK8VF03nCwUiv_VtZ27FltUttRxkoZGxCYX0-MRicIXPNKILml-xmknGNLsDCvAYqhbg3tZRKi1dZuHLhCb_YTov5YhprvVzm5OagvrvZuia_qilk-ctgqRJRPFGrVm75gkV4WdwxQQukCPqf5UfIopdOAB4wBdovddX3jjpjphq8-gKMPO-t_6siCt1xETSOQ",
-              "e": "AQAB",
-              "kid": "2d7ed338c0f1457b214a274b5e0e667b44a42dde",
-              "use": "sig"
-            },
-            {
-              "n": "6GmQd18e3fKydx1Zg0mqWvk8qP1Zp5ahfvM5x1fD7-5NBz5J7NGy1mwvIzyEMukA9zrV5ib2F476_FsAD0LkdDPOuv3F8qU9y48J6JGEHZBxXm5Q-1FN4LABsU3hOtXgcrIHicrvGu40eippOCWinA5BIsCtobNsgl990yD96iyWJvAEVLrBM03l3eSWQbvo3YYgale5Bsy-_-BYQM-CfHoaxVpYUjXm8G9I0z3GBv5uytu6vUR9KSyOk07NTLcInzGV7Xpbv0WftvcqP4gG-h5bvg67mx2pBwSiJtQR5n0BTd4Gtx8R6EqAhX08oOdFDZSLQJ8jZqoG6psGtMfePw",
-              "e": "AQAB",
-              "use": "sig",
-              "alg": "RS256",
-              "kty": "RSA",
-              "kid": "9c6251587950844a656be3563d8c5bd6f894c407"
-            }
-          ]
-        }
-                 */
-
-        let token ="eyJhbGciOiJSUzI1NiIsImtpZCI6IjJkN2VkMzM4YzBmMTQ1N2IyMTRhMjc0YjVlMGU2NjdiNDRhNDJkZGUiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiI0MTEwMDY0NDQ3ODMtNGtuZWk2NzF1Y3FmbzIycHM5dWM1dHBqMTFkdmlhdjcuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJhdWQiOiI0MTEwMDY0NDQ3ODMtNGtuZWk2NzF1Y3FmbzIycHM5dWM1dHBqMTFkdmlhdjcuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJzdWIiOiIxMDM4NTIyMDE2MDk1Mzc2MTg3NzAiLCJoZCI6Imh5bGUuZXUiLCJlbWFpbCI6ImFsZXhhbmRyZUBoeWxlLmV1IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsIm5vbmNlIjoiMCIsIm5iZiI6MTc1Njk4Nzc0NywibmFtZSI6IkFsZXhhbmRyZSBDYXJlaWwiLCJwaWN0dXJlIjoiaHR0cHM6Ly9saDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL2EvQUNnOG9jTGJyT040ZjdaUWlZZXJwRU5fcWNCdElBUVRPWHdtQ25KSERwUmtxSlJOYm1vbEJ3PXM5Ni1jIiwiZ2l2ZW5fbmFtZSI6IkFsZXhhbmRyZSIsImZhbWlseV9uYW1lIjoiQ2FyZWlsIiwiaWF0IjoxNzU2OTg4MDQ3LCJleHAiOjE3NTY5OTE2NDcsImp0aSI6ImZlYzUxYjcyNDc5NDFhYzEwMzFiZTlkYzY1ZjlkMDJlZDY0MTdkNDgifQ.S1F8PvJcbT2muJJvXsf1Pm59Suj5LZtnPf_LYg63KlMI6YNgr91CMWunLLBbSXJiyDosaSXuM671uEsPQdMTvzN7grck68c7fkHWYy6QyVTcB6iViMp4BolPhp9Nxb28AUN82BH8rmIhjM4Zi6d46xSFwkcA-qhhOsSb6ZWlVtgwvGHDwwBewE7hw0FUISJxUagptyHbq_riuAR1O_-acix_9SfK0ulm9hGy8ExpWxrATD9l-l8SkwmnkfzUquh2Lgt1ggbTYtrH2a5cvEyMS2NPQ61w7BPL9LjfphkOZ3GKqfOD-pXUaxNgr4RFItQ0O7mxJgJjcRll-xGTvJkICg";
-        let pubkey = "v85Io5Rp7vwbSlkuAowWVcfUxZdPckijmLAZ3WEl3nTUTkz9YfmKJUiqdZMRuJxL50F3TRBKDxvfFbWX602sPTShoK6H2pdbQNrKsGV_KIlLLsIkcVnG-KNuY-ZnkZ9ppCH9yqjGw08imHlLsIngSK8VF03nCwUiv_VtZ27FltUttRxkoZGxCYX0-MRicIXPNKILml-xmknGNLsDCvAYqhbg3tZRKi1dZuHLhCb_YTov5YhprvVzm5OagvrvZuia_qilk-ctgqRJRPFGrVm75gkV4WdwxQQukCPqf5UfIopdOAB4wBdovddX3jjpjphq8-gKMPO-t_6siCt1xETSOQ";
-
-        let register_blob = WalletAction::RegisterIdentity {
-            account: "test_account".to_string(),
-            nonce: 0,
-            salt: "test_salt".to_string(),
-            auth_method: AuthMethod::Jwt,
-            invite_code: "test_invite_code".to_string(),
-            jwt: Some(JsonWebToken {
-                token: token.to_string(),
-                client_id:
-                    "411006444783-4knei671ucqfo22ps9uc5tpj11dviav7.apps.googleusercontent.com"
-                        .to_string(),
-                algorithm: "RS256".to_string(),
-                provider_rsa_infos: Some([pubkey.to_string(), "AQAB".to_string()]),
-            }),
-        }
-        .as_blob(sdk::ContractName("wallet".to_string()));
-
-        let register_call = &Calldata {
-            identity: Identity("alexandre@hyle.eu@wallet".to_string()),
-            blobs: IndexedBlobs::from(vec![register_blob.clone()]),
-            index: BlobIndex(0),
-            ..Default::default()
-        };
-
-        let mut wallet = Wallet::new(&ContractName::new("test"), &None).unwrap();
-        let v = wallet
-            .build_commitment_metadata(&register_blob)
-            .expect("Failed to build commitment metadata");
-
-        let mut zk_view: WalletZkView =
-            borsh::from_slice(&v).expect("Failed to deserialize zk view");
-        assert_eq!(zk_view.partial_data.len(), 1);
-        zk_view
-            .execute(&register_call.clone())
-            .expect("Failed to execute zk view");
-        wallet
-            .handle(&register_call)
             .expect("Failed to handle register call");
     }
 }
