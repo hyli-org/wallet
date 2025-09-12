@@ -120,8 +120,8 @@ export const HyliWallet = ({
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-    const { wallet, logout } = useWallet();
-    const { forceSessionKey } = useWalletInternal();
+    const { wallet, logout, login } = useWallet();
+    const { forceSessionKey, onWalletEvent, onError } = useWalletInternal();
     const [isDarkMode, setIsDarkMode] = useState(false);
 
     // To prevent closing while registering or logging in
@@ -234,11 +234,10 @@ export const HyliWallet = ({
                 key={providerType}
                 className={`provider-row${disabled ? " disabled" : ""}`}
                 onClick={() => {
-                    if (!disabled) {
-                        console.log('Provider clicked:', { providerType, defaultAuthMode, willSetShowLoginTo: defaultAuthMode === 'login' });
-                        setSelectedProvider(providerType);
-                        setShowLogin(defaultAuthMode === 'login');
-                    }
+                    if (disabled) return;
+                    console.log('Provider clicked:', { providerType, defaultAuthMode, willSetShowLoginTo: defaultAuthMode === 'login' });
+                    setSelectedProvider(providerType);
+                    setShowLogin(defaultAuthMode === 'login');
                 }}
             >
                 <span className={`label ${classPrefix}-provider-label`}>
@@ -292,7 +291,9 @@ export const HyliWallet = ({
                 <div className={`${classPrefix}-password-provider-flow`}>
                     {showLogin ? (
                         <>
-                            <h2 className={`${classPrefix}-auth-title`}>Log in</h2>
+                            {selectedProvider !== 'google' && (
+                                <h2 className={`${classPrefix}-auth-title`}>Log in</h2>
+                            )}
                             <AuthForm
                                 provider={authProviderManager.getProvider(selectedProvider)!}
                                 mode="login"

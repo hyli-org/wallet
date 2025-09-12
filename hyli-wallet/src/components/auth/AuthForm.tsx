@@ -5,6 +5,10 @@ import { RegistrationStage, WalletErrorCallback, WalletEvent, WalletEventCallbac
 import { getAuthErrorMessage } from "../../utils/errorMessages";
 import "./AuthForm.css";
 import { PasswordAuthCredentials } from "../../providers/PasswordAuthProvider";
+import type { GoogleAuthCredentials } from "../../providers/GoogleAuthProvider";
+import { bytesToBigInt, extractClaimsFromJwt, JWTCircuitHelper, pubkeyModulusFromJWK } from "../../utils/jwt";
+import { fetchGooglePublicKey } from "../../utils/google";
+import { Barretenberg, Fr } from "@aztec/bb.js";
 
 type AuthStage =
     | "idle" // Initial state, no authentication in progress
@@ -80,10 +84,14 @@ export const AuthForm: React.FC<AuthFormProps> = ({
     const isLocalhost =
         typeof window !== "undefined" &&
         (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
-    const [credentials, setCredentials] = useState<PasswordAuthCredentials & { inviteCode: string }>({
-        username: isLocalhost ? "bob" : "",
-        password: isLocalhost ? "hylisecure" : "",
-        confirmPassword: isLocalhost ? "hylisecure" : "",
+    const isGoogle = provider.type === "google";
+    const [credentials, setCredentials] = useState<
+        (PasswordAuthCredentials & { inviteCode: string }) | (GoogleAuthCredentials & { inviteCode: string })
+    >({
+        username: isGoogle ? "" : isLocalhost ? "bob" : "",
+        ...(isGoogle
+            ? ({ googleToken: "", inviteCode: isLocalhost ? "vip" : "" } as any)
+            : ({ password: isLocalhost ? "hylisecure" : "", confirmPassword: isLocalhost ? "hylisecure" : "" } as any)),
         inviteCode: isLocalhost ? "vip" : "",
         salt: getRandomSalt(),
     });
@@ -166,38 +174,108 @@ export const AuthForm: React.FC<AuthFormProps> = ({
         e.preventDefault();
         setError("");
 
-        // Validate required fields
-        if (!credentials.username || !credentials.password) {
-            setError("Please fill in all fields");
-            return;
-        }
-        // Password length validation for both login and register
-        if (credentials.password.length < 8) {
-            setError("Password must be at least 8 characters long");
-            return;
-        }
-        // Password match check for registration
-        if (mode === "register" && credentials.password !== credentials.confirmPassword) {
-            setError("Passwords do not match.");
-            return;
-        }
-        // Invite code required for registration
-        if (mode === "register" && !credentials.inviteCode) {
-            setError("Invite code is required.");
-            return;
+        // Validate required fields depending on provider
+        if (isGoogle) {
+            const cred = credentials as GoogleAuthCredentials & { inviteCode: string };
+            // For register: transparently fetch token if missing
+            if (mode === "register") {
+                if (!cred.inviteCode) {
+                    setError("Invite code is required.");
+                    return;
+                }
+                if (!cred.googleToken) {
+                    try {
+                        const token = await (window as any).hyliRequestGoogleIdToken?.();
+                        if (!token) {
+                            setError("Google sign-in failed or was cancelled");
+                            return;
+                        }
+
+                        const { email } = extractClaimsFromJwt(token);
+                        setCredentials((prev) => ({
+                            ...(prev as any),
+                            googleToken: token,
+                            username: email,
+                        }));
+                    } catch (e) {
+                        setError("Google sign-in failed");
+                        return;
+                    }
+                }
+            } else {
+                // login path should be reached only via Google button auto-submit
+                if (!cred.googleToken) {
+                    setError("Google token is required");
+                    return;
+                }
+            }
+        } else {
+            if (!credentials.username) {
+                setError("Please provide a username");
+                return;
+            }
+            const cred = credentials as PasswordAuthCredentials & { inviteCode: string };
+            if (!cred.password) {
+                setError("Please provide a password");
+                return;
+            }
+            if (cred.password.length < 8) {
+                setError("Password must be at least 8 characters long");
+                return;
+            }
+            if (mode === "register" && cred.password !== cred.confirmPassword) {
+                setError("Passwords do not match.");
+                return;
+            }
+            if (mode === "register" && !cred.inviteCode) {
+                setError("Invite code is required.");
+                return;
+            }
         }
         setIsSubmitting(true);
         setStage("sending_blob");
         const authAction = async (
             provider: ProviderOption,
-            credentials: PasswordAuthCredentials & { inviteCode: string }
+            credentials:
+                | (PasswordAuthCredentials & { inviteCode: string })
+                | (GoogleAuthCredentials & { inviteCode: string }),
         ) => {
+            console.log("[Hyli][AuthForm] submit", {
+                provider,
+                mode,
+                username: (credentials as any).username,
+                hasGoogleToken: Boolean((credentials as any).googleToken),
+            });
+
             if (mode === "login") {
                 await login(provider, credentials, onWalletEventWithStage, onErrorWithStage, {
                     registerSessionKey: autoSessionKey,
                 });
             } else if (mode === "register") {
-                await registerWallet(provider, credentials, onWalletEventWithStage, onErrorWithStage, {
+                let finalCreds = credentials as any;
+                console.log("[Hyli][AuthForm] registering with credentials", {
+                    ...finalCreds,
+                    googleToken: Boolean(finalCreds.googleToken),
+                });
+                if (provider === "google") {
+                    let token = (credentials as any).googleToken as string | undefined;
+                    if (!token) {
+                        try {
+                            token = await (window as any).hyliRequestGoogleIdToken?.();
+                        } catch (e) {}
+                    }
+                    if (!token) {
+                        setError("Google sign-in failed or was cancelled");
+                        return;
+                    }
+                    const email = extractClaimsFromJwt(token);
+                    finalCreds = {
+                        ...(credentials as any),
+                        googleToken: token,
+                        username: email ?? (credentials as any).username,
+                    };
+                }
+                await registerWallet(provider, finalCreds, onWalletEventWithStage, onErrorWithStage, {
                     registerSessionKey: autoSessionKey,
                 });
             }
@@ -269,39 +347,43 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                 </div>
             ) : (
                 <form onSubmit={handleSubmit} className={`${classPrefix}-auth-form`}>
-                    <div className={`${classPrefix}-form-group`}>
-                        <label htmlFor="username" className={`${classPrefix}-form-label`}>
-                            Username
-                        </label>
-                        <input
-                            id="username"
-                            name="username"
-                            type="text"
-                            value={credentials.username}
-                            onChange={handleInputChange}
-                            placeholder="Enter your username"
-                            disabled={isSubmitting}
-                            className={`${classPrefix}-form-input`}
-                        />
-                    </div>
+                    {!isGoogle && (
+                        <div className={`${classPrefix}-form-group`}>
+                            <label htmlFor="username" className={`${classPrefix}-form-label`}>
+                                Username
+                            </label>
+                            <input
+                                id="username"
+                                name="username"
+                                type="text"
+                                value={credentials.username}
+                                onChange={handleInputChange}
+                                placeholder="Enter your username"
+                                disabled={isSubmitting}
+                                className={`${classPrefix}-form-input`}
+                            />
+                        </div>
+                    )}
 
-                    <div className={`${classPrefix}-form-group`}>
-                        <label htmlFor="password" className={`${classPrefix}-form-label`}>
-                            Password
-                        </label>
-                        <input
-                            id="password"
-                            name="password"
-                            type="password"
-                            value={credentials.password}
-                            onChange={handleInputChange}
-                            placeholder="Enter your password (min. 8 characters)"
-                            disabled={isSubmitting}
-                            className={`${classPrefix}-form-input`}
-                        />
-                    </div>
+                    {!isGoogle && (
+                        <div className={`${classPrefix}-form-group`}>
+                            <label htmlFor="password" className={`${classPrefix}-form-label`}>
+                                Password
+                            </label>
+                            <input
+                                id="password"
+                                name="password"
+                                type="password"
+                                value={(credentials as any).password}
+                                onChange={handleInputChange}
+                                placeholder="Enter your password (min. 8 characters)"
+                                disabled={isSubmitting}
+                                className={`${classPrefix}-form-input`}
+                            />
+                        </div>
+                    )}
 
-                    {mode === "register" && (
+                    {mode === "register" && !isGoogle && (
                         <>
                             <div className={`${classPrefix}-form-group`}>
                                 <label htmlFor="confirmPassword" className={`${classPrefix}-form-label`}>
@@ -311,29 +393,32 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                                     id="confirmPassword"
                                     name="confirmPassword"
                                     type="password"
-                                    value={credentials.confirmPassword}
+                                    value={(credentials as any).confirmPassword}
                                     onChange={handleInputChange}
                                     placeholder="Confirm your password (min. 8 characters)"
                                     disabled={isSubmitting}
                                     className={`${classPrefix}-form-input`}
                                 />
                             </div>
-                            <div className={`${classPrefix}-form-group`}>
-                                <label htmlFor="inviteCode" className={`${classPrefix}-form-label`}>
-                                    Invite Code
-                                </label>
-                                <input
-                                    id="inviteCode"
-                                    name="inviteCode"
-                                    type="text"
-                                    value={credentials.inviteCode}
-                                    onChange={handleInputChange}
-                                    placeholder="Enter your invite code"
-                                    disabled={isSubmitting}
-                                    className={`${classPrefix}-form-input`}
-                                />
-                            </div>
                         </>
+                    )}
+
+                    {mode === "register" && (
+                        <div className={`${classPrefix}-form-group`}>
+                            <label htmlFor="inviteCode" className={`${classPrefix}-form-label`}>
+                                Invite Code
+                            </label>
+                            <input
+                                id="inviteCode"
+                                name="inviteCode"
+                                type="text"
+                                value={(credentials as any).inviteCode}
+                                onChange={handleInputChange}
+                                placeholder="Enter your invite code"
+                                disabled={isSubmitting}
+                                className={`${classPrefix}-form-input`}
+                            />
+                        </div>
                     )}
 
                     {/* Session Key Checkbox Logic */}
@@ -365,12 +450,79 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                         </div>
                     )}
 
+                    {isGoogle ? (
+                        <div className={`${classPrefix}-form-group`}>
+                            <button
+                                type="button"
+                                className={`${classPrefix}-auth-submit-button`}
+                                onClick={async () => {
+                                    try {
+                                        setIsSubmitting(true);
+                                        const idToken = await (window as any).hyliRequestGoogleIdToken?.();
+                                        if (!idToken) {
+                                            setError("Google sign-in failed or was cancelled");
+                                            setIsSubmitting(false);
+                                            return;
+                                        }
+
+                                        console.log("[Hyli][AuthForm] received Google token", idToken);
+
+                                        setCredentials((prev) => ({
+                                            ...(prev as any),
+                                            googleToken: idToken,
+                                            username: "jwt_user",
+                                        }));
+
+                                        if (mode == "login") {
+                                            await login(
+                                                provider.type as ProviderOption,
+                                                {
+                                                    username: "jwt_user",
+                                                    googleToken: idToken,
+                                                    inviteCode: credentials.inviteCode,
+                                                } as any,
+                                                onWalletEventWithStage,
+                                                onErrorWithStage,
+                                                { registerSessionKey: autoSessionKey },
+                                            );
+                                        } else {
+                                            await registerWallet(
+                                                provider.type as ProviderOption,
+                                                {
+                                                    username: "jwt_user",
+                                                    googleToken: idToken,
+                                                    inviteCode: credentials.inviteCode,
+                                                } as any,
+                                                onWalletEventWithStage,
+                                                onErrorWithStage,
+                                                { registerSessionKey: autoSessionKey },
+                                            );
+                                        }
+                                    } catch (e) {
+                                        setError("Google sign-in failed");
+                                    } finally {
+                                        setIsSubmitting(false);
+                                    }
+                                }}
+                                disabled={isSubmitting}
+                            >
+                                {mode == "login"
+                                    ? isSubmitting
+                                        ? "Requesting Google token..."
+                                        : "Sign in with Google"
+                                    : "Bind Account with Google"}
+                            </button>
+                        </div>
+                    ) : null}
+
                     {error && <div className={`${classPrefix}-error-message`}>{error}</div>}
                     {statusMessage && <div className={`${classPrefix}-status-message`}>{statusMessage}</div>}
 
-                    <button type="submit" className={`${classPrefix}-auth-submit-button`} disabled={isSubmitting}>
-                        {isSubmitting ? "Processing..." : mode === "login" ? "Login" : "Create Account"}
-                    </button>
+                    {!isGoogle && (
+                        <button type="submit" className={`${classPrefix}-auth-submit-button`} disabled={isSubmitting}>
+                            {isSubmitting ? "Processing..." : mode === "login" ? "Login" : "Create Account"}
+                        </button>
+                    )}
                 </form>
             )}
         </div>

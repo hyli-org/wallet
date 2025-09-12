@@ -10,6 +10,7 @@ import {
     SessionKey,
     WalletEventCallback,
     WalletErrorCallback,
+    JsonWebToken,
 } from "../types/wallet";
 import { sessionKeyService } from "./SessionKeyService";
 import { build_proof_transaction, build_blob as check_secret_blob } from "hyli-check-secret";
@@ -30,10 +31,11 @@ export const registerSessionKey = async (
     wallet: Wallet,
     password: string,
     expiration: number,
+    jwt?: JsonWebToken,
     whitelist?: string[],
     laneId?: string,
     onWalletEvent?: WalletEventCallback,
-    onError?: WalletErrorCallback
+    onError?: WalletErrorCallback,
 ): Promise<{
     sessionKey: SessionKey;
     txHashes: [string, string];
@@ -56,7 +58,22 @@ export const registerSessionKey = async (
         });
 
         const blob0 = await check_secret_blob(identity, password);
-        const blob1 = addSessionKeyBlob(accountName, newSessionKey.publicKey, expiration, whitelist, laneId);
+
+        const nonce =
+            (await (jwt &&
+                IndexerService.getInstance()
+                    .getAccountInfo(wallet.username)
+                    .then((info) => info.nonce))) || Date.now();
+
+        const blob1 = addSessionKeyBlob(
+            accountName,
+            newSessionKey.publicKey,
+            expiration,
+            nonce,
+            whitelist,
+            laneId,
+            jwt,
+        );
 
         const blobTx: BlobTransaction = {
             identity,
@@ -114,7 +131,8 @@ export const removeSessionKey = async (
     password: string,
     publicKey: string,
     onWalletEvent?: WalletEventCallback,
-    onError?: WalletErrorCallback
+    onError?: WalletErrorCallback,
+    jwt?: JsonWebToken,
 ): Promise<{
     txHashes: [string, string];
     updatedWallet: Wallet;
@@ -127,8 +145,14 @@ export const removeSessionKey = async (
     try {
         const identity = `${accountName}@${walletContractName}`;
 
+        const nonce =
+            (await (jwt &&
+                IndexerService.getInstance()
+                    .getAccountInfo(wallet.username)
+                    .then((info) => info.nonce))) || Date.now();
+
         const blob0 = await check_secret_blob(identity, password);
-        const blob1 = removeSessionKeyBlob(wallet.username, publicKey);
+        const blob1 = removeSessionKeyBlob(wallet.username, publicKey, nonce, jwt);
 
         const blobTx: BlobTransaction = {
             identity,
@@ -236,7 +260,7 @@ export const cleanExpiredSessionKeys = (wallet: Wallet): Wallet => {
 
 export const getOrReuseSessionKey = async (
     wallet: Wallet,
-    checkBackend: boolean = false
+    checkBackend: boolean = false,
 ): Promise<SessionKey | undefined> => {
     // Check if a session key exists and is not expired
     const now = Date.now();
@@ -247,7 +271,7 @@ export const getOrReuseSessionKey = async (
                 const indexer = IndexerService.getInstance();
                 const accountInfo = await indexer.getAccountInfo(wallet.username);
                 const backendKey = accountInfo.session_keys.find(
-                    (k) => k.key === wallet.sessionKey!.publicKey && k.expiration_date > now
+                    (k) => k.key === wallet.sessionKey!.publicKey && k.expiration_date > now,
                 );
                 if (backendKey) {
                     return wallet.sessionKey;
@@ -275,7 +299,7 @@ export const checkAccountExists = async (wallet: Wallet, withSessionKey: boolean
         }
         if (withSessionKey && wallet.sessionKey) {
             const backendKey = accountInfo.session_keys.find(
-                (k) => k.key === wallet.sessionKey?.publicKey && k.expiration_date > now
+                (k) => k.key === wallet.sessionKey?.publicKey && k.expiration_date > now,
             );
             if (!backendKey) {
                 return false;
