@@ -2,6 +2,7 @@ import { generateInputs } from "noir-jwt";
 import { InputMap, type CompiledCircuit } from "@noir-lang/noir_js";
 import { initProver, initVerifier } from "./lazy-modules";
 import { circuit as circuitArtifact } from "./jwt_circuit";
+import { assert } from "hyli-check-secret";
 
 export function bytesToBigInt(bytes: Uint8Array) {
     let result = BigInt(0);
@@ -40,14 +41,120 @@ export async function pubkeyModulusFromJWK(jwk: JsonWebKey) {
     return modulusBigInt;
 }
 
+const generateProverData = (
+    id: string,
+    stored_hash: number[],
+    tx: string,
+    blob_index: number,
+    tx_blob_count: number,
+): InputMap => {
+    const version = 1;
+    const initial_state = [0, 0, 0, 0];
+    const initial_state_len = initial_state.length;
+    const next_state = [0, 0, 0, 0];
+    const next_state_len = next_state.length;
+    const identity_len = id.length;
+    const identity = id.padEnd(256, "0");
+    const tx_hash = tx.padEnd(64, "0");
+    const tx_hash_len = tx.length;
+    const index = blob_index;
+    const blob_number = 1;
+    const blob_contract_name_len = "check_jwt".length;
+    const blob_contract_name = "check_jwt".padEnd(256, "0");
+    const blob_capacity = 306;
+    const blob_len = 306;
+    const blob: number[] = stored_hash;
+    const success = 1;
+    console.log("Blob data", blob);
+    assert(blob.length == blob_len, `Blob length is ${blob.length} not 306 bytes`);
+
+    return {
+        version,
+        initial_state,
+        initial_state_len,
+        next_state,
+        next_state_len,
+        identity,
+        identity_len,
+        tx_hash,
+        tx_hash_len,
+        index,
+        blob_number,
+        blob_index,
+        blob_contract_name_len,
+        blob_contract_name,
+        blob_capacity,
+        blob_len,
+        blob,
+        tx_blob_count,
+        success,
+    };
+    /*
+	  // Hyli output infos
+    version: pub u32,
+    initial_state_len: pub u32,
+    initial_state: pub [u8; 4],
+    next_state_len: pub u32,
+    next_state: pub [u8; 4],
+    identity_len: pub u8,
+    identity: pub str<256>,
+    tx_hash: pub str<64>,
+    // ------ Blobs ------
+    index: pub u32,
+    blob_number: pub u32,
+    // --- Blob
+    blob_index: pub u32,
+    blob_contract_name_len: pub u8,
+    blob_contract_name: pub str<256>,
+    blob_capacity: pub u32,
+    blob_len: pub u32,
+    blob: pub [u8; 306],
+    tx_blob_count: pub u32,
+    success: pub bool,
+    // whats needed to build something that matches what is in blob field
+    partial_data: BoundedVec<u8, MAX_PARTIAL_DATA_LENGTH>,
+    partial_hash: [u32; 8],
+    full_data_length: u32,
+    base64_decode_offset: u32,
+    jwt_pubkey_modulus_limbs: [u128; 18],
+    jwt_pubkey_redc_params_limbs: [u128; 18],
+    jwt_signature_limbs: [u128; 18],
+    public_nonce: Field,
+    public_email_hash: Field,
+) {*/
+};
+
+export const extractClaimsFromJwt = (jwt: string): { email: string; nonce: string; kid: string } => {
+    const [header, payload] = jwt.split(".");
+    const headers = JSON.parse(atob(header));
+    const json = JSON.parse(atob(payload));
+    console.log("Decoded JWT payload:", json);
+    console.log("Decoded JWT headers payload:", headers);
+    const email = json.email.toLowerCase();
+    const nonce = json.nonce.toLowerCase();
+    const kid = headers.kid;
+
+    return { email, nonce, kid };
+};
+
 export const JWTCircuitHelper = {
     version: "0.3.1",
     generateProof: async ({
+        identity,
+        stored_hash,
+        tx,
+        blob_index,
+        tx_blob_count,
         idToken,
         jwtPubkey,
         nonce,
         mail_hash,
     }: {
+        identity: string;
+        stored_hash: number[];
+        tx: string;
+        blob_index: number;
+        tx_blob_count: number;
         idToken: string;
         jwtPubkey: JsonWebKey;
         nonce: string;
@@ -65,6 +172,7 @@ export const JWTCircuitHelper = {
         });
 
         const inputs = {
+            ...generateProverData(identity, stored_hash, tx, blob_index, tx_blob_count),
             partial_data: jwtInputs.partial_data,
             partial_hash: jwtInputs.partial_hash,
             full_data_length: jwtInputs.full_data_length,

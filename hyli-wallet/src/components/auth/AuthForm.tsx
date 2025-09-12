@@ -6,9 +6,8 @@ import { getAuthErrorMessage } from "../../utils/errorMessages";
 import "./AuthForm.css";
 import { PasswordAuthCredentials } from "../../providers/PasswordAuthProvider";
 import type { GoogleAuthCredentials } from "../../providers/GoogleAuthProvider";
-import { bytesToBigInt, JWTCircuitHelper, pubkeyModulusFromJWK } from "../../utils/jwt";
+import { bytesToBigInt, extractClaimsFromJwt, JWTCircuitHelper, pubkeyModulusFromJWK } from "../../utils/jwt";
 import { fetchGooglePublicKey } from "../../utils/google";
-import { blake2s } from "@noble/hashes/blake2";
 import { Barretenberg, Fr } from "@aztec/bb.js";
 
 type AuthStage =
@@ -103,23 +102,6 @@ export const AuthForm: React.FC<AuthFormProps> = ({
     const [autoSessionKey, setAutoSessionKey] = useState<boolean>(forceSessionKey === true ? true : true);
     const [funFact, setFunFact] = useState<string>(getRandomFact());
 
-    const extractClaimsFromJwt = (jwt: string): { email: string; nonce: string; kid: string } | undefined => {
-        try {
-            const [header, payload] = jwt.split(".");
-            const headers = JSON.parse(atob(header));
-            const json = JSON.parse(atob(payload));
-            console.log("Decoded JWT payload:", json);
-            console.log("Decoded JWT headers payload:", headers);
-            const email = json.email.toLowerCase();
-            const nonce = json.nonce.toLowerCase();
-            const kid = headers.kid;
-
-            return { email, nonce, kid };
-        } catch {
-            return undefined;
-        }
-    };
-
     // If forceSessionKey changes, update autoSessionKey accordingly
     useEffect(() => {
         if (forceSessionKey === true) setAutoSessionKey(true);
@@ -209,11 +191,11 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                             return;
                         }
 
-                        const email = extractClaimsFromJwt(token);
+                        const { email } = extractClaimsFromJwt(token);
                         setCredentials((prev) => ({
                             ...(prev as any),
                             googleToken: token,
-                            username: email ?? (prev as any).username,
+                            username: email,
                         }));
                     } catch (e) {
                         setError("Google sign-in failed");
@@ -485,64 +467,17 @@ export const AuthForm: React.FC<AuthFormProps> = ({
 
                                         console.log("[Hyli][AuthForm] received Google token", idToken);
 
-                                        const { email, nonce, kid } = extractClaimsFromJwt(idToken) || {};
-
-                                        if (!email || !nonce || !kid) {
-                                            setError("Failed to extract email/nonce/kid from Google token");
-                                            setIsSubmitting(false);
-                                            return;
-                                        }
-
-                                        // Get Google pubkey
-                                        const googleJWTPubkey = await fetchGooglePublicKey(kid);
-
                                         setCredentials((prev) => ({
                                             ...(prev as any),
                                             googleToken: idToken,
-                                            username: email ?? (prev as any).username,
+                                            username: "jwt_user",
                                         }));
 
-                                        let mail_hash: Fr = Fr.ZERO;
-
-                                        try {
-                                            console.log("Computing mail_hash for email", email);
-                                            const bb = await Barretenberg.new();
-                                            console.log("selected_mail", email);
-                                            console.log("email byte array", new TextEncoder().encode(email));
-                                            console.log(
-                                                "email bigint:",
-                                                bytesToBigInt(new TextEncoder().encode(email)),
-                                            );
-                                            mail_hash = await bb
-                                                .poseidon2Hash([new Fr(bytesToBigInt(new TextEncoder().encode(email)))])
-                                                .catch((err) => {
-                                                    console.error("Error computing poseidon hash:", err);
-                                                    throw err;
-                                                });
-
-                                            console.log("Computed mail_hash:", mail_hash);
-                                            console.log("mail_hash as bigint:", bytesToBigInt(mail_hash.value));
-                                            console.log("mail_hash as hex:", mail_hash.toString());
-                                        } catch (err) {
-                                            setError("Failed to compute email hash");
-                                            setIsSubmitting(false);
-                                            return;
-                                        }
-                                        const mailHashBigInt = bytesToBigInt(mail_hash.value);
-                                        // Generate proof using JWT circuit
-                                        const proof = await JWTCircuitHelper.generateProof({
-                                            idToken,
-                                            jwtPubkey: googleJWTPubkey,
-                                            mail_hash: mailHashBigInt.toString(),
-                                            nonce,
-                                        });
-
-                                        console.log("[Hyli][AuthForm] generated JWT proof", proof);
                                         if (mode == "login") {
                                             await login(
                                                 provider.type as ProviderOption,
                                                 {
-                                                    username: email,
+                                                    username: "jwt_user",
                                                     googleToken: idToken,
                                                     inviteCode: credentials.inviteCode,
                                                 } as any,
@@ -554,7 +489,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                                             await registerWallet(
                                                 provider.type as ProviderOption,
                                                 {
-                                                    username: email,
+                                                    username: "jwt_user",
                                                     googleToken: idToken,
                                                     inviteCode: credentials.inviteCode,
                                                 } as any,

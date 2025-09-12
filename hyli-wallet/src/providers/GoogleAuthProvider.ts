@@ -10,6 +10,7 @@ import {
     WalletEventCallback,
     walletContractName,
     JsonWebToken,
+    build_check_jwt_blob,
 } from "../types/wallet"; // ajuste le chemin si besoin
 
 import { BlobTransaction, Blob as HyliBlob } from "hyli"; // ajuste le chemin si besoin
@@ -20,25 +21,15 @@ import { sessionKeyService } from "../services/SessionKeyService";
 import { hashBlobTransaction } from "../utils/hash";
 
 import * as WalletOperations from "../services/WalletOperations";
+import { Barretenberg, Fr } from "@aztec/bb.js";
+import { bytesToBigInt, extractClaimsFromJwt, JWTCircuitHelper } from "../utils/jwt";
+import { fetchGooglePublicKey } from "../utils/google";
 
 export interface GoogleAuthCredentials {
     username: string; // requis par AuthCredentials
     googleToken: string; // ID token Google
     inviteCode?: string; // requis en register()
 }
-
-const createJsonWebToken = (token: string): JsonWebToken => {
-    return {
-        client_id: "411006444783-4knei671ucqfo22ps9uc5tpj11dviav7.apps.googleusercontent.com",
-        token,
-        algorithm: "RS256",
-        provider_rsa_infos: [
-            "v85Io5Rp7vwbSlkuAowWVcfUxZdPckijmLAZ3WEl3nTUTkz9YfmKJUiqdZMRuJxL50F3TRBKDxvfFbWX602sPTShoK6H2pdbQNrKsGV_KIlLLsIkcVnG-KNuY-ZnkZ9ppCH9yqjGw08imHlLsIngSK8VF03nCwUiv_VtZ27FltUttRxkoZGxCYX0-MRicIXPNKILml-xmknGNLsDCvAYqhbg3tZRKi1dZuHLhCb_YTov5YhprvVzm5OagvrvZuia_qilk-ctgqRJRPFGrVm75gkV4WdwxQQukCPqf5UfIopdOAB4wBdovddX3jjpjphq8-gKMPO-t_6siCt1xETSOQ",
-            "AQAB",
-        ],
-    };
-};
-
 export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
     type = "google";
     private clientIdStr: string;
@@ -208,6 +199,38 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
 
             console.log("[Hyli][Google] Register flow CALLLLLL", { username, inviteCode, googleToken });
 
+            const { email, nonce, kid } = extractClaimsFromJwt(googleToken);
+
+            if (!email || !nonce || !kid) {
+                const error = "Invalid Google token: missing email, nonce, or kid";
+                onError?.(new Error(error));
+                return { success: false, error };
+            }
+
+            // Get Google pubkey
+            const googleJWTPubkey = await fetchGooglePublicKey(kid);
+
+            let mail_hash: Fr = Fr.ZERO;
+
+            console.log("Computing mail_hash for email", email);
+            const bb = await Barretenberg.new();
+            console.log("selected_mail", email);
+            console.log("email byte array", new TextEncoder().encode(email));
+            console.log("email bigint:", bytesToBigInt(new TextEncoder().encode(email)));
+            mail_hash = await bb
+                .poseidon2Hash([new Fr(bytesToBigInt(new TextEncoder().encode(email)))])
+                .catch((err) => {
+                    console.error("Error computing poseidon hash:", err);
+                    throw err;
+                });
+
+            console.log("Computed mail_hash:", mail_hash);
+            console.log("mail_hash as bigint:", bytesToBigInt(mail_hash.value));
+            console.log("mail_hash as hex:", mail_hash.toString());
+
+            const mailHashBigInt = bytesToBigInt(mail_hash.value);
+            // Generate proof using JWT circuit
+
             const indexerService = IndexerService.getInstance();
             try {
                 const accountInfo = await indexerService.getAccountInfo(identity);
@@ -231,18 +254,15 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
                 };
             }
 
-            const blob1 = registerBlob(
-                username,
-                Date.now(),
-                "",
-                { Jwt: {} },
-                inviteCode,
-                createJsonWebToken(googleToken),
-            );
+            const blob0 = build_check_jwt_blob(mail_hash.value, nonce, googleJWTPubkey.n as string);
+
+            console.log("Blob0 data (stored_hash):", blob0.data);
+
+            const blob1 = registerBlob(username, +nonce, "", { Jwt: { hash: mail_hash.toString() } }, inviteCode);
 
             const blobTx: BlobTransaction = {
                 identity,
-                blobs: [blob1, inviteCodeBlob],
+                blobs: [blob0, blob1, inviteCodeBlob],
             };
 
             let newSessionKey;
@@ -250,17 +270,12 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
                 const { duration, whitelist } = registerSessionKey;
                 const expiration = Date.now() + duration; // still in milliseconds
                 newSessionKey = sessionKeyService.generateSessionKey(expiration, whitelist);
-                const skNonce = await IndexerService.getInstance()
-                    .getAccountInfo(username)
-                    .then((info) => info.nonce + 1)
-                    .catch(() => Date.now());
-                blobTx.blobs.push(addSessionKeyBlob(username, newSessionKey.publicKey, expiration, skNonce, whitelist));
+                blobTx.blobs.push(addSessionKeyBlob(username, newSessionKey.publicKey, expiration, +nonce, whitelist));
             }
 
             onWalletEvent?.({ account: identity, type: "sending_blob", message: `Sending blob transaction` });
             // Skipped, to make sure we send the proof alongside.
-            const txHash = await hashBlobTransaction(blobTx);
-            //const txHash = await nodeService.client.sendBlobTx(blobTx);
+            const txHash = await nodeService.client.sendBlobTx(blobTx);
             onWalletEvent?.({ account: identity, type: "blob_sent", message: `Blob transaction sent: ${txHash}` });
 
             // Create initial wallet state
@@ -270,13 +285,27 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
                 salt: "",
             };
 
-            onWalletEvent?.({ account: identity, type: "custom", message: `Generating proof of password` });
+            onWalletEvent?.({ account: identity, type: "custom", message: `Generating proof of jwt` });
 
-            await nodeService.client.sendBlobTx(blobTx);
+            // Generate proof using JWT circuit
+            const proof = await JWTCircuitHelper.generateProof({
+                identity,
+                stored_hash: blob0.data,
+                tx: "tx_hash",
+                blob_index: 0,
+                tx_blob_count: 3,
+                idToken: googleToken,
+                jwtPubkey: googleJWTPubkey,
+                mail_hash: mailHashBigInt.toString(),
+                nonce,
+            });
+
+            console.log("Generated JWT proof:", proof);
 
             if (newSessionKey) {
                 wallet.sessionKey = newSessionKey;
             }
+
             // Create clean wallet state after registration
             const cleanedWallet = WalletOperations.cleanExpiredSessionKeys(wallet);
             return { success: true, wallet: cleanedWallet };

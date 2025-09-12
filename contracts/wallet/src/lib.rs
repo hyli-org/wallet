@@ -194,6 +194,9 @@ pub enum AuthMethod {
     Password {
         hash: String, // Salted hash of the password
     },
+    Jwt {
+        hash: String, // Hash of the JWT token email
+    },
     // Special "0" value to indicate uninitialized wallet - second for retrocomp
     #[default]
     Uninitialized,
@@ -205,6 +208,23 @@ impl AuthMethod {
     fn verify(&self, calldata: &sdk::Calldata) -> Result<String, String> {
         match self {
             AuthMethod::Uninitialized => Err("Wallet is not initialized".to_string()),
+            AuthMethod::Jwt { hash } => {
+                let check_mail = calldata
+                    .blobs
+                    .iter()
+                    .find(|(_, b)| b.contract_name.0 == "check_mail")
+                    .map(|(_, b)| b.data.clone())
+                    .ok_or("Missing check_mail blob")?;
+
+                let checked_hash = hex::encode(check_mail.0);
+                if checked_hash != *hash {
+                    return Err(format!(
+                        "Invalid authentication, expected {hash}, got {checked_hash}"
+                    ));
+                }
+                Ok("Authentication successful".to_string())
+            }
+
             AuthMethod::Password { hash } => {
                 let check_secret = calldata
                     .blobs
@@ -494,7 +514,7 @@ mod tests {
 
     #[test]
     fn test_wallet_logic() {
-        let mut wallet = Wallet::new(&None).unwrap();
+        let mut wallet = Wallet::new(&ContractName::new("test"), &None).unwrap();
 
         let password_hash = "test_hash".to_string().into_bytes();
         let hex_encoded_hash = hex::encode(password_hash.clone());
@@ -659,7 +679,7 @@ mod tests {
             ..Default::default()
         };
 
-        let mut wallet = Wallet::new(&None).unwrap();
+        let mut wallet = Wallet::new(&ContractName::new("test"), &None).unwrap();
         let v = wallet
             .build_commitment_metadata(&register_blob)
             .expect("Failed to build commitment metadata");
@@ -739,7 +759,7 @@ mod tests {
         let mut verify_call = register_call.clone();
         verify_call.index = BlobIndex(1);
 
-        let mut wallet = Wallet::new(&None).unwrap();
+        let mut wallet = Wallet::new(&ContractName::new("test"), &None).unwrap();
         let iv = wallet
             .build_commitment_metadata(&register_blob)
             .expect("Failed to build commitment metadata");
@@ -805,7 +825,7 @@ mod tests {
             ..Default::default()
         };
 
-        let mut wallet = Wallet::new(&None).unwrap();
+        let mut wallet = Wallet::new(&ContractName::new("test"), &None).unwrap();
         {
             let v = wallet.build_commitment_metadata(&pubkey_blob).unwrap();
             let mut zk_view: WalletZkView = borsh::from_slice(&v).unwrap();
@@ -858,7 +878,7 @@ mod tests {
             ..Default::default()
         };
 
-        let mut wallet = Wallet::new(&None).unwrap();
+        let mut wallet = Wallet::new(&ContractName::new("test"), &None).unwrap();
         let v = wallet
             .build_commitment_metadata(&register_blob)
             .expect("Failed to build commitment metadata");

@@ -4,7 +4,7 @@ use std::hash::Hasher;
 
 global MAX_PARTIAL_DATA_LENGTH: u32 = 640; // signed data length after partial SHA
 global MAX_EMAIL_LENGTH: u32 = 77;
-global NONCE_LENGTH: u32 = 77;
+global NONCE_LENGTH: u32 = 16;
 
 /**
  * @brief Verify JWT signature (RSA/SHA256 only) and validate hd and nonce fields
@@ -27,15 +27,37 @@ global NONCE_LENGTH: u32 = 77;
  * @param nonce: JWT `nonce` as a byte array of ascii characters - 32 bytes
  **/
 fn main(
+    // Hyli output infos
+    version: pub u32,
+    initial_state_len: pub u32,
+    initial_state: pub [u8; 4],
+    next_state_len: pub u32,
+    next_state: pub [u8; 4],
+    identity_len: pub u8,
+    identity: pub str<256>,
+    tx_hash: pub str<64>,
+    // ------ Blobs ------
+    index: pub u32,
+    blob_number: pub u32,
+    // --- Blob
+    blob_index: pub u32,
+    blob_contract_name_len: pub u8,
+    blob_contract_name: pub str<256>,
+    blob_capacity: pub u32,
+    blob_len: pub u32,
+    blob: pub [u8; 306],
+    tx_blob_count: pub u32,
+    success: pub bool,
+    // whats needed to build something that matches what is in blob field
     partial_data: BoundedVec<u8, MAX_PARTIAL_DATA_LENGTH>,
     partial_hash: [u32; 8],
     full_data_length: u32,
     base64_decode_offset: u32,
-    jwt_pubkey_modulus_limbs: pub [u128; 18],
+    jwt_pubkey_modulus_limbs: [u128; 18],
     jwt_pubkey_redc_params_limbs: [u128; 18],
     jwt_signature_limbs: [u128; 18],
-    public_nonce: pub Field,
-    public_email_hash: pub Field,
+    public_nonce: Field,
+    public_email_hash: Field,
 ) {
     // Init JWT struct and verify signature
     let jwt = JWT::init_with_partial_hash(
@@ -70,10 +92,39 @@ fn main(
     hasher.write(email_field);
     let email_hash: Field = hasher.finish();
 
+    // email_hash:nonce:pubkey
+    let mut built_blob: BoundedVec<u8, 306> = BoundedVec::new();
+    built_blob.extend_from_array(email_hash.to_be_bytes::<32>());
+    built_blob.extend_from_slice(":".as_bytes());
+    built_blob.extend_from_slice(nonce.storage());
+    built_blob.extend_from_slice(":".as_bytes());
+    built_blob.extend_from_slice(joinLimbsToBigInt(jwt_pubkey_modulus_limbs).storage());
+
+    //println(email_hash);
+    println(built_blob.storage());
+    println(bytes_to_field(built_blob.storage(), 32));
+
+    println(joinLimbsToBigInt(jwt_pubkey_modulus_limbs));
+
+    assert(email_hash == bytes_to_field(built_blob.storage(), 32), "blob mail");
+
+    assert(blob == built_blob.storage(), "blob not matching");
+
     println(email_hash);
     println(public_email_hash);
 
-    //assert(email_hash == public_email_hash, "invalid mail hash");
+    assert(email_hash == public_email_hash, "invalid mail hash");
+
+    assert(success == true);
+    assert(version == 1);
+    assert(initial_state_len == 4);
+    assert(next_state_len == 4);
+    assert(initial_state == [0; 4]);
+    assert(next_state == [0; 4]);
+    assert(blob_capacity == 306);
+    assert(blob_len == 306);
+    assert(blob_number == 1);
+    assert(tx_blob_count >= 1);
 }
 
 fn bytes_to_field<let LEN: u32>(bytes: [u8; LEN], len: u32) -> Field {
@@ -83,9 +134,38 @@ fn bytes_to_field<let LEN: u32>(bytes: [u8; LEN], len: u32) -> Field {
 
         if i < len {
             result = result * 256 + (bytes[i] as Field);
-            println(result);
+            //println(bytes[i]);
+            //println(result);
         }
     }
+    result
+}
+
+fn u128_to_bytes(x: u128) -> [u8; 16] {
+    let mut out: [u8; 16] = [0; 16];
+
+    for i in 0..16 {
+        let shifted: u128 = x >> (i * 8);
+        // On garde uniquement les 8 bits de poids faible
+        out[i] = (shifted & 0xff) as u8;
+    }
+
+    out
+}
+
+// last byte of each limb should be 0, that is why we skip it
+fn joinLimbsToBigInt(limbs: [u128; 18]) -> BoundedVec<u8, 256> {
+    let mut result = BoundedVec::new();
+    for i in 0..17 {
+        let sub: [u8] = u128_to_bytes(limbs[i]).as_slice();
+        let (sub, zero) = sub.pop_back();
+        let sub: [u8; 15] = sub.as_array();
+
+        assert(zero == 0);
+        result.extend_from_array(sub);
+    }
+
+    result.extend_from_slice([u128_to_bytes(limbs[17])[0]]);
     result
 }
 
@@ -105,4 +185,14 @@ fn decimal_string_to_field<let LEN: u32>(decimal_bytes: [u8; LEN]) -> Field {
     }
 
     field
+}
+
+#[test]
+fn encode_decode() {
+    let truc = 1234567890;
+    let result = bytes_to_field(u128_to_bytes(truc), 16) as u128;
+    println(truc);
+    println(result);
+
+    assert_eq(truc, result, "dommach");
 }
