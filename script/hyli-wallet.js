@@ -2,7 +2,7 @@
 
 import { Buffer } from "buffer";
 import { NodeApiHttpClient, IndexerApiHttpClient, blob_builder } from "hyli";
-import { build_proof_transaction, build_blob as check_secret_blob, register_contract, sha256, stringToBytes } from "hyli-check-secret";
+import { check_secret } from "hyli-noir";
 import EC from "elliptic";
 import pkg from "js-sha3";
 import { register as registerBlob, addSessionKey as addSessionKeyBlob, verifyIdentity } from "hyli-wallet";
@@ -13,7 +13,7 @@ const CONFIG = {
     NODE_BASE_URL: process.env.NODE_BASE_URL || "http://localhost:4321",
     INDEXER_BASE_URL: process.env.INDEXER_BASE_URL || "http://localhost:4322",
     WALLET_API_BASE_URL: process.env.WALLET_API_BASE_URL || "http://localhost:4000",
-    WALLET_CONTRACT_NAME: "wallet"
+    WALLET_CONTRACT_NAME: "wallet",
 };
 
 // Utility functions
@@ -51,15 +51,10 @@ async function validatePassword(username, password, accountInfo) {
     const identity = `${username}@${CONFIG.WALLET_CONTRACT_NAME}`;
     const storedHash = accountInfo.auth_method.Password.hash;
     const storedSalt = accountInfo.salt;
-    
+
     const salted_password = `${password}:${storedSalt}`;
-    const hashed_password_bytes = await sha256(stringToBytes(salted_password));
-    const encoder = new TextEncoder();
-    const id_prefix = encoder.encode(`${identity}:`);
-    const extended_id = new Uint8Array([...id_prefix, ...hashed_password_bytes]);
-    const computedHash = await sha256(extended_id);
-    const computedHashHex = Buffer.from(computedHash).toString("hex");
-    
+    const computedHashHex = check_secret.identity_hash(identity, salted_password);
+
     return computedHashHex === storedHash;
 }
 
@@ -86,20 +81,20 @@ function generateSessionKey(expiration, whitelist = []) {
     };
 }
 
-
-
 // Main registration function
 async function registerAccount(username, password, inviteCode, salt, enableSessionKey = false) {
     console.log(`Starting registration for username: ${username}`);
-    
+
     try {
         // Initialize services
         const nodeService = new NodeApiHttpClient(CONFIG.NODE_BASE_URL);
-        
+
         // Check if account already exists
         let accountInfo;
         try {
-            const response = await fetch(`${CONFIG.WALLET_API_BASE_URL}/v1/indexer/contract/${CONFIG.WALLET_CONTRACT_NAME}/account/${username}`);
+            const response = await fetch(
+                `${CONFIG.WALLET_API_BASE_URL}/v1/indexer/contract/${CONFIG.WALLET_CONTRACT_NAME}/account/${username}`,
+            );
             if (!response.ok) {
                 throw new Error(`Failed to check account existence: ${response.statusText}`);
             }
@@ -113,12 +108,12 @@ async function registerAccount(username, password, inviteCode, salt, enableSessi
             console.log(`Account ${username} already exists`);
             return { success: true, wallet: accountInfo };
         }
-        
+
         // Validate password
         if (!password || password.length < 8) {
             throw new Error("Password must be at least 8 characters long");
         }
-        
+
         // Claim invite code
         console.log("Claiming invite code...");
         let inviteCodeBlob;
@@ -133,31 +128,31 @@ async function registerAccount(username, password, inviteCode, salt, enableSessi
                     wallet: username,
                 }),
             });
-            
+
             if (!response.ok) {
                 throw new Error(`Failed to claim invite code: ${response.statusText}`);
             }
-            
+
             inviteCodeBlob = await response.json();
             console.log("Invite code claimed successfully");
         } catch (error) {
             throw new Error(`Failed to claim invite code: ${error.message}`);
         }
-        
+
         const identity = `${username}@${CONFIG.WALLET_CONTRACT_NAME}`;
         const salted_password = `${password}:${salt}`;
-        
+
         // Create blobs
         console.log("Creating blobs...");
-        const blob0 = await check_secret_blob(identity, salted_password);
+        const blob0 = await check_secret.build_blob(identity, salted_password);
         const hash = Buffer.from(blob0.data).toString("hex");
         const blob1 = registerBlob(username, Date.now(), salt, hash, inviteCode);
-        
+
         const blobTx = {
             identity,
             blobs: [blob0, blob1, inviteCodeBlob],
         };
-        
+
         // Generate session key if requested
         let newSessionKey;
         if (enableSessionKey) {
@@ -167,45 +162,50 @@ async function registerAccount(username, password, inviteCode, salt, enableSessi
             newSessionKey = generateSessionKey(expiration, whitelist);
             blobTx.blobs.push(addSessionKeyBlob(username, newSessionKey.publicKey, expiration, whitelist));
         }
-        
+
         // Register contract
         console.log("Registering contract...");
-        await register_contract(nodeService);
-        
+        await check_secret.register_contract(nodeService);
+
         // Send blob transaction
         console.log("Sending blob transaction...");
         const txHash = await hashBlobTransaction(blobTx);
         console.log(`Blob transaction hash: ${txHash}`);
-        
+
         // Send the actual blob transaction
         console.log("Sending blob transaction...");
         await nodeService.sendBlobTx(blobTx);
         console.log("Blob transaction sent successfully");
-        
+
         // Generate and send proof transaction
         console.log("Generating proof transaction...");
-        const proofTx = await build_proof_transaction(identity, salted_password, txHash, 0, blobTx.blobs.length);
-        
+        const proofTx = await check_secret.build_proof_transaction(
+            identity,
+            salted_password,
+            txHash,
+            0,
+            blobTx.blobs.length,
+        );
+
         console.log("Sending proof transaction...");
         const proofTxHash = await nodeService.sendProofTx(proofTx);
         console.log(`Proof transaction hash: ${proofTxHash}`);
-        
+
         // Create wallet object
         const wallet = {
             username,
             address: identity,
             salt,
         };
-        
+
         if (newSessionKey) {
             wallet.sessionKey = newSessionKey;
         }
-        
+
         console.log("Account registration completed successfully!");
         console.log("Wallet:", JSON.stringify(wallet, null, 2));
-        
+
         return { success: true, wallet };
-        
     } catch (error) {
         console.error("Registration failed:", error);
         return { success: false, error: error.message };
@@ -216,31 +216,33 @@ async function registerAccount(username, password, inviteCode, salt, enableSessi
 async function transferFunds(username, password, amount, token, destination) {
     console.log(`Starting transfer from ${username} to ${destination}`);
     console.log(`Amount: ${amount} ${token}`);
-    
+
     try {
         // Initialize services
         const nodeService = new NodeApiHttpClient(CONFIG.NODE_BASE_URL);
         const indexerService = new IndexerApiHttpClient(CONFIG.INDEXER_BASE_URL);
-        
+
         // Validate inputs
         const parsedAmount = parseFloat(amount);
         if (isNaN(parsedAmount) || parsedAmount <= 0) {
             throw new Error("Amount must be a positive number");
         }
-        
+
         if (!token || !destination) {
             throw new Error("Token and destination are required");
         }
-        
+
         // Check if account exists and get account info
         console.log("Checking account information...");
         let accountInfo;
         try {
-            const response = await fetch(`${CONFIG.WALLET_API_BASE_URL}/v1/indexer/contract/${CONFIG.WALLET_CONTRACT_NAME}/account/${username}`);
+            const response = await fetch(
+                `${CONFIG.WALLET_API_BASE_URL}/v1/indexer/contract/${CONFIG.WALLET_CONTRACT_NAME}/account/${username}`,
+            );
             if (!response.ok) {
                 throw new Error(`Failed to get account info: ${response.statusText}`);
             }
-            
+
             accountInfo = await response.json();
             if (!accountInfo) {
                 throw new Error(`Account with username "${username}" does not exist.`);
@@ -248,7 +250,7 @@ async function transferFunds(username, password, amount, token, destination) {
         } catch (error) {
             throw new Error(`Failed to get account info: ${error.message}`);
         }
-        
+
         // Validate password
         console.log("Validating password...");
         const isPasswordValid = await validatePassword(username, password, accountInfo);
@@ -258,12 +260,15 @@ async function transferFunds(username, password, amount, token, destination) {
 
         const identity = `${username}@${CONFIG.WALLET_CONTRACT_NAME}`;
         const salted_password = `${password}:${accountInfo.salt}`;
-        
+
         // Check that account has enough balance
         console.log("Checking balance...");
         let balance;
         try {
-            const result = await indexerService.get(`v1/indexer/contract/${token}/balance/${identity}`, "Checking balance");
+            const result = await indexerService.get(
+                `v1/indexer/contract/${token}/balance/${identity}`,
+                "Checking balance",
+            );
             balance = result.balance;
         } catch (error) {
             throw new Error(`Failed to get balance: ${error.message}. User might have no balance for this token.`);
@@ -273,51 +278,50 @@ async function transferFunds(username, password, amount, token, destination) {
         if (balance < parsedAmount) {
             throw new Error(`Account "${username}" does not have enough balance to transfer ${amount} ${token}`);
         }
-        
+
         // Create blobs for transfer
         console.log("Creating transfer blobs...");
-        const blob0 = await check_secret_blob(identity, salted_password);
+        const blob0 = await check_secret.build_blob(identity, salted_password);
         const blob1 = verifyIdentity(username, Date.now());
         const blob2 = blob_builder.smt_token.transfer(identity, destination, token, BigInt(parsedAmount), null);
-        
+
         const blobTx = {
             identity,
             blobs: [blob0, blob1, blob2],
         };
-        
+
         // Send blob transaction
         console.log("Sending blob transaction...");
         const txHash = await hashBlobTransaction(blobTx);
         console.log(`Blob transaction hash: ${txHash}`);
-        
+
         // Send the actual blob transaction
         console.log("Sending blob transaction...");
         await nodeService.sendBlobTx(blobTx);
         console.log("Blob transaction sent successfully");
-        
+
         // Generate and send proof transaction
         console.log("Generating proof transaction...");
         const proofTx = await build_proof_transaction(identity, salted_password, txHash, 0, blobTx.blobs.length);
-        
+
         console.log("Sending proof transaction...");
         const proofTxHash = await nodeService.sendProofTx(proofTx);
         console.log(`Proof transaction hash: ${proofTxHash}`);
-        
+
         console.log("Transfer completed successfully!");
         console.log(`Transferred ${amount} ${token} from ${username} to ${destination}`);
-        
-        return { 
-            success: true, 
+
+        return {
+            success: true,
             transactionHash: txHash,
             proofTransactionHash: proofTxHash,
             transfer: {
                 from: username,
                 to: destination,
                 amount: parsedAmount,
-                token: token
-            }
+                token: token,
+            },
         };
-        
     } catch (error) {
         console.error("Transfer failed:", error);
         return { success: false, error: error.message };
@@ -327,17 +331,17 @@ async function transferFunds(username, password, amount, token, destination) {
 // CLI interface
 async function main() {
     const args = process.argv.slice(2);
-    
+
     if (args.length < 1) {
         showUsage();
         process.exit(1);
     }
-    
+
     const command = args[0];
-    
-    if (command === 'register') {
+
+    if (command === "register") {
         await handleRegisterCommand(args.slice(1));
-    } else if (command === 'transfer') {
+    } else if (command === "transfer") {
         await handleTransferCommand(args.slice(1));
     } else {
         console.log(`Unknown command: ${command}`);
@@ -384,9 +388,10 @@ async function handleRegisterCommand(args) {
         console.log("Usage: hyli-wallet register <username> <password> <inviteCode> [salt] [enableSessionKey]");
         process.exit(1);
     }
-    
-    const [username, password, inviteCode, salt = Math.random().toString(36).substring(2), enableSessionKey = false] = args;
-    
+
+    const [username, password, inviteCode, salt = Math.random().toString(36).substring(2), enableSessionKey = false] =
+        args;
+
     console.log("Configuration:");
     console.log(`  Node URL: ${CONFIG.NODE_BASE_URL}`);
     console.log(`  Indexer URL: ${CONFIG.INDEXER_BASE_URL}`);
@@ -395,9 +400,9 @@ async function handleRegisterCommand(args) {
     console.log(`  Salt: ${salt}`);
     console.log(`  Enable Session Key: ${enableSessionKey}`);
     console.log("");
-    
-    const result = await registerAccount(username, password, inviteCode, salt, enableSessionKey === 'true');
-    
+
+    const result = await registerAccount(username, password, inviteCode, salt, enableSessionKey === "true");
+
     if (result.success) {
         console.log("✅ Registration successful!");
         process.exit(0);
@@ -413,9 +418,9 @@ async function handleTransferCommand(args) {
         console.log("Usage: hyli-wallet transfer <username> <password> <amount> <token> <destination>");
         process.exit(1);
     }
-    
+
     const [username, password, amount, token, destination] = args;
-    
+
     console.log("Configuration:");
     console.log(`  Node URL: ${CONFIG.NODE_BASE_URL}`);
     console.log(`  Indexer URL: ${CONFIG.INDEXER_BASE_URL}`);
@@ -424,9 +429,9 @@ async function handleTransferCommand(args) {
     console.log(`  To: ${destination}`);
     console.log(`  Amount: ${amount} ${token}`);
     console.log("");
-    
+
     const result = await transferFunds(username, password, amount, token, destination);
-    
+
     if (result.success) {
         console.log("✅ Transfer successful!");
         console.log(`Transaction Hash: ${result.transactionHash}`);
@@ -440,8 +445,8 @@ async function handleTransferCommand(args) {
 
 // Run the script
 // Check if this is the main module being executed
-if (import.meta.url.endsWith('hyli-wallet.js') || process.argv[1].includes('hyli-wallet')) {
-    main().catch(error => {
+if (import.meta.url.endsWith("hyli-wallet.js") || process.argv[1].includes("hyli-wallet")) {
+    main().catch((error) => {
         console.error("Script execution failed:", error);
         process.exit(1);
     });

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useWallet, verifyIdentity } from "hyli-wallet";
 import { blob_builder, BlobTransaction } from "hyli";
-import { build_proof_transaction, build_blob as check_secret_blob } from "hyli-check-secret";
+import { check_secret } from "hyli-noir";
 import { nodeService } from "../services/NodeService";
 import { indexerService } from "../services/IndexerService";
 import { BorshSchema, borshSerialize } from "borsher";
@@ -18,7 +18,7 @@ const as_structured = (schema: BorshSchema<any>) => {
 const deleteContractActionSchema = as_structured(
     BorshSchema.Struct({
         contract_name: BorshSchema.String,
-    })
+    }),
 );
 
 function serializeDeleteContractAction(contractName: string): Uint8Array {
@@ -36,12 +36,12 @@ const upgradeContractTimeoutActionSchema = as_structured(
             NoTimeout: BorshSchema.Unit,
             Timeout: BorshSchema.u64,
         }),
-    })
+    }),
 );
 
 function serializeUpgradeContractTimeoutAction(
     contractName: string,
-    timeout_window: undefined | string | number
+    timeout_window: undefined | string | number,
 ): Uint8Array {
     let timeoutWindow;
     if (!timeout_window || !+timeout_window) {
@@ -59,7 +59,7 @@ function serializeUpgradeContractTimeoutAction(
 const nukeTxActionSchema = as_structured(
     BorshSchema.Struct({
         tx_hashes: BorshSchema.Vec(BorshSchema.String),
-    })
+    }),
 );
 
 function serializeNukeTxAction(txHashes: string[]): Uint8Array {
@@ -70,7 +70,7 @@ const updateContractProgramIdActionSchema = as_structured(
     BorshSchema.Struct({
         contract_name: BorshSchema.String,
         program_id: BorshSchema.Vec(BorshSchema.u8),
-    })
+    }),
 );
 
 function serializeUpdateContractProgramIdAction(contractName: string, programId: string): Uint8Array {
@@ -130,7 +130,7 @@ const AdminPage: React.FC = () => {
     // Generic admin action sender
     const sendAdminAction = async (
         actionType: "init" | "delete" | "nuke" | "update" | "update_timeout",
-        value?: string
+        value?: string,
     ) => {
         setError(null);
         setIsLoading(true);
@@ -139,7 +139,7 @@ const AdminPage: React.FC = () => {
             const salted_password = `${password}:${accountInfo.salt}`;
             const blob1 = verifyIdentity(wallet.username, Date.now());
             const identity = `${wallet.username}@${blob1.contract_name}`;
-            const blob0 = await check_secret_blob(identity, salted_password);
+            const blob0 = await check_secret.build_blob(identity, salted_password);
             let blobs = [blob0, blob1];
             if (actionType === "init") {
                 for (const t of INIT_TRANSFERS) {
@@ -149,8 +149,8 @@ const AdminPage: React.FC = () => {
                     JSON.stringify(
                         INIT_TRANSFERS,
                         (_key, value) => (typeof value === "bigint" ? value.toString() : value),
-                        2
-                    )
+                        2,
+                    ),
                 );
             } else if (actionType === "delete" && value) {
                 const action = serializeDeleteContractAction(value);
@@ -188,7 +188,13 @@ const AdminPage: React.FC = () => {
             const blobTx: BlobTransaction = { identity, blobs };
             const tx_hash = await nodeService.client.sendBlobTx(blobTx);
             setStatus("Building proof transaction...");
-            const proofTx = await build_proof_transaction(identity, salted_password, tx_hash, 0, blobTx.blobs.length);
+            const proofTx = await check_secret.build_proof_transaction(
+                identity,
+                salted_password,
+                tx_hash,
+                0,
+                blobTx.blobs.length,
+            );
             setStatus("Sending proof transaction...");
             await nodeService.client.sendProofTx(proofTx);
             const sentLabels: Record<typeof actionType, string> = {
@@ -266,20 +272,20 @@ const AdminPage: React.FC = () => {
         setIsLoading(false);
     };
     /*
-    const handleNukeTx = async () => {
-        setError(null);
-        setStatus("");
-        setIsLoading(true);
-        // Only allow one pending action at a time
-        clearPending();
-        const timeoutId = setTimeout(async () => {
-            setPendingAction(null);
-            await sendAdminAction("nuke", txHashes);
-        }, 5000);
-        setPendingAction({ type: "nuke", value: txHashes, timeoutId });
-        setStatus(`NukeTx will be sent in 5s. Click 'Undo' to cancel.`);
-        setIsLoading(false);
-    };*/
+  const handleNukeTx = async () => {
+      setError(null);
+      setStatus("");
+      setIsLoading(true);
+      // Only allow one pending action at a time
+      clearPending();
+      const timeoutId = setTimeout(async () => {
+          setPendingAction(null);
+          await sendAdminAction("nuke", txHashes);
+      }, 5000);
+      setPendingAction({ type: "nuke", value: txHashes, timeoutId });
+      setStatus(`NukeTx will be sent in 5s. Click 'Undo' to cancel.`);
+      setIsLoading(false);
+  };*/
 
     React.useEffect(() => {
         if (!pendingAction) return;
