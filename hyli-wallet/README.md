@@ -23,7 +23,7 @@ Required peer dependencies:
 
 ```json
 {
-    "hyli-check-secret": "^0.3.2",
+    "hyli-noir": "^0.0.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.5.0"

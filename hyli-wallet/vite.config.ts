@@ -13,7 +13,7 @@ export default defineConfig({
             formats: ["es", "cjs"],
         },
         rollupOptions: {
-            external: ["hyli-check-secret", "react", "react-dom"],
+            external: ["hyli-noir", "react", "react-dom"],
             output: {
                 globals: {
                     react: "React",

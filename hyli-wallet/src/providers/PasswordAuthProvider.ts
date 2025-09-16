@@ -18,13 +18,7 @@ import {
 } from "../types/wallet";
 import { NodeService } from "../services/NodeService";
 import { webSocketService } from "../services/WebSocketService";
-import {
-    build_proof_transaction,
-    build_blob as check_secret_blob,
-    register_contract,
-    sha256,
-    stringToBytes,
-} from "hyli-check-secret";
+import { check_secret } from "hyli-noir";
 import { BlobTransaction } from "hyli";
 import * as WalletOperations from "../services/WalletOperations";
 import { IndexerService } from "../services/IndexerService";
@@ -77,12 +71,7 @@ export class PasswordAuthProvider implements AuthProvider {
             let storedSalt = userAccountInfo.salt;
 
             let salted_password = `${password}:${storedSalt}`;
-            const hashed_password_bytes = await sha256(stringToBytes(salted_password));
-            let encoder = new TextEncoder();
-            let id_prefix = encoder.encode(`${identity}:`);
-            let extended_id = new Uint8Array([...id_prefix, ...hashed_password_bytes]);
-            const computedHash = await sha256(extended_id);
-            const computedHashHex = Buffer.from(computedHash).toString("hex");
+            const computedHashHex = await check_secret.identity_hash(identity, salted_password);
 
             if (computedHashHex != storedHash) {
                 onError?.(new Error("Invalid password"));
@@ -108,7 +97,7 @@ export class PasswordAuthProvider implements AuthProvider {
                             registerSessionKey!.whitelist,
                             registerSessionKey!.laneId,
                             onWalletEvent,
-                            onError
+                            onError,
                         );
                         wallet.sessionKey = res.sessionKey;
                     }
@@ -178,7 +167,7 @@ export class PasswordAuthProvider implements AuthProvider {
             const identity = `${username}@${walletContractName}`;
 
             let salted_password = `${password}:${salt}`;
-            const blob0 = await check_secret_blob(identity, salted_password);
+            const blob0 = await check_secret.build_blob(identity, salted_password);
             const hash = Buffer.from(blob0.data).toString("hex");
             const blob1 = registerBlob(username, Date.now(), salt, hash, inviteCode);
 
@@ -201,7 +190,7 @@ export class PasswordAuthProvider implements AuthProvider {
                 message: `Making sure contract is registered`,
             });
 
-            await register_contract(nodeService.client as any);
+            await check_secret.register_contract(nodeService.client as any);
 
             onWalletEvent?.({ account: identity, type: "sending_blob", message: `Sending blob transaction` });
             // Skipped, to make sure we send the proof alongside.
@@ -219,7 +208,13 @@ export class PasswordAuthProvider implements AuthProvider {
             onWalletEvent?.({ account: identity, type: "custom", message: `Generating proof of password` });
 
             // Build and send the proof transaction
-            const proofTx = await build_proof_transaction(identity, salted_password, txHash, 0, blobTx.blobs.length);
+            const proofTx = await check_secret.build_proof_transaction(
+                identity,
+                salted_password,
+                txHash,
+                0,
+                blobTx.blobs.length,
+            );
 
             onWalletEvent?.({ account: identity, type: "sending_proof", message: `Sending proof transaction` });
             await nodeService.client.sendBlobTx(blobTx);

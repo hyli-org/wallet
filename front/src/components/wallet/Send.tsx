@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { verifyIdentity, Wallet } from "hyli-wallet";
 import { blob_builder, BlobTransaction } from "hyli";
-import { build_proof_transaction, build_blob as check_secret_blob } from "hyli-check-secret";
+import { check_secret } from "hyli-noir";
 import { nodeService } from "../../services/NodeService";
 import { Transaction, webSocketService } from "../../services/WebSocketService";
 import { ErrorMessage } from "../ErrorMessage";
@@ -53,7 +53,7 @@ export const Send = ({ wallet, onSend }: SendProps) => {
 
         const blob1 = verifyIdentity(wallet.username, Date.now());
         const identity = `${wallet.username}@${blob1.contract_name}`;
-        const blob0 = await check_secret_blob(identity, salted_password);
+        const blob0 = await check_secret.build_blob(identity, salted_password);
 
         const blob2 = blob_builder.smt_token.transfer(identity, address, contract, BigInt(parsedAmount), null);
 
@@ -67,7 +67,13 @@ export const Send = ({ wallet, onSend }: SendProps) => {
             const tx_hash = await nodeService.client.sendBlobTx(blobTx);
             setTransactionHash(tx_hash);
             setStatus("Building proof transaction (this may take a few moments)...");
-            const proofTx = await build_proof_transaction(identity, salted_password, tx_hash, 0, blobTx.blobs.length);
+            const proofTx = await check_secret.build_proof_transaction(
+                identity,
+                salted_password,
+                tx_hash,
+                0,
+                blobTx.blobs.length,
+            );
             setStatus("Sending proof transaction...");
             await nodeService.client.sendProofTx(proofTx);
             setStatus("Waiting for transaction confirmation...");
@@ -280,9 +286,9 @@ export const Send = ({ wallet, onSend }: SendProps) => {
                     <div className="transaction-hash">
                         Transaction:&nbsp;
                         <code>
-                                                    <a href={`${ConfigService.getTxExplorerUrl()}/tx/${transactionHash}`} target="_blank">
-                            {`${transactionHash.slice(0, 10)}...${transactionHash.slice(-10)}`}
-                        </a>
+                            <a href={`${ConfigService.getTxExplorerUrl()}/tx/${transactionHash}`} target="_blank">
+                                {`${transactionHash.slice(0, 10)}...${transactionHash.slice(-10)}`}
+                            </a>
                         </code>
                     </div>
                 )}

@@ -12,7 +12,7 @@ import {
     WalletErrorCallback,
 } from "../types/wallet";
 import { sessionKeyService } from "./SessionKeyService";
-import { build_proof_transaction, build_blob as check_secret_blob } from "hyli-check-secret";
+import { check_secret } from "hyli-noir";
 import { Blob, BlobTransaction } from "hyli";
 import { NodeService } from "./NodeService";
 import { IndexerService } from "./IndexerService";
@@ -33,7 +33,7 @@ export const registerSessionKey = async (
     whitelist?: string[],
     laneId?: string,
     onWalletEvent?: WalletEventCallback,
-    onError?: WalletErrorCallback
+    onError?: WalletErrorCallback,
 ): Promise<{
     sessionKey: SessionKey;
     txHashes: [string, string];
@@ -55,7 +55,7 @@ export const registerSessionKey = async (
             message: `Making sure contract is registered`,
         });
 
-        const blob0 = await check_secret_blob(identity, password);
+        const blob0 = await check_secret.build_blob(identity, password);
         const blob1 = addSessionKeyBlob(accountName, newSessionKey.publicKey, expiration, whitelist, laneId);
 
         const blobTx: BlobTransaction = {
@@ -73,7 +73,13 @@ export const registerSessionKey = async (
 
         onWalletEvent?.({ account: identity, type: "custom", message: `Generating proof of password` });
 
-        const proofTx = await build_proof_transaction(identity, password, blobTxHash, 0, blobTx.blobs.length);
+        const proofTx = await check_secret.build_proof_transaction(
+            identity,
+            password,
+            blobTxHash,
+            0,
+            blobTx.blobs.length,
+        );
 
         onWalletEvent?.({ account: identity, type: "sending_proof", message: `Sending proof transaction` });
         await nodeService.client.sendBlobTx(blobTx);
@@ -114,7 +120,7 @@ export const removeSessionKey = async (
     password: string,
     publicKey: string,
     onWalletEvent?: WalletEventCallback,
-    onError?: WalletErrorCallback
+    onError?: WalletErrorCallback,
 ): Promise<{
     txHashes: [string, string];
     updatedWallet: Wallet;
@@ -127,7 +133,7 @@ export const removeSessionKey = async (
     try {
         const identity = `${accountName}@${walletContractName}`;
 
-        const blob0 = await check_secret_blob(identity, password);
+        const blob0 = await check_secret.build_blob(identity, password);
         const blob1 = removeSessionKeyBlob(wallet.username, publicKey);
 
         const blobTx: BlobTransaction = {
@@ -140,7 +146,13 @@ export const removeSessionKey = async (
         // Notify of blob transaction
         onWalletEvent?.({ account: identity, type: "blob_sent", message: `Blob transaction sent: ${blobTxHash}` });
 
-        const proofTx = await build_proof_transaction(identity, password, blobTxHash, 0, blobTx.blobs.length);
+        const proofTx = await check_secret.build_proof_transaction(
+            identity,
+            password,
+            blobTxHash,
+            0,
+            blobTx.blobs.length,
+        );
 
         const proofTxHash = await nodeService.client.sendProofTx(proofTx);
         // Notify of proof transaction
@@ -236,7 +248,7 @@ export const cleanExpiredSessionKeys = (wallet: Wallet): Wallet => {
 
 export const getOrReuseSessionKey = async (
     wallet: Wallet,
-    checkBackend: boolean = false
+    checkBackend: boolean = false,
 ): Promise<SessionKey | undefined> => {
     // Check if a session key exists and is not expired
     const now = Date.now();
@@ -247,7 +259,7 @@ export const getOrReuseSessionKey = async (
                 const indexer = IndexerService.getInstance();
                 const accountInfo = await indexer.getAccountInfo(wallet.username);
                 const backendKey = accountInfo.session_keys.find(
-                    (k) => k.key === wallet.sessionKey!.publicKey && k.expiration_date > now
+                    (k) => k.key === wallet.sessionKey!.publicKey && k.expiration_date > now,
                 );
                 if (backendKey) {
                     return wallet.sessionKey;
@@ -275,7 +287,7 @@ export const checkAccountExists = async (wallet: Wallet, withSessionKey: boolean
         }
         if (withSessionKey && wallet.sessionKey) {
             const backendKey = accountInfo.session_keys.find(
-                (k) => k.key === wallet.sessionKey?.publicKey && k.expiration_date > now
+                (k) => k.key === wallet.sessionKey?.publicKey && k.expiration_date > now,
             );
             if (!backendKey) {
                 return false;
