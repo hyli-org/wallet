@@ -146,7 +146,7 @@ async function registerAccount(username, password, inviteCode, salt, enableSessi
         console.log("Creating blobs...");
         const blob0 = await check_secret.build_blob(identity, salted_password);
         const hash = Buffer.from(blob0.data).toString("hex");
-        const blob1 = registerBlob(username, Date.now(), salt, hash, inviteCode);
+        const blob1 = registerBlob(username, Date.now(), salt, { Password: { hash: hash } }, inviteCode);
 
         const blobTx = {
             identity,
