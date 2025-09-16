@@ -9,16 +9,13 @@ import {
     addSessionKeyBlob, // <- version corrigée ci-dessus
     WalletEventCallback,
     walletContractName,
-    JsonWebToken,
     build_check_jwt_blob,
 } from "../types/wallet"; // ajuste le chemin si besoin
 
-import { BlobTransaction, Blob as HyliBlob, ProofTransaction } from "hyli"; // ajuste le chemin si besoin
+import { BlobTransaction } from "hyli"; // ajuste le chemin si besoin
 import { NodeService } from "../services/NodeService";
 import { IndexerService } from "../services/IndexerService";
-import { registerSessionKey } from "../services/WalletOperations";
 import { sessionKeyService } from "../services/SessionKeyService";
-import { hashBlobTransaction } from "../utils/hash";
 
 import * as WalletOperations from "../services/WalletOperations";
 import { Barretenberg, Fr } from "@aztec/bb.js";
@@ -127,10 +124,6 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
         } catch {}
         // username is the on-chain account name (e.g., email), identity is `${username}@wallet`
         const identity = `${username}@${walletContractName}`;
-        const nonce = await IndexerService.getInstance()
-            .getAccountInfo(username)
-            .then((info) => info.nonce + 1)
-            .catch(() => 1);
         // Build blob for the wallet contract with the account field set to the username
         const blob = addSessionKeyBlob(
             username,
@@ -140,7 +133,7 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
             sessionKey.laneId,
         );
         try {
-            console.log("[Hyli][Google] addSessionKeyOnChain() sending blob", { identity, nonce });
+            console.log("[Hyli][Google] addSessionKeyOnChain() sending blob", { identity });
         } catch {}
         const txHash = await NodeService.getInstance().client.sendBlobTx({ identity, blobs: [blob] } as any);
         // On émet un WalletEvent (pas un TransactionCallback)
@@ -213,8 +206,6 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
 
             onWalletEvent?.({ account, type: "custom", message: `Generating proof of jwt` });
 
-            const mailHashBigInt = bytesToBigInt(jwtBlobData.mail_hash.value);
-
             // Generate proof using JWT circuit
             const proof_tx = await JWTCircuitHelper.generateProofTx({
                 identity: account,
@@ -224,13 +215,11 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
                 tx_blob_count: 2,
                 idToken: credentials.googleToken,
                 jwtPubkey: jwtBlobData.pubkey,
-                mail_hash: mailHashBigInt.toString(),
-                nonce: jwtBlobData.nonce.toString(),
             });
 
             console.log("Generated JWT proof:", proof_tx);
 
-            const proof_hash = await nodeService.client.sendProofTx(proof_tx);
+            await nodeService.client.sendProofTx(proof_tx);
 
             if (newSessionKey) {
                 wallet.sessionKey = newSessionKey;
@@ -374,8 +363,6 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
 
             onWalletEvent?.({ account: identity, type: "custom", message: `Generating proof of jwt` });
 
-            const mailHashBigInt = bytesToBigInt(jwtBlobData.mail_hash.value);
-
             // Generate proof using JWT circuit
             const proof_tx = await JWTCircuitHelper.generateProofTx({
                 identity,
@@ -385,13 +372,11 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
                 tx_blob_count: 3,
                 idToken: googleToken,
                 jwtPubkey: jwtBlobData.pubkey,
-                mail_hash: mailHashBigInt.toString(),
-                nonce: jwtBlobData.nonce.toString(),
             });
 
             console.log("Generated JWT proof:", proof_tx);
 
-            const proof_hash = await nodeService.client.sendProofTx(proof_tx);
+            await nodeService.client.sendProofTx(proof_tx);
 
             if (newSessionKey) {
                 wallet.sessionKey = newSessionKey;

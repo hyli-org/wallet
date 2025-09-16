@@ -150,8 +150,6 @@ export const JWTCircuitHelper = {
         tx_blob_count,
         idToken,
         jwtPubkey,
-        nonce,
-        mail_hash,
     }: {
         identity: string;
         stored_hash: number[];
@@ -160,8 +158,6 @@ export const JWTCircuitHelper = {
         tx_blob_count: number;
         idToken: string;
         jwtPubkey: JsonWebKey;
-        nonce: string;
-        mail_hash: string;
     }) => {
         if (!idToken || !jwtPubkey) {
             throw new Error("[JWT Circuit] Proof generation failed: idToken and jwtPubkey are required");
@@ -183,8 +179,6 @@ export const JWTCircuitHelper = {
             jwt_pubkey_modulus_limbs: jwtInputs.pubkey_modulus_limbs,
             jwt_pubkey_redc_params_limbs: jwtInputs.redc_params_limbs,
             jwt_signature_limbs: jwtInputs.signature_limbs,
-            public_email_hash: mail_hash,
-            public_nonce: nonce,
         };
 
         console.log("JWT circuit inputs", inputs);

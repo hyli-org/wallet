@@ -180,9 +180,7 @@ export class PasswordAuthProvider implements AuthProvider {
                 const { duration, whitelist } = registerSessionKey;
                 const expiration = Date.now() + duration; // still in milliseconds
                 newSessionKey = sessionKeyService.generateSessionKey(expiration, whitelist);
-                blobTx.blobs.push(
-                    addSessionKeyBlob(username, newSessionKey.publicKey, expiration, Date.now(), whitelist),
-                );
+                blobTx.blobs.push(addSessionKeyBlob(username, newSessionKey.publicKey, expiration, whitelist));
             }
 
             onWalletEvent?.({
