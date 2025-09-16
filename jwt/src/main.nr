@@ -56,8 +56,6 @@ fn main(
     jwt_pubkey_modulus_limbs: [u128; 18],
     jwt_pubkey_redc_params_limbs: [u128; 18],
     jwt_signature_limbs: [u128; 18],
-    public_nonce: Field,
-    public_email_hash: Field,
 ) {
     // Init JWT struct and verify signature
     let jwt = JWT::init_with_partial_hash(
@@ -73,11 +71,6 @@ fn main(
 
     // Get nonce claim
     let nonce: BoundedVec<u8, NONCE_LENGTH> = jwt.get_claim_string("nonce".as_bytes());
-    let nonce_field: Field = decimal_string_to_field(nonce.storage());
-
-    println(nonce_field as u128);
-
-    assert(nonce_field == public_nonce, "invalid nonce");
 
     // Assert email_verified claim
     jwt.assert_claim_bool("email_verified".as_bytes(), true);
@@ -85,8 +78,6 @@ fn main(
     // Get email claim
     let email: BoundedVec<u8, MAX_EMAIL_LENGTH> = jwt.get_claim_string("email".as_bytes());
     let email_field: Field = bytes_to_field(email.storage(), email.len());
-    println(email);
-    println(email_field as u128);
 
     let mut hasher = Poseidon2Hasher::default();
     hasher.write(email_field);
@@ -100,20 +91,11 @@ fn main(
     built_blob.extend_from_slice(":".as_bytes());
     built_blob.extend_from_slice(joinLimbsToBigInt(jwt_pubkey_modulus_limbs).storage());
 
-    //println(email_hash);
-    println(built_blob.storage());
-    println(bytes_to_field(built_blob.storage(), 32));
-
-    println(joinLimbsToBigInt(jwt_pubkey_modulus_limbs));
-
     assert(email_hash == bytes_to_field(built_blob.storage(), 32), "blob mail");
 
     assert(blob == built_blob.storage(), "blob not matching");
 
-    println(email_hash);
-    println(public_email_hash);
-
-    assert(email_hash == public_email_hash, "invalid mail hash");
+    // Hyli specific asserts
 
     assert(success == true);
     assert(version == 1);
@@ -134,8 +116,6 @@ fn bytes_to_field<let LEN: u32>(bytes: [u8; LEN], len: u32) -> Field {
 
         if i < len {
             result = result * 256 + (bytes[i] as Field);
-            //println(bytes[i]);
-            //println(result);
         }
     }
     result
@@ -167,24 +147,6 @@ fn joinLimbsToBigInt(limbs: [u128; 18]) -> BoundedVec<u8, 256> {
 
     result.extend_from_slice([u128_to_bytes(limbs[17])[0]]);
     result
-}
-
-fn decimal_string_to_field<let LEN: u32>(decimal_bytes: [u8; LEN]) -> Field {
-    assert(LEN <= 77);
-
-    let mut field: Field = 0;
-    let mut multiplier: Field = 1;
-
-    for i in 0..LEN {
-        let ascii_char = decimal_bytes[LEN - i - 1];
-        if ascii_char >= 48 & ascii_char <= 57 {
-            let digit = ascii_char as Field - 48;
-            field += digit * multiplier;
-            multiplier *= 10;
-        }
-    }
-
-    field
 }
 
 #[test]
