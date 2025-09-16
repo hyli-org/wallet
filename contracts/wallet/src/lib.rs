@@ -213,6 +213,7 @@ impl AuthMethod {
         let Some((_, rest)) = rest.split_first() else {
             return Err("Invalid check_jwt blob size".to_string());
         };
+        // TODO: should be 16 bytes padded
         let Some((nonce_bytes, _)): Option<(&[u8; 13], &[u8])> = rest.split_first_chunk() else {
             return Err("Invalid check_jwt blob size".to_string());
         };
