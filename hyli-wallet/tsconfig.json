@@ -1,20 +1,29 @@
 {
-    "compilerOptions": {
-        "target": "ESNext",
-        "module": "ESNext",
-        "lib": ["DOM", "ESNext"],
-        "declaration": true,
-        "declarationDir": "dist/types",
-        "emitDeclarationOnly": false,
-        "outDir": "dist",
-        "moduleResolution": "Node",
-        "esModuleInterop": true,
-        "jsx": "react-jsx",
-        "strict": true,
-        "skipLibCheck": true,
-        "forceConsistentCasingInFileNames": true,
-        "allowSyntheticDefaultImports": true
-    },
-    "include": ["src"],
-    "exclude": ["dist", "node_modules", "bun.lockb"]
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "lib": [
+      "DOM",
+      "ESNext"
+    ],
+    "declaration": true,
+    "declarationDir": "dist/types",
+    "emitDeclarationOnly": false,
+    "outDir": "dist",
+    "moduleResolution": "Node",
+    "esModuleInterop": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowSyntheticDefaultImports": true
+  },
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules",
+    "bun.lock"
+  ]
 }
