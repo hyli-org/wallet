@@ -103,6 +103,7 @@ impl TokenHistory {
 }
 
 impl TxExecutorHandler for TokenHistory {
+    type Contract = TokenHistory;
     fn handle(&mut self, calldata: &sdk::Calldata) -> anyhow::Result<sdk::HyliOutput> {
         self.token.handle(calldata)
     }

@@ -65,15 +65,7 @@ export const registerSessionKey = async (
                     .getAccountInfo(wallet.username)
                     .then((info) => info.nonce))) || Date.now();
 
-        const blob1 = addSessionKeyBlob(
-            accountName,
-            newSessionKey.publicKey,
-            expiration,
-            nonce,
-            whitelist,
-            laneId,
-            jwt,
-        );
+        const blob1 = addSessionKeyBlob(accountName, newSessionKey.publicKey, expiration, whitelist, laneId);
 
         const blobTx: BlobTransaction = {
             identity,
@@ -132,7 +124,6 @@ export const removeSessionKey = async (
     publicKey: string,
     onWalletEvent?: WalletEventCallback,
     onError?: WalletErrorCallback,
-    jwt?: JsonWebToken,
 ): Promise<{
     txHashes: [string, string];
     updatedWallet: Wallet;
@@ -145,14 +136,8 @@ export const removeSessionKey = async (
     try {
         const identity = `${accountName}@${walletContractName}`;
 
-        const nonce =
-            (await (jwt &&
-                IndexerService.getInstance()
-                    .getAccountInfo(wallet.username)
-                    .then((info) => info.nonce))) || Date.now();
-
         const blob0 = await check_secret_blob(identity, password);
-        const blob1 = removeSessionKeyBlob(wallet.username, publicKey, nonce, jwt);
+        const blob1 = removeSessionKeyBlob(wallet.username, publicKey);
 
         const blobTx: BlobTransaction = {
             identity,

@@ -30,7 +30,7 @@ export type Secp256k1Blob = {
     signature: Uint8Array;
 };
 
-export type AuthMethod = { Password: { hash: string } } | { Jwt: { hash: string } };
+export type AuthMethod = { Password: { hash: string } } | { Jwt: { hash: number[] } };
 
 export type JsonWebToken = {
     token: string;
@@ -47,14 +47,12 @@ export type WalletAction =
               salt: string;
               auth_method: AuthMethod;
               invite_code: string;
-              jwt?: JsonWebToken;
           };
       }
     | {
           VerifyIdentity: {
               nonce: number;
               account: string;
-              jwt?: JsonWebToken;
           };
       }
     | {
@@ -64,16 +62,12 @@ export type WalletAction =
               expiration_date: number;
               whitelist?: string[];
               laneId?: string;
-              nonce: number;
-              jwt?: JsonWebToken;
           };
       }
     | {
           RemoveSessionKey: {
               account: string;
               key: string;
-              nonce: number;
-              jwt?: JsonWebToken;
           };
       }
     | {
@@ -111,7 +105,6 @@ function b64urlToU8(s: string): Uint8Array {
     const out = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
 
-    console.log("b64urlToU8", s, out);
     return out;
 }
 
@@ -169,10 +162,8 @@ export const addSessionKeyBlob = (
     account: string,
     key: string,
     expiration_date: number,
-    nonce: number,
     whitelist?: string[],
     laneId?: string,
-    jwt?: JsonWebToken,
 ): Blob => {
     const action: WalletAction = {
         AddSessionKey: {
@@ -183,8 +174,6 @@ export const addSessionKeyBlob = (
             // ⚠️ Le schéma BORSH attend "lane_id"
             laneId, // ← si ton type WalletAction conserve "laneId",
             // on mappe juste avant la sérialisation (voir ci-dessous)
-            nonce,
-            jwt,
         },
     };
     // --- mapping vers le schéma ---
@@ -205,9 +194,9 @@ export const addSessionKeyBlob = (
     return blob;
 };
 
-export const removeSessionKeyBlob = (account: string, key: string, nonce: number, jwt?: JsonWebToken): Blob => {
+export const removeSessionKeyBlob = (account: string, key: string): Blob => {
     const action: WalletAction = {
-        RemoveSessionKey: { account, key, nonce, jwt },
+        RemoveSessionKey: { account, key },
     };
     const blob: Blob = {
         contract_name: walletContractName,
@@ -264,18 +253,10 @@ const schema = BorshSchema.Enum({
                 hash: BorshSchema.String,
             }),
             Jwt: BorshSchema.Struct({
-                hash: BorshSchema.String,
+                hash: BorshSchema.Array(BorshSchema.u8, 32),
             }),
         }),
         invite_code: BorshSchema.String,
-        jwt: BorshSchema.Option(
-            BorshSchema.Struct({
-                token: BorshSchema.String,
-                client_id: BorshSchema.String,
-                algorithm: BorshSchema.String,
-                provider_rsa_infos: BorshSchema.Option(BorshSchema.Array(BorshSchema.String, 2)),
-            }),
-        ),
     }),
     VerifyIdentity: BorshSchema.Struct({
         account: BorshSchema.String,

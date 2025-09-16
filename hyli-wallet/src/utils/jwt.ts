@@ -2,7 +2,10 @@ import { generateInputs } from "noir-jwt";
 import { InputMap, type CompiledCircuit } from "@noir-lang/noir_js";
 import { initProver, initVerifier } from "./lazy-modules";
 import { circuit as circuitArtifact } from "./jwt_circuit";
-import { assert } from "hyli-check-secret";
+import { assert, flattenFieldsAsArray } from "hyli-check-secret";
+import { Contract, NodeApiHttpClient } from "hyli";
+import { reconstructHonkProof, UltraHonkBackend } from "@aztec/bb.js";
+import { reconstructUltraPlonkProof } from "@aztec/bb.js/dest/node-cjs/proof";
 
 export function bytesToBigInt(bytes: Uint8Array) {
     let result = BigInt(0);
@@ -139,7 +142,7 @@ export const extractClaimsFromJwt = (jwt: string): { email: string; nonce: strin
 
 export const JWTCircuitHelper = {
     version: "0.3.1",
-    generateProof: async ({
+    generateProofTx: async ({
         identity,
         stored_hash,
         tx,
@@ -190,10 +193,8 @@ export const JWTCircuitHelper = {
         console.log("Noir, UltraHonkBackend", Noir, UltraHonkBackend);
 
         const backend = new UltraHonkBackend(circuitArtifact.bytecode, { threads: 8 });
-        console.log("backend", backend);
-
+        const vk = await backend.getVerificationKey();
         const noir = new Noir(circuitArtifact as CompiledCircuit);
-        console.log("noir", noir);
 
         // Generate witness and prove
         const startTime = performance.now();
@@ -209,8 +210,46 @@ export const JWTCircuitHelper = {
         });
         const provingTime = performance.now() - startTime;
 
+        const reconstructedProof = reconstructHonkProof(flattenFieldsAsArray(proof.publicInputs), proof.proof);
+
         console.log(`Proof generated in ${provingTime}ms`);
 
-        return proof;
+        return {
+            contract_name: "check_jwt",
+            program_id: Array.from(vk),
+            verifier: "noir",
+            proof: Array.from(reconstructedProof),
+        };
     },
+};
+
+/**
+ * Registers the Noir contract with the node if it is not already registered.
+ * The contract is identified by its name "check_secret".
+ * If the contract is not found, it registers the contract using the provided circuit.
+ *
+ * @param node - The NodeApiHttpClient instance to interact with the NodeApiHttpClient
+ * @param circuit - The compiled Noir circuit (defaults to the check_secret circuit)
+ * @returns A Promise that resolves when the contract is registered
+ */
+export const register_contract = async (
+    node: NodeApiHttpClient,
+    circuit: CompiledCircuit,
+): Promise<undefined | number[]> => {
+    return await node
+        .getContract("check_jwt")
+        .then(() => undefined)
+        .catch(async () => {
+            const backend = new UltraHonkBackend(circuit.bytecode);
+
+            const vk = await backend.getVerificationKey();
+            const contract = {
+                verifier: "noir",
+                program_id: Array.from(vk),
+                state_commitment: [0, 0, 0, 0],
+                contract_name: "check_jwt",
+            };
+            await node.registerContract(contract);
+            return contract.program_id;
+        });
 };

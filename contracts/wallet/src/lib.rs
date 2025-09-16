@@ -7,7 +7,7 @@ use sdk::{
     hyli_model_utils::TimestampMs,
     merkle_utils::{BorshableMerkleProof, SHA256Hasher},
     secp256k1::CheckSecp256k1,
-    ContractName, LaneId, RunResult, StateCommitment,
+    BlobData, ContractName, LaneId, RunResult, StateCommitment,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -195,7 +195,7 @@ pub enum AuthMethod {
         hash: String, // Salted hash of the password
     },
     Jwt {
-        hash: String, // Hash of the JWT token email
+        hash: [u8; 32], // Hash of the JWT token email
     },
     // Special "0" value to indicate uninitialized wallet - second for retrocomp
     #[default]
@@ -204,24 +204,55 @@ pub enum AuthMethod {
 }
 
 impl AuthMethod {
+    fn parse_blob_infos(data: &BlobData) -> Result<(&[u8; 32], u128), String> {
+        let Some((mail_hash, rest)): Option<(&[u8; 32], &[u8])> = data.0.split_first_chunk() else {
+            return Err("Invalid check_jwt blob size".to_string());
+        };
+
+        // Skip one byte and take the next 16 bytes of rest that represent the nonce
+        let Some((_, rest)) = rest.split_first() else {
+            return Err("Invalid check_jwt blob size".to_string());
+        };
+        let Some((nonce_bytes, _)): Option<(&[u8; 13], &[u8])> = rest.split_first_chunk() else {
+            return Err("Invalid check_jwt blob size".to_string());
+        };
+
+        // Reconstruct the timestamp from the nonce bytes (ascii encoded from left to right)
+        let nonce_str =
+            std::str::from_utf8(nonce_bytes).map_err(|e| format!("Invalid nonce bytes: {}", e))?;
+
+        let nonce: u128 = nonce_str
+            .parse()
+            .map_err(|e| format!("Invalid nonce '{}': {}", nonce_str, e))?;
+
+        Ok((mail_hash, nonce))
+    }
+
     // Verifies the authentication method during use
-    fn verify(&self, calldata: &sdk::Calldata) -> Result<String, String> {
+    fn verify(&self, calldata: &sdk::Calldata, wallet_blob_nonce: u128) -> Result<String, String> {
         match self {
             AuthMethod::Uninitialized => Err("Wallet is not initialized".to_string()),
             AuthMethod::Jwt { hash } => {
-                let check_mail = calldata
+                let check_jwt = calldata
                     .blobs
                     .iter()
-                    .find(|(_, b)| b.contract_name.0 == "check_mail")
-                    .map(|(_, b)| b.data.clone())
+                    .find(|(_, b)| b.contract_name.0 == "check_jwt")
+                    .map(|(_, b)| &b.data)
                     .ok_or("Missing check_mail blob")?;
 
-                let checked_hash = hex::encode(check_mail.0);
-                if checked_hash != *hash {
+                let (mail_hash, nonce) = AuthMethod::parse_blob_infos(check_jwt)?;
+
+                if mail_hash != hash {
                     return Err(format!(
-                        "Invalid authentication, expected {hash}, got {checked_hash}"
+                        "Invalid authentication, expected {hash:?}, got {mail_hash:?}"
                     ));
                 }
+
+                // Check that the nonce is superior to the last one used for this account
+                if nonce != wallet_blob_nonce {
+                    return Err("Invalid nonce".to_string());
+                }
+
                 Ok("Authentication successful".to_string())
             }
 
@@ -278,7 +309,7 @@ impl AccountInfo {
         auth_method: AuthMethod,
         calldata: &sdk::Calldata,
     ) -> Result<String, String> {
-        auth_method.verify(calldata)?;
+        auth_method.verify(calldata, nonce)?;
         self.register_identity(account, nonce, auth_method)
     }
 
@@ -302,11 +333,10 @@ impl AccountInfo {
         action: WalletAction,
         calldata: &sdk::Calldata,
     ) -> Result<String, String> {
-        // Verify identity before executing the action
-        self.auth_method.verify(calldata)?;
-
         match action {
             WalletAction::VerifyIdentity { nonce, account } => {
+                // Verify identity before executing the action
+                self.auth_method.verify(calldata, nonce)?;
                 if self.identity != account {
                     return Err("Account does not match registered identity".to_string());
                 }
@@ -319,12 +349,20 @@ impl AccountInfo {
                 whitelist,
                 lane_id,
             } => {
+                // Verify identity before executing the action
+                self.auth_method.verify(calldata, u128::MAX)?;
+
                 if self.identity != account {
                     return Err("Account does not match registered identity".to_string());
                 }
                 self.add_session_key(key, expiration_date, whitelist, lane_id)
             }
-            WalletAction::RemoveSessionKey { key, .. } => self.remove_session_key(key),
+            WalletAction::RemoveSessionKey { key, .. } => {
+                // Verify identity before executing the action
+                self.auth_method.verify(calldata, u128::MAX)?;
+
+                self.remove_session_key(key)
+            }
             _ => unreachable!(),
         }
     }
@@ -511,6 +549,35 @@ mod tests {
     use super::*;
     use client_sdk::transaction_builder::TxExecutorHandler;
     use sdk::{Blob, BlobIndex, Calldata, IndexedBlobs};
+
+    #[test]
+    fn test_blob_data_decode() {
+        let time = 1672531199000u128; // Example timestamp in milliseconds
+        let ascii_time_0padded_at_the_end = format!("{:0>16}", time);
+
+        println!(
+            "ascii_time_0padded_at_the_end: {}",
+            ascii_time_0padded_at_the_end
+        );
+        let hash32bytes = [1u8; 32]; // Example 32-byte hash
+
+        // separate the 32 bytes of hash and 16 bytes of timestamp with : character
+        let blob_data = sdk::BlobData(
+            [
+                hash32bytes.as_slice(),
+                &[b':'],
+                ascii_time_0padded_at_the_end.as_bytes(),
+                // add some extra junk bytes to ensure we only read the first 48 bytes
+                &[b'e', b'j', b'b'],
+            ]
+            .concat(),
+        );
+        let (parsed_hash, parsed_time) =
+            AuthMethod::parse_blob_infos(&blob_data).expect("Failed to parse blob data");
+        assert_eq!(parsed_hash, &hash32bytes);
+        assert_eq!(parsed_time, time);
+        assert!(false);
+    }
 
     #[test]
     fn test_wallet_logic() {

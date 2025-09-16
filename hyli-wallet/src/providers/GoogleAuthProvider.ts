@@ -13,7 +13,7 @@ import {
     build_check_jwt_blob,
 } from "../types/wallet"; // ajuste le chemin si besoin
 
-import { BlobTransaction, Blob as HyliBlob } from "hyli"; // ajuste le chemin si besoin
+import { BlobTransaction, Blob as HyliBlob, ProofTransaction } from "hyli"; // ajuste le chemin si besoin
 import { NodeService } from "../services/NodeService";
 import { IndexerService } from "../services/IndexerService";
 import { registerSessionKey } from "../services/WalletOperations";
@@ -22,8 +22,9 @@ import { hashBlobTransaction } from "../utils/hash";
 
 import * as WalletOperations from "../services/WalletOperations";
 import { Barretenberg, Fr } from "@aztec/bb.js";
-import { bytesToBigInt, extractClaimsFromJwt, JWTCircuitHelper } from "../utils/jwt";
+import { bytesToBigInt, extractClaimsFromJwt, JWTCircuitHelper, register_contract } from "../utils/jwt";
 import { fetchGooglePublicKey } from "../utils/google";
+import { circuit } from "../utils/jwt_circuit";
 
 export interface GoogleAuthCredentials {
     username: string; // requis par AuthCredentials
@@ -134,7 +135,6 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
             username,
             sessionKey.publicKey,
             sessionKey.expiration,
-            nonce,
             sessionKey.whitelist,
             sessionKey.laneId,
         );
@@ -258,7 +258,13 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
 
             console.log("Blob0 data (stored_hash):", blob0.data);
 
-            const blob1 = registerBlob(username, +nonce, "", { Jwt: { hash: mail_hash.toString() } }, inviteCode);
+            const blob1 = registerBlob(
+                username,
+                +nonce,
+                "",
+                { Jwt: { hash: Array.from(mail_hash.value) } },
+                inviteCode,
+            );
 
             const blobTx: BlobTransaction = {
                 identity,
@@ -270,8 +276,10 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
                 const { duration, whitelist } = registerSessionKey;
                 const expiration = Date.now() + duration; // still in milliseconds
                 newSessionKey = sessionKeyService.generateSessionKey(expiration, whitelist);
-                blobTx.blobs.push(addSessionKeyBlob(username, newSessionKey.publicKey, expiration, +nonce, whitelist));
+                blobTx.blobs.push(addSessionKeyBlob(username, newSessionKey.publicKey, expiration, whitelist));
             }
+
+            await register_contract(nodeService.client, circuit as any);
 
             onWalletEvent?.({ account: identity, type: "sending_blob", message: `Sending blob transaction` });
             // Skipped, to make sure we send the proof alongside.
@@ -288,10 +296,10 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
             onWalletEvent?.({ account: identity, type: "custom", message: `Generating proof of jwt` });
 
             // Generate proof using JWT circuit
-            const proof = await JWTCircuitHelper.generateProof({
+            const proof_tx = await JWTCircuitHelper.generateProofTx({
                 identity,
                 stored_hash: blob0.data,
-                tx: "tx_hash",
+                tx: txHash,
                 blob_index: 0,
                 tx_blob_count: 3,
                 idToken: googleToken,
@@ -300,7 +308,9 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
                 nonce,
             });
 
-            console.log("Generated JWT proof:", proof);
+            console.log("Generated JWT proof:", proof_tx);
+
+            const proof_hash = await nodeService.client.sendProofTx(proof_tx);
 
             if (newSessionKey) {
                 wallet.sessionKey = newSessionKey;
