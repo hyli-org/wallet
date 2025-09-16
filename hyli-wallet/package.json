@@ -1,6 +1,6 @@
 {
     "name": "hyli-wallet",
-    "version": "0.3.7",
+    "version": "0.4.0",
     "type": "module",
     "license": "MIT",
     "repository": {
@@ -28,7 +28,8 @@
         "hyli-check-secret": "^0.4.1",
         "react": "^19.1.0",
         "react-dom": "^19.1.0",
-        "react-router-dom": "^7.6.1"
+        "react-router-dom": "^7.6.1",
+        "hyli-noir": "^0.1.0"
     },
     "scripts": {
         "clean": "rm -rf dist",
@@ -44,26 +45,26 @@
         "@types/react-router-dom": "^5.3.3",
         "crypto-js": "^4.2.0",
         "elliptic": "^6.6.1",
-        "hyli": "^0.4.0",
-        "js-sha3": "^0.9.3",
-        "noir-jwt": "^0.4.5"
+        "noir-jwt": "^0.4.5",
+        "hyli": "^0.4.1",
+        "js-sha3": "^0.9.3"
     },
     "devDependencies": {
-        "@eslint/js": "^9.34.0",
-        "@types/react": "^19.1.12",
+        "@eslint/js": "^9.35.0",
+        "@types/react": "^19.1.13",
         "@types/react-dom": "^19.1.9",
         "@vitejs/plugin-react": "^4.7.0",
         "ajv": "^8.17.1",
         "autoprefixer": "^10.4.21",
-        "eslint": "^9.34.0",
+        "eslint": "^9.35.0",
         "eslint-plugin-react-hooks": "^5.2.0",
         "eslint-plugin-react-refresh": "^0.4.20",
         "globals": "^15.15.0",
         "postcss": "^8.5.6",
-        "tailwindcss": "^4.1.12",
+        "tailwindcss": "^4.1.13",
         "typescript": "^5.9.2",
-        "typescript-eslint": "^8.42.0",
-        "vite": "^6.3.5",
+        "typescript-eslint": "^8.43.0",
+        "vite": "^6.3.6",
         "vite-bundle-analyzer": "^0.21.0",
         "vite-plugin-css-injected-by-js": "^3.5.2",
         "vite-plugin-dts": "^4.5.4"
