@@ -1,6 +1,6 @@
 {
     "name": "hyli-wallet-cli",
-    "version": "0.3.0",
+    "version": "0.5.0",
     "type": "module",
     "license": "MIT",
     "repository": {
@@ -30,7 +30,7 @@
         "elliptic": "^6.6.1",
         "hyli": "^0.4.1",
         "hyli-noir": "^0.1.0",
-        "hyli-wallet": "^0.4.0",
+        "hyli-wallet": "^0.5.0",
         "js-sha3": "^0.9.3"
     },
     "devDependencies": {
