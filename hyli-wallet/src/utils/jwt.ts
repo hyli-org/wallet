@@ -2,10 +2,10 @@ import { generateInputs } from "noir-jwt";
 import { InputMap, type CompiledCircuit } from "@noir-lang/noir_js";
 import { initProver, initVerifier } from "./lazy-modules";
 import { circuit as circuitArtifact } from "./jwt_circuit";
-import { assert, flattenFieldsAsArray } from "hyli-check-secret";
 import { Contract, NodeApiHttpClient } from "hyli";
 import { reconstructHonkProof, UltraHonkBackend } from "@aztec/bb.js";
 import { reconstructUltraPlonkProof } from "@aztec/bb.js/dest/node-cjs/proof";
+import { check_secret } from "hyli-noir";
 
 export function bytesToBigInt(bytes: Uint8Array) {
     let result = BigInt(0);
@@ -69,7 +69,7 @@ const generateProverData = (
     const blob: number[] = stored_hash;
     const success = 1;
     console.log("Blob data", blob);
-    assert(blob.length == blob_len, `Blob length is ${blob.length} not 306 bytes`);
+    check_secret.assert(blob.length == blob_len, `Blob length is ${blob.length} not 306 bytes`);
 
     return {
         version,
@@ -92,39 +92,6 @@ const generateProverData = (
         tx_blob_count,
         success,
     };
-    /*
-	  // Hyli output infos
-    version: pub u32,
-    initial_state_len: pub u32,
-    initial_state: pub [u8; 4],
-    next_state_len: pub u32,
-    next_state: pub [u8; 4],
-    identity_len: pub u8,
-    identity: pub str<256>,
-    tx_hash: pub str<64>,
-    // ------ Blobs ------
-    index: pub u32,
-    blob_number: pub u32,
-    // --- Blob
-    blob_index: pub u32,
-    blob_contract_name_len: pub u8,
-    blob_contract_name: pub str<256>,
-    blob_capacity: pub u32,
-    blob_len: pub u32,
-    blob: pub [u8; 306],
-    tx_blob_count: pub u32,
-    success: pub bool,
-    // whats needed to build something that matches what is in blob field
-    partial_data: BoundedVec<u8, MAX_PARTIAL_DATA_LENGTH>,
-    partial_hash: [u32; 8],
-    full_data_length: u32,
-    base64_decode_offset: u32,
-    jwt_pubkey_modulus_limbs: [u128; 18],
-    jwt_pubkey_redc_params_limbs: [u128; 18],
-    jwt_signature_limbs: [u128; 18],
-    public_nonce: Field,
-    public_email_hash: Field,
-) {*/
 };
 
 export const extractClaimsFromJwt = (jwt: string): { email: string; nonce: string; kid: string } => {
@@ -204,7 +171,10 @@ export const JWTCircuitHelper = {
         });
         const provingTime = performance.now() - startTime;
 
-        const reconstructedProof = reconstructHonkProof(flattenFieldsAsArray(proof.publicInputs), proof.proof);
+        const reconstructedProof = reconstructHonkProof(
+            check_secret.flattenFieldsAsArray(proof.publicInputs),
+            proof.proof,
+        );
 
         console.log(`Proof generated in ${provingTime}ms`);
 

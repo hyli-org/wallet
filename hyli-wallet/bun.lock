@@ -35,10 +35,6 @@
         "vite-plugin-dts": "^4.5.4",
       },
       "peerDependencies": {
-        "@aztec/bb.js": "^0.82.2",
-        "@noir-lang/noir_js": "1.0.0-beta.4",
-        "@noir-lang/noir_wasm": "1.0.0-beta.4",
-        "hyli-check-secret": "^0.4.1",
         "hyli-noir": "^0.1.0",
         "react": "^19.1.0",
         "react-dom": "^19.1.0",
@@ -489,8 +485,6 @@
 
     "hyli": ["hyli@0.4.1", "", { "dependencies": { "borsher": "^3.6.0" } }, "sha512-WBBm8WaBixf8K4jzKtauyOIxJR0xUgxR8fpyMB9r3nfEvjoVNCP6QTEuFRHeXtEFNn4uFwpKrMQEKy0Vb6iOvQ=="],
 
-    "hyli-check-secret": ["hyli-check-secret@0.3.4", "", { "dependencies": { "hyli": "^0.3.0" }, "peerDependencies": { "@aztec/bb.js": "0.82.2", "@noir-lang/noir_js": "1.0.0-beta.2", "@noir-lang/noir_wasm": "1.0.0-beta.2" } }, "sha512-RdS6FH08K3BwJZhIeOxcVpAnff6GWgn7fCA9KimMl+KQzXdo3INGYWTYS2SaPbBMdW5JivrgadmEE+g3u+Gdvw=="],
-
     "hyli-noir": ["hyli-noir@0.1.0", "", { "dependencies": { "hyli": "^0.4.0" }, "peerDependencies": { "@aztec/bb.js": "0.82.2", "@noir-lang/noir_js": "1.0.0-beta.2", "@noir-lang/noir_wasm": "1.0.0-beta.2" } }, "sha512-ySwnuCS0oyMBfbOipUQBTeodl6E0dK9P6olbF9vDXcU2xVWCl+9gm4A985M2qwn1nKJbP4rRaViX73hvBM/UfQ=="],
 
     "ieee754": ["ieee754@1.2.1", "", {}, "sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA=="],
@@ -774,8 +768,6 @@
     "eslint/ajv": ["ajv@6.12.6", "", { "dependencies": { "fast-deep-equal": "^3.1.1", "fast-json-stable-stringify": "^2.0.0", "json-schema-traverse": "^0.4.1", "uri-js": "^4.2.2" } }, "sha512-j3fVLgvTo527anyYyJOGTYJbG+vnnQYvE0m5mmkc1TK+nxAppkCLMIL0aZ4dblVCNoGShhm+kzE4ZUykBoMg4g=="],
 
     "fast-glob/glob-parent": ["glob-parent@5.1.2", "", { "dependencies": { "is-glob": "^4.0.1" } }, "sha512-AOIgSQCepiJYwP3ARnGx+5VnTu2HBYdzbGP45eLw1vr3zB3vZLeyed1sC9hnbcOc9/SrMyM5RPQrkGz4aS9Zow=="],
-
-    "hyli-check-secret/hyli": ["hyli@0.3.0", "", { "dependencies": { "borsher": "^3.6.0" } }, "sha512-0KHTLjDC1dtgmhemMk1xN4/aq/hYRWp8N7kgjp0MRnrWB4E0tQkDqWt8fBfpTUEkW/Ai4VIVF/0JIByacZ3NiA=="],
 
     "micromatch/picomatch": ["picomatch@2.3.1", "", {}, "sha512-JU3teHTNjmE2VCGFzuY8EXzCDVwEqB2a8fsIvwaStHhAWJEeVd1o1QD80CU6+ZdEXXSLbSsuLwJjkCBWqRQUVA=="],
 

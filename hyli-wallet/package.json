@@ -22,10 +22,6 @@
         }
     },
     "peerDependencies": {
-        "@aztec/bb.js": "^0.82.2",
-        "@noir-lang/noir_js": "1.0.0-beta.4",
-        "@noir-lang/noir_wasm": "1.0.0-beta.4",
-        "hyli-check-secret": "^0.4.1",
         "react": "^19.1.0",
         "react-dom": "^19.1.0",
         "react-router-dom": "^7.6.1",
