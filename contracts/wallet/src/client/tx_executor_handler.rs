@@ -5,8 +5,8 @@ use anyhow::Context;
 use borsh::{BorshDeserialize, BorshSerialize};
 use client_sdk::transaction_builder::TxExecutorHandler;
 use sdk::{
-    caller::ExecutionContext, info, merkle_utils::BorshableMerkleProof, utils::as_hyli_output,
-    Blob, Calldata, Contract, ContractName, HyliOutput, RegisterContractAction, StateCommitment,
+    caller::ExecutionContext, merkle_utils::BorshableMerkleProof, utils::as_hyli_output, Blob,
+    Calldata, Contract, ContractName, HyliOutput, StateCommitment,
 };
 use serde::Serialize;
 
@@ -64,6 +64,7 @@ impl Default for Wallet {
 }
  */
 impl TxExecutorHandler for Wallet {
+    type Contract = Self;
     fn build_commitment_metadata(&self, blob: &Blob) -> anyhow::Result<Vec<u8>> {
         let wallet_action: Result<WalletAction, _> = WalletAction::from_blob_data(&blob.data);
         let zk_view = match wallet_action {
@@ -311,7 +312,7 @@ impl Wallet {
             Ok((action, exec_ctx)) => {
                 return self.handle_action(action, initial_state_commitment, exec_ctx, calldata);
             }
-            Err(e) => {
+            Err(_) => {
                 // Check for a registration tx
 
                 return Ok(as_hyli_output(

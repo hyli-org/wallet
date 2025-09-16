@@ -17,7 +17,6 @@ export interface Wallet {
 
 import { borshSerialize, BorshSchema, borshDeserialize } from "borsher";
 import { Blob } from "hyli";
-
 export let walletContractName = "wallet";
 
 //
@@ -31,7 +30,14 @@ export type Secp256k1Blob = {
     signature: Uint8Array;
 };
 
-export type AuthMethod = { Password: { hash: string } };
+export type AuthMethod = { Password: { hash: string } } | { Jwt: { hash: number[] } };
+
+export type JsonWebToken = {
+    token: string;
+    client_id: string;
+    algorithm: string;
+    provider_rsa_infos?: [string, string];
+};
 
 export type WalletAction =
     | {
@@ -90,13 +96,46 @@ export interface WalletEvent {
 // Builders
 //
 
-export const registerBlob = (account: string, nonce: number, salt: string, hash: string, invite_code: string): Blob => {
+// base64url -> Uint8Array
+function b64urlToU8(s: string): Uint8Array {
+    // base64url -> base64
+    s = s.replace(/-/g, "+").replace(/_/g, "/");
+
+    const bin = atob(s);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+
+    return out;
+}
+
+export const build_check_jwt_blob = (mail_hash: Uint8Array, nonce: string, pubkey: string): Blob => {
+    console.log("PUBKEY", pubkey);
+    let encoded = Uint8Array.from(`${nonce}`, (c) => c.charCodeAt(0));
+    let remaining_len = 16 - encoded.length;
+
+    let zeros = new Array(remaining_len).fill(0);
+
+    const jwtBlob: Blob = {
+        contract_name: "check_jwt",
+        data: [...mail_hash, 58, ...encoded, ...zeros, 58, ...b64urlToU8(pubkey).reverse()],
+    };
+
+    return jwtBlob;
+};
+
+export const registerBlob = (
+    account: string,
+    nonce: number,
+    salt: string,
+    auth_method: AuthMethod,
+    invite_code: string,
+): Blob => {
     const action: WalletAction = {
         RegisterIdentity: {
             account,
             nonce,
             salt,
-            auth_method: { Password: { hash } },
+            auth_method,
             invite_code,
         },
     };
@@ -124,14 +163,33 @@ export const addSessionKeyBlob = (
     key: string,
     expiration_date: number,
     whitelist?: string[],
-    laneId?: string
+    laneId?: string,
 ): Blob => {
     const action: WalletAction = {
-        AddSessionKey: { account, key, expiration_date, whitelist, laneId },
+        AddSessionKey: {
+            account,
+            key,
+            expiration_date,
+            whitelist,
+            // ⚠️ Le schéma BORSH attend "lane_id"
+            laneId, // ← si ton type WalletAction conserve "laneId",
+            // on mappe juste avant la sérialisation (voir ci-dessous)
+        },
     };
+    // --- mapping vers le schéma ---
+    const raw = {
+        AddSessionKey: {
+            account: action.AddSessionKey.account,
+            key: action.AddSessionKey.key,
+            expiration_date: action.AddSessionKey.expiration_date,
+            whitelist: action.AddSessionKey.whitelist,
+            lane_id: action.AddSessionKey.laneId, // <= IMPORTANT
+        },
+    } as any;
+
     const blob: Blob = {
         contract_name: walletContractName,
-        data: serializeIdentityAction(action),
+        data: Array.from(borshSerialize(schema, raw)),
     };
     return blob;
 };
@@ -193,6 +251,9 @@ const schema = BorshSchema.Enum({
         auth_method: BorshSchema.Enum({
             Password: BorshSchema.Struct({
                 hash: BorshSchema.String,
+            }),
+            Jwt: BorshSchema.Struct({
+                hash: BorshSchema.Array(BorshSchema.u8, 32),
             }),
         }),
         invite_code: BorshSchema.String,

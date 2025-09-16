@@ -26,14 +26,14 @@ export interface WalletContextType {
         credentials: AuthCredentials,
         onWalletEvent?: WalletEventCallback,
         onError?: WalletErrorCallback,
-        extraParams?: LoginExtras
+        extraParams?: LoginExtras,
     ) => Promise<Wallet | undefined>;
     registerAccount: (
         provider: ProviderOption,
         credentials: AuthCredentials & { inviteCode: string },
         onWalletEvent?: WalletEventCallback,
         onError?: WalletErrorCallback,
-        extraParams?: RegisterAccountExtras
+        extraParams?: RegisterAccountExtras,
     ) => Promise<Wallet | undefined>;
     getOrReuseSessionKey: (checkBackend?: boolean) => Promise<SessionKey | undefined>;
     registerSessionKey: (
@@ -42,13 +42,13 @@ export interface WalletContextType {
         whitelist?: string[],
         laneId?: string,
         onWalletEvent?: WalletEventCallback,
-        onError?: WalletErrorCallback
+        onError?: WalletErrorCallback,
     ) => Promise<{ sessionKey: SessionKey; txHashes: [string, string] }>;
     removeSessionKey: (
         password: string,
         publicKey: string,
         onWalletEvent?: WalletEventCallback,
-        onError?: WalletErrorCallback
+        onError?: WalletErrorCallback,
     ) => Promise<{ txHashes: [string, string] }>;
     cleanExpiredSessionKey: () => void;
     createIdentityBlobs: () => [Blob, Blob];
@@ -169,7 +169,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
     const internalOnError = onError;
 
     const getRegSessKey = (
-        registerSessionKey: boolean | { duration?: number; whitelist?: string[] } | undefined
+        registerSessionKey: boolean | { duration?: number; whitelist?: string[] } | undefined,
     ):
         | undefined
         | {
@@ -196,7 +196,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
             credentials: AuthCredentials,
             onWalletEvent?: WalletEventCallback,
             onError?: WalletErrorCallback,
-            extraParams?: LoginExtras
+            extraParams?: LoginExtras,
         ): Promise<Wallet | undefined> => {
             const authProvider = authProviderManager.getProvider(provider);
             if (!authProvider) {
@@ -219,7 +219,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
                 });
             return result.wallet;
         },
-        [wallet, internalOnWalletEvent, internalOnError, sessionKeyConfig]
+        [wallet, internalOnWalletEvent, internalOnError, sessionKeyConfig],
     );
 
     const registerAccount = useCallback(
@@ -228,7 +228,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
             credentials: AuthCredentials & { inviteCode: string },
             onWalletEvent?: WalletEventCallback,
             onError?: WalletErrorCallback,
-            extraParams?: RegisterAccountExtras
+            extraParams?: RegisterAccountExtras,
         ): Promise<Wallet | undefined> => {
             const authProvider = authProviderManager.getProvider(provider);
             if (!authProvider) {
@@ -265,7 +265,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
                 });
             return result.wallet;
         },
-        [wallet, internalOnWalletEvent, internalOnError, sessionKeyConfig]
+        [wallet, internalOnWalletEvent, internalOnError, sessionKeyConfig],
     );
 
     const logout = useCallback(() => {
@@ -280,7 +280,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
             whitelist?: string[],
             laneId?: string,
             onWalletEventOverride?: WalletEventCallback,
-            onErrorOverride?: WalletErrorCallback
+            onErrorOverride?: WalletErrorCallback,
         ) => {
             if (!wallet) {
                 throw new Error("No wallet available");
@@ -293,10 +293,11 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
                 wallet,
                 password,
                 exp,
+                undefined,
                 wl,
                 laneId,
                 finalOnWalletEvent,
-                finalOnError
+                finalOnError,
             );
             setWallet(result.updatedWallet);
             return {
@@ -304,7 +305,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
                 txHashes: result.txHashes,
             };
         },
-        [wallet, effectiveSessionKeyConfig, onWalletEvent, onError]
+        [wallet, effectiveSessionKeyConfig, onWalletEvent, onError],
     );
 
     const removeSessionKey = useCallback(
@@ -312,7 +313,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
             password: string,
             publicKey: string,
             onWalletEvent?: WalletEventCallback,
-            onError?: WalletErrorCallback
+            onError?: WalletErrorCallback,
         ) => {
             if (!wallet) {
                 throw new Error("No wallet available");
@@ -323,7 +324,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
             setWallet(result.updatedWallet);
             return { txHashes: result.txHashes };
         },
-        [wallet]
+        [wallet],
     );
 
     const cleanExpiredSessionKey = useCallback(() => {
@@ -356,7 +357,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
             }
             return await WalletOperations.getOrReuseSessionKey(wallet, checkBackend);
         },
-        [wallet]
+        [wallet],
     );
 
     const signMessageWithSessionKey = useCallback(
@@ -367,7 +368,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
             const [hash, signature] = sessionKeyService.signMessage(message, wallet.sessionKey.privateKey);
             return { hash, signature };
         },
-        [wallet]
+        [wallet],
     );
 
     // Public context value (no sessionKeyConfig)

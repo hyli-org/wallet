@@ -35,11 +35,13 @@
         "pub": "npm publish"
     },
     "dependencies": {
+        "@noble/hashes": "^2.0.0",
         "@types/crypto-js": "^4.2.2",
         "@types/elliptic": "^6.4.18",
         "@types/react-router-dom": "^5.3.3",
         "crypto-js": "^4.2.0",
         "elliptic": "^6.6.1",
+        "noir-jwt": "^0.4.5",
         "hyli": "^0.4.1",
         "js-sha3": "^0.9.3"
     },

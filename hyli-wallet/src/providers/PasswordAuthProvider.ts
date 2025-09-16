@@ -1,21 +1,6 @@
 import { Buffer } from "buffer";
-import {
-    AuthProvider,
-    AuthCredentials,
-    AuthResult,
-    AuthEvents,
-    RegisterAccountParams,
-    LoginParams,
-} from "./BaseAuthProvider";
-import {
-    Wallet,
-    WalletErrorCallback,
-    WalletEventCallback,
-    addSessionKeyBlob,
-    registerBlob,
-    verifyIdentityBlob,
-    walletContractName,
-} from "../types/wallet";
+import { AuthProvider, AuthCredentials, AuthResult, RegisterAccountParams, LoginParams } from "./BaseAuthProvider";
+import { Wallet, addSessionKeyBlob, registerBlob, walletContractName } from "../types/wallet";
 import { NodeService } from "../services/NodeService";
 import { webSocketService } from "../services/WebSocketService";
 import { check_secret } from "hyli-noir";
@@ -67,6 +52,9 @@ export class PasswordAuthProvider implements AuthProvider {
             onWalletEvent?.({ account: identity, type: "checking_password", message: `Checking password for log in` });
 
             const userAccountInfo = await indexerService.getAccountInfo(username);
+            if (!("Password" in userAccountInfo.auth_method)) {
+                return { success: false, error: "Auth Method should be Password" };
+            }
             let storedHash = userAccountInfo.auth_method.Password.hash;
             let storedSalt = userAccountInfo.salt;
 
@@ -94,6 +82,7 @@ export class PasswordAuthProvider implements AuthProvider {
                             wallet,
                             salted_password,
                             Date.now() + registerSessionKey!.duration,
+                            undefined,
                             registerSessionKey!.whitelist,
                             registerSessionKey!.laneId,
                             onWalletEvent,
@@ -169,7 +158,7 @@ export class PasswordAuthProvider implements AuthProvider {
             let salted_password = `${password}:${salt}`;
             const blob0 = await check_secret.build_blob(identity, salted_password);
             const hash = Buffer.from(blob0.data).toString("hex");
-            const blob1 = registerBlob(username, Date.now(), salt, hash, inviteCode);
+            const blob1 = registerBlob(username, Date.now(), salt, { Password: { hash } }, inviteCode);
 
             const blobTx: BlobTransaction = {
                 identity,
@@ -224,30 +213,6 @@ export class PasswordAuthProvider implements AuthProvider {
                 type: "proof_sent",
                 message: `Proof transaction sent: ${proofTxHash}`,
             });
-
-            // // Wait for on-chain settlement
-            // await new Promise((resolve, reject) => {
-            //     const timeout = setTimeout(() => {
-            //         webSocketService.unsubscribeFromWalletEvents();
-            //         reject(new Error("Wallet creation timed out"));
-            //     }, 60000);
-
-            //     webSocketService.connect(identity);
-            //     const unsubscribeWalletEvents = webSocketService.subscribeToWalletEvents((event) => {
-            //         const msg = event.event.toLowerCase();
-            //         if (msg.startsWith("successfully registered identity")) {
-            //             clearTimeout(timeout);
-            //             unsubscribeWalletEvents();
-            //             webSocketService.disconnect();
-            //             resolve(event);
-            //         } else if (msg.includes("failed") || msg.includes("error")) {
-            //             clearTimeout(timeout);
-            //             unsubscribeWalletEvents();
-            //             webSocketService.disconnect();
-            //             reject(new Error(`${event.event}: ${txHash})`));
-            //         }
-            //     });
-            // });
 
             if (newSessionKey) {
                 wallet.sessionKey = newSessionKey;
