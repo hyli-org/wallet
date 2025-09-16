@@ -57,6 +57,16 @@ pub struct Args {
 
     #[arg(long, default_value = "false")]
     pub noinit: bool,
+
+    /// Clean the data directory before starting the server
+    /// Argument used by hylix tests & run commands
+    #[arg(long, default_value = "false")]
+    pub clean_data_directory: bool,
+
+    /// Server port (overrides config)
+    /// Argument used by hylix tests commands
+    #[arg(long)]
+    pub server_port: Option<u16>,
 }
 
 fn main() -> Result<()> {
@@ -80,6 +90,11 @@ async fn actual_main() -> Result<()> {
     .context("setting up tracing")?;
 
     let config = Arc::new(config);
+
+    if args.clean_data_directory && std::fs::exists(&config.data_directory).unwrap_or(false) {
+        info!("Cleaning data directory: {:?}", &config.data_directory);
+        std::fs::remove_dir_all(&config.data_directory).context("cleaning data directory")?;
+    }
 
     info!("Starting app with config: {:?}", &config);
 
@@ -264,7 +279,7 @@ async fn actual_main() -> Result<()> {
 
     handler
         .build_module::<RestApi>(RestApiRunContext {
-            port: config.rest_server_port,
+            port: args.server_port.unwrap_or(config.rest_server_port),
             max_body_size: config.rest_server_max_body_size,
             registry,
             router,
