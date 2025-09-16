@@ -53,7 +53,7 @@ async function validatePassword(username, password, accountInfo) {
     const storedSalt = accountInfo.salt;
 
     const salted_password = `${password}:${storedSalt}`;
-    const computedHashHex = check_secret.identity_hash(identity, salted_password);
+    const computedHashHex = await check_secret.identity_hash(identity, salted_password);
 
     return computedHashHex === storedHash;
 }
@@ -302,7 +302,13 @@ async function transferFunds(username, password, amount, token, destination) {
 
         // Generate and send proof transaction
         console.log("Generating proof transaction...");
-        const proofTx = await build_proof_transaction(identity, salted_password, txHash, 0, blobTx.blobs.length);
+        const proofTx = await check_secret.build_proof_transaction(
+            identity,
+            salted_password,
+            txHash,
+            0,
+            blobTx.blobs.length,
+        );
 
         console.log("Sending proof transaction...");
         const proofTxHash = await nodeService.sendProofTx(proofTx);
