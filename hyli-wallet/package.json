@@ -24,8 +24,7 @@
     "peerDependencies": {
         "react": "^19.1.0",
         "react-dom": "^19.1.0",
-        "react-router-dom": "^7.6.1",
-        "hyli-noir": "^0.1.0"
+        "react-router-dom": "^7.6.1"
     },
     "scripts": {
         "clean": "rm -rf dist",
@@ -43,6 +42,7 @@
         "elliptic": "^6.6.1",
         "noir-jwt": "^0.4.5",
         "hyli": "^0.4.1",
+        "hyli-noir": "0.2.2",
         "js-sha3": "^0.9.3"
     },
     "devDependencies": {
