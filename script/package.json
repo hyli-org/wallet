@@ -1,6 +1,6 @@
 {
     "name": "hyli-wallet-cli",
-    "version": "0.5.2",
+    "version": "0.6.0",
     "type": "module",
     "license": "MIT",
     "repository": {
@@ -11,18 +11,20 @@
     "bugs": {
         "url": "https://github.com/hyli-org/wallet/issues"
     },
-    "main": "hyli-wallet.js",
+    "main": "dist/hyli-wallet.js",
     "bin": {
-        "hyli-wallet": "./hyli-wallet.js"
+        "hyli-wallet": "./dist/hyli-wallet.js"
     },
     "files": [
-        "hyli-wallet.js",
+        "dist/",
         "README.md"
     ],
     "scripts": {
-        "start": "node hyli-wallet.js",
-        "register": "node hyli-wallet.js",
-        "pub": "npm publish"
+        "build": "tsc",
+        "prepublishOnly": "bun run build",
+        "start": "node dist/hyli-wallet.js",
+        "dev": "tsc --watch",
+        "pub": "bun publish"
     },
     "dependencies": {
         "buffer": "^6.0.3",
@@ -35,7 +37,9 @@
     },
     "devDependencies": {
         "@types/crypto-js": "^4.2.2",
-        "@types/elliptic": "^6.4.18"
+        "@types/elliptic": "^6.4.18",
+        "@types/node": "^20.0.0",
+        "typescript": "^5.0.0"
     },
     "keywords": [
         "wallet",
