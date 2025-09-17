@@ -95,34 +95,6 @@ export interface WalletEvent {
 //
 // Builders
 //
-
-// base64url -> Uint8Array
-function b64urlToU8(s: string): Uint8Array {
-    // base64url -> base64
-    s = s.replace(/-/g, "+").replace(/_/g, "/");
-
-    const bin = atob(s);
-    const out = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-
-    return out;
-}
-
-export const build_check_jwt_blob = (mail_hash: Uint8Array, nonce: string, pubkey: string): Blob => {
-    console.log("PUBKEY", pubkey);
-    let encoded = Uint8Array.from(`${nonce}`, (c) => c.charCodeAt(0));
-    let remaining_len = 16 - encoded.length;
-
-    let zeros = new Array(remaining_len).fill(0);
-
-    const jwtBlob: Blob = {
-        contract_name: "check_jwt",
-        data: [...mail_hash, 58, ...encoded, ...zeros, 58, ...b64urlToU8(pubkey).reverse()],
-    };
-
-    return jwtBlob;
-};
-
 export const registerBlob = (
     account: string,
     nonce: number,
