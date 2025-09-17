@@ -1,14 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { AuthCredentials, AuthProvider } from "../../providers/BaseAuthProvider";
+import { AuthProvider } from "../../providers/BaseAuthProvider";
 import { ProviderOption, useWalletInternal } from "../../hooks/useWallet";
-import { RegistrationStage, WalletErrorCallback, WalletEvent, WalletEventCallback } from "../../types/wallet";
+import { RegistrationStage, WalletEvent } from "../../types/wallet";
 import { getAuthErrorMessage } from "../../utils/errorMessages";
 import "./AuthForm.css";
 import { PasswordAuthCredentials } from "../../providers/PasswordAuthProvider";
 import type { GoogleAuthCredentials } from "../../providers/GoogleAuthProvider";
-import { bytesToBigInt, extractClaimsFromJwt, JWTCircuitHelper, pubkeyModulusFromJWK } from "../../utils/jwt";
-import { fetchGooglePublicKey } from "../../utils/google";
-import { Barretenberg, Fr } from "@aztec/bb.js";
 
 type AuthStage =
     | "idle" // Initial state, no authentication in progress
@@ -80,7 +77,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
     forceSessionKey,
     setLockOpen,
 }) => {
-    const { login, registerAccount: registerWallet, sessionKeyConfig, onWalletEvent, onError } = useWalletInternal();
+    const { login, registerAccount: registerWallet, onWalletEvent, onError } = useWalletInternal();
     const isLocalhost =
         typeof window !== "undefined" &&
         (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
@@ -170,7 +167,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
         if (onError) onError(err);
     };
 
-    const handleGoogleSubmit = async (e: React.FormEvent) => {
+    const handleGoogleSubmit = async (_: React.FormEvent) => {
         try {
             setIsSubmitting(true);
             setStage("sending_blob");
