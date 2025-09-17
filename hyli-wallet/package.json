@@ -42,7 +42,7 @@
         "elliptic": "^6.6.1",
         "noir-jwt": "^0.4.5",
         "hyli": "^0.4.1",
-        "hyli-noir": "0.2.2",
+        "hyli-noir": "0.2.6",
         "js-sha3": "^0.9.3"
     },
     "devDependencies": {
