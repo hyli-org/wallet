@@ -39,7 +39,7 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
     private async checkGoogleAccount(username: string, mail_hash: number[], onError?: WalletErrorCallback) {
         const userAccountInfo = await IndexerService.getInstance().getAccountInfo(username);
         if (!("Jwt" in userAccountInfo.auth_method)) {
-            return { success: false, error: "Auth Method should be Password" };
+            return { success: false, error: "Auth Method should be Jwt" };
         }
         let storedHash = userAccountInfo.auth_method.Jwt.hash;
 
