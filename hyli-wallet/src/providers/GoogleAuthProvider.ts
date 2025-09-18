@@ -104,6 +104,7 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
             }
 
             const username = credentials.username.toLowerCase();
+
             const account = `${username}@${walletContractName}`;
 
             onWalletEvent?.({ account, type: "checking_password", message: "Verifying Google identity…" });

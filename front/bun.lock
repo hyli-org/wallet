@@ -11,6 +11,7 @@
         "crypto-js": "^4.2.0",
         "elliptic": "^6.6.1",
         "hyli": "^0.3.0",
+        "hyli-noir": "0.2.6",
         "hyli-wallet": "../hyli-wallet/",
         "react": "^19.1.0",
         "react-dom": "^19.1.0",
@@ -538,7 +539,7 @@
 
     "hyli-noir": ["hyli-noir@0.2.6", "", { "dependencies": { "hyli": "^0.4.0", "noir-jwt": "^0.4.5" }, "peerDependencies": { "@aztec/bb.js": "0.82.2", "@noir-lang/noir_js": "1.0.0-beta.2", "@noir-lang/noir_wasm": "1.0.0-beta.2" } }, "sha512-zAtWJHbvPa7CLk5+bP7nwlQyPHhvt06vMvZi2Kxzbt7B46TVzaxoMd/EkkhmriTA3XZy3xoqSoVFEEoxSlp5RQ=="],
 
-    "hyli-wallet": ["hyli-wallet@file:../hyli-wallet", { "dependencies": { "@noble/hashes": "^2.0.0", "@types/crypto-js": "^4.2.2", "@types/elliptic": "^6.4.18", "@types/react-router-dom": "^5.3.3", "crypto-js": "^4.2.0", "elliptic": "^6.6.1", "hyli": "^0.4.1", "hyli-noir": "0.2.6", "js-sha3": "^0.9.3", "noir-jwt": "^0.4.5" }, "devDependencies": { "@eslint/js": "^9.35.0", "@types/react": "^19.1.13", "@types/react-dom": "^19.1.9", "@vitejs/plugin-react": "^4.7.0", "ajv": "^8.17.1", "autoprefixer": "^10.4.21", "eslint": "^9.35.0", "eslint-plugin-react-hooks": "^5.2.0", "eslint-plugin-react-refresh": "^0.4.20", "globals": "^15.15.0", "postcss": "^8.5.6", "tailwindcss": "^4.1.13", "typescript": "^5.9.2", "typescript-eslint": "^8.43.0", "vite": "^6.3.6", "vite-bundle-analyzer": "^0.21.0", "vite-plugin-css-injected-by-js": "^3.5.2", "vite-plugin-dts": "^4.5.4" }, "peerDependencies": { "react": "^19.1.0", "react-dom": "^19.1.0", "react-router-dom": "^7.6.1" } }],
+    "hyli-wallet": ["hyli-wallet@file:../hyli-wallet", { "dependencies": { "@noble/hashes": "^2.0.0", "@types/crypto-js": "^4.2.2", "@types/elliptic": "^6.4.18", "@types/react-router-dom": "^5.3.3", "buffer": "^6.0.3", "crypto-js": "^4.2.0", "elliptic": "^6.6.1", "hyli": "^0.4.1", "hyli-noir": "0.2.6", "js-sha3": "^0.9.3", "noir-jwt": "^0.4.5" }, "devDependencies": { "@eslint/js": "^9.35.0", "@types/react": "^19.1.13", "@types/react-dom": "^19.1.9", "@vitejs/plugin-react": "^4.7.0", "ajv": "^8.17.1", "autoprefixer": "^10.4.21", "eslint": "^9.35.0", "eslint-plugin-react-hooks": "^5.2.0", "eslint-plugin-react-refresh": "^0.4.20", "globals": "^15.15.0", "postcss": "^8.5.6", "tailwindcss": "^4.1.13", "typescript": "^5.9.2", "typescript-eslint": "^8.43.0", "vite": "^6.3.6", "vite-bundle-analyzer": "^0.21.0", "vite-plugin-css-injected-by-js": "^3.5.2", "vite-plugin-dts": "^4.5.4" }, "peerDependencies": { "react": "^19.1.0", "react-dom": "^19.1.0", "react-router-dom": "^7.6.1" } }],
 
     "ieee754": ["ieee754@1.2.1", "", {}, "sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA=="],
 
