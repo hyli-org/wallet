@@ -82,7 +82,6 @@ export class PasswordAuthProvider implements AuthProvider {
                             wallet,
                             salted_password,
                             Date.now() + registerSessionKey!.duration,
-                            undefined,
                             registerSessionKey!.whitelist,
                             registerSessionKey!.laneId,
                             onWalletEvent,
