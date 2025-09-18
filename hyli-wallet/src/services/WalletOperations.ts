@@ -3,14 +3,12 @@ import {
     type Wallet,
     walletContractName,
     type WalletAction,
-    type TransactionCallback,
     serializeSecp256k1Blob,
     serializeIdentityAction,
     removeSessionKeyBlob,
     SessionKey,
     WalletEventCallback,
     WalletErrorCallback,
-    JsonWebToken,
 } from "../types/wallet";
 import { sessionKeyService } from "./SessionKeyService";
 import { check_secret } from "hyli-noir";
@@ -31,7 +29,6 @@ export const registerSessionKey = async (
     wallet: Wallet,
     password: string,
     expiration: number,
-    jwt?: JsonWebToken,
     whitelist?: string[],
     laneId?: string,
     onWalletEvent?: WalletEventCallback,
