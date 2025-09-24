@@ -6,13 +6,6 @@ export interface AuthCredentials {
     [key: string]: any;
 }
 
-export interface AuthProvider {
-    type: string;
-    authenticate(): Promise<Wallet>;
-    verify(credentials: AuthCredentials): Promise<boolean>;
-    disconnect(): void;
-}
-
 export interface AuthEvents {
     onTransaction?: (txHash: string, type: string) => void;
 }

@@ -6,7 +6,7 @@ import type { PasswordAuthCredentials } from "hyli-wallet";
 import type { GoogleAuthCredentials } from "hyli-wallet";
 import { getAuthErrorMessage } from "hyli-wallet";
 import { walletKey } from "../composables/useWallet";
-import { computed, inject, ref, watch, watchEffect } from "vue";
+import { computed, inject, ref, watch } from "vue";
 
 type AuthStage =
     | "idle" // Initial state, no authentication in progress
@@ -192,8 +192,8 @@ const handleGoogleSubmit = async () => {
                 provider.type as ProviderOption,
                 {
                     googleToken: idToken,
-                    inviteCode: credentials.inviteCode,
-                    username: credentials.username,
+                    inviteCode: credentials.value.inviteCode,
+                    username: credentials.value.username,
                 } as any,
                 onWalletEventWithStage,
                 onErrorWithStage,
@@ -204,8 +204,8 @@ const handleGoogleSubmit = async () => {
                 provider.type as ProviderOption,
                 {
                     googleToken: idToken,
-                    inviteCode: credentials.inviteCode,
-                    username: credentials.username,
+                    inviteCode: credentials.value.inviteCode,
+                    username: credentials.value.username,
                 } as any,
                 onWalletEventWithStage,
                 onErrorWithStage,

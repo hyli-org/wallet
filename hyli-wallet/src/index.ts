@@ -1,8 +1,9 @@
 export { HyliWallet } from "./components/HyliWallet";
-export type { PasswordAuthProvider } from "./providers/PasswordAuthProvider";
-export type { GoogleAuthProvider } from "./providers/GoogleAuthProvider";
+export { PasswordAuthProvider, type PasswordAuthCredentials } from "./providers/PasswordAuthProvider";
+export { GoogleAuthProvider, type GoogleAuthCredentials } from "./providers/GoogleAuthProvider";
+export type { AuthProvider } from "./providers/BaseAuthProvider";
 export { authProviderManager, AuthProviderManager } from "./providers/AuthProviderManager";
-export type { AuthProvider, AuthCredentials, AuthResult } from "./types/auth";
+export type { AuthCredentials, AuthResult } from "./types/auth";
 export type {
     AuthMethod,
     Wallet,

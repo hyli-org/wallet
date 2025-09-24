@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { provide, type InjectionKey } from "vue";
+import { provide } from "vue";
 import { useWalletInternal, walletKey, type WalletProviderProps } from "../composables/useWallet";
 
 const props = defineProps<WalletProviderProps>();

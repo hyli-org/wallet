@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import fs from "fs";
 import path from "path";
+//import analyzer from "vite-bundle-analyzer";
 
 const wasmContentTypePlugin = () => ({
     name: "wasm-content-type-plugin",
@@ -30,5 +31,19 @@ const wasmContentTypePlugin = () => ({
 
 // https://vite.dev/config/
 export default defineConfig({
+    build: {
+        lib: {
+            entry: "src/lib.ts",
+            name: "HyliWallet",
+            fileName: (format) => `hyli-wallet.${format}.js`,
+            formats: ["es", "cjs"],
+        },
+        rollupOptions: {
+            external: ["hyli-noir"],
+        },
+        outDir: "dist",
+        sourcemap: true,
+        minify: true,
+    },
     plugins: [vue(), wasmContentTypePlugin()],
 });
