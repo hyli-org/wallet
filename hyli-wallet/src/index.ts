@@ -1,19 +1,20 @@
 export { HyliWallet } from "./components/HyliWallet";
-export { PasswordAuthProvider } from "./providers/PasswordAuthProvider";
-export { GoogleAuthProvider } from "./providers/GoogleAuthProvider";
+export type { PasswordAuthProvider } from "./providers/PasswordAuthProvider";
+export type { GoogleAuthProvider } from "./providers/GoogleAuthProvider";
 export { authProviderManager, AuthProviderManager } from "./providers/AuthProviderManager";
-export type { AuthProvider, AuthCredentials } from "./types/auth";
+export type { AuthProvider, AuthCredentials, AuthResult } from "./types/auth";
 export type {
     AuthMethod,
     Wallet,
     WalletAction,
     WalletEventCallback,
+    WalletErrorCallback,
     WalletEvent,
     LoginStage,
     RegistrationStage,
 } from "./types/wallet";
-export { walletContractName } from "./types/wallet";
-export type { WalletConfig } from "./services/ConfigService";
+export { getStoredWallet, storeWallet, walletContractName } from "./types/wallet";
+export { ConfigService, type WalletConfig } from "./services/ConfigService";
 export {
     registerBlob as register,
     verifyIdentityBlob as verifyIdentity,
@@ -30,3 +31,4 @@ export type { SessionKey, AccountInfo } from "./services/IndexerService";
 export { IndexerService } from "./services/IndexerService";
 export { NodeService } from "./services/NodeService";
 export { getAuthErrorMessage } from "./utils/errorMessages";
+export * as WalletOperations from "./services/WalletOperations";
