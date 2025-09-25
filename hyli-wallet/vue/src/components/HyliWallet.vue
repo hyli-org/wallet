@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { authProviderManager } from "hyli-wallet";
 import type { ProviderOption } from "hyli-wallet";
-import { walletKey } from "../composables/useWallet";
 import AuthForm from "./AuthForm.vue";
 
-import { computed, inject, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
+import { useWalletInternal } from "../lib";
 
 // TODO: share this with react
 // NB: the react props are slots in vue, so skipped here.
@@ -41,7 +41,7 @@ const {
     defaultAuthMode = "login",
 } = defineProps<HyliWalletProps>();
 
-const { wallet, logout, forceSessionKey } = inject(walletKey)!;
+const { wallet, logout, forceSessionKey } = useWalletInternal();
 
 console.log("HyliWallet component mounted with props:", { defaultAuthMode, providers });
 

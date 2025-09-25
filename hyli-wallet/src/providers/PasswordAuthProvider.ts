@@ -1,4 +1,3 @@
-import { Buffer } from "buffer";
 import { AuthProvider, RegisterAccountParams, LoginParams } from "./BaseAuthProvider";
 import { Wallet, addSessionKeyBlob, registerBlob, walletContractName } from "../types/wallet";
 import { NodeService } from "../services/NodeService";
@@ -8,7 +7,7 @@ import { BlobTransaction } from "hyli";
 import * as WalletOperations from "../services/WalletOperations";
 import { IndexerService } from "../services/IndexerService";
 import { sessionKeyService } from "../services/SessionKeyService";
-import { hashBlobTransaction } from "../utils/hash";
+import { encodeToHex, hashBlobTransaction } from "../utils/hash";
 import { AuthCredentials, AuthResult } from "../types/auth";
 
 export interface PasswordAuthCredentials extends AuthCredentials {
@@ -157,7 +156,7 @@ export class PasswordAuthProvider implements AuthProvider {
 
             let salted_password = `${password}:${salt}`;
             const blob0 = await check_secret.build_blob(identity, salted_password);
-            const hash = Buffer.from(blob0.data).toString("hex");
+            const hash = encodeToHex(blob0.data);
             const blob1 = registerBlob(username, Date.now(), salt, { Password: { hash } }, inviteCode);
 
             const blobTx: BlobTransaction = {

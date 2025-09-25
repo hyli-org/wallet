@@ -1,5 +1,3 @@
-import { Buffer } from "buffer";
-
 export interface SessionKey {
     publicKey: string;
     privateKey: string;
@@ -100,7 +98,7 @@ export const registerBlob = (
     nonce: number,
     salt: string,
     auth_method: AuthMethod,
-    invite_code: string,
+    invite_code: string
 ): Blob => {
     const action: WalletAction = {
         RegisterIdentity: {
@@ -135,7 +133,7 @@ export const addSessionKeyBlob = (
     key: string,
     expiration_date: number,
     whitelist?: string[],
-    laneId?: string,
+    laneId?: string
 ): Blob => {
     const action: WalletAction = {
         AddSessionKey: {
@@ -205,7 +203,7 @@ export const serializeIdentityAction = (action: WalletAction): number[] => {
     return Array.from(borshSerialize(schema, action));
 };
 export const deserializeIdentityAction = (data: number[]): WalletAction => {
-    return borshDeserialize(schema, Buffer.from(data));
+    return borshDeserialize(schema, new Uint8Array(data));
 };
 
 const secp256k1BlobSchema = BorshSchema.Struct({

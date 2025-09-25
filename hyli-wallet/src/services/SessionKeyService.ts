@@ -1,7 +1,7 @@
 import EC from "elliptic";
-import { SHA256 } from "crypto-js";
-import { Buffer } from "buffer";
+import { sha3_256 } from "js-sha3";
 import { Secp256k1Blob, SessionKey } from "../types/wallet";
+import { encodeToHex, hexToBytes } from "../utils/hash";
 
 export class SessionKeyService {
     private ec: EC.ec;
@@ -34,15 +34,14 @@ export class SessionKeyService {
     }
 
     signMessage(message: string, privateKey: string): [Uint8Array, Uint8Array] {
-        const hash = SHA256(message);
-        const hashBytes = Buffer.from(hash.toString(), "hex");
+        const hashBytes = new Uint8Array(sha3_256.arrayBuffer(message));
 
         if (hashBytes.length !== 32) {
             throw new Error("Hash length is not 32 bytes");
         }
 
         const keyPair = this.ec.keyFromPrivate(privateKey);
-        const signature = keyPair.sign(hash.toString());
+        const signature = keyPair.sign(encodeToHex(hashBytes));
 
         // Normaliser s en utilisant min(s, n-s)
         const n = this.ec.curve.n;
@@ -65,7 +64,7 @@ export class SessionKeyService {
         const secp256k1Blob: Secp256k1Blob = {
             identity: identity,
             data: hashBytes,
-            public_key: new Uint8Array(Buffer.from(publicKey, "hex")),
+            public_key: hexToBytes(publicKey),
             signature: signatureBytes,
         };
         return secp256k1Blob;

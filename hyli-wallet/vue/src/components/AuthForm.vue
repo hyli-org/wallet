@@ -5,8 +5,8 @@ import type { RegistrationStage, WalletEvent } from "hyli-wallet";
 import type { PasswordAuthCredentials } from "hyli-wallet";
 import type { GoogleAuthCredentials } from "hyli-wallet";
 import { getAuthErrorMessage } from "hyli-wallet";
-import { walletKey } from "../composables/useWallet";
-import { computed, inject, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
+import { useWalletInternal } from "../lib";
 
 type AuthStage =
     | "idle" // Initial state, no authentication in progress
@@ -72,7 +72,7 @@ function getRandomSalt() {
 
 const { provider, mode, classPrefix = "hyli", closeModal, forceSessionKey, setLockOpen } = defineProps<AuthFormProps>();
 
-const { login, registerAccount: registerWallet, onWalletEvent, onError } = inject(walletKey)!;
+const { login, registerAccount: registerWallet, onWalletEvent, onError } = useWalletInternal();
 
 const isLocalhost =
     typeof window !== "undefined" &&
@@ -93,7 +93,7 @@ const error = ref("");
 const isSubmitting = ref(false);
 const stage = ref<AuthStage>("idle");
 // Session key checkbox state logic
-const autoSessionKey = ref(forceSessionKey === true ? true : true);
+const autoSessionKey = ref(forceSessionKey === true);
 const funFact = ref(getRandomFact());
 
 // If forceSessionKey changes, update autoSessionKey accordingly
@@ -351,7 +351,7 @@ const handleSubmit = async (e: Event) => {
                     id="username"
                     name="username"
                     type="text"
-                    :value="credentials.username"
+                    v-model="credentials.username"
                     placeholder="Enter your username"
                     :disabled="isSubmitting"
                     :class="`${classPrefix}-form-input`"
@@ -364,7 +364,7 @@ const handleSubmit = async (e: Event) => {
                     id="password"
                     name="password"
                     type="password"
-                    :value="(credentials as any).password"
+                    v-model="(credentials as any).password"
                     placeholder="Enter your password (min. 8 characters)"
                     :disabled="isSubmitting"
                     :class="`${classPrefix}-form-input`"
@@ -378,7 +378,7 @@ const handleSubmit = async (e: Event) => {
                         id="confirmPassword"
                         name="confirmPassword"
                         type="password"
-                        :value="(credentials as any).confirmPassword"
+                        v-model="(credentials as any).confirmPassword"
                         placeholder="Confirm your password (min. 8 characters)"
                         :disabled="isSubmitting"
                         :class="`${classPrefix}-form-input`"
@@ -392,7 +392,7 @@ const handleSubmit = async (e: Event) => {
                     id="inviteCode"
                     name="inviteCode"
                     type="text"
-                    :value="(credentials as any).inviteCode"
+                    v-model="(credentials as any).inviteCode"
                     placeholder="Enter your invite code"
                     :disabled="isSubmitting"
                     :class="`${classPrefix}-form-input`"
@@ -406,7 +406,7 @@ const handleSubmit = async (e: Event) => {
                         id="autoSessionKey"
                         name="autoSessionKey"
                         type="checkbox"
-                        :checked="autoSessionKey"
+                        v-model="autoSessionKey"
                         :disabled="isSubmitting || forceSessionKey === true"
                         style="margin-right: 8px; height: 1.4em; width: 1.4em"
                     />

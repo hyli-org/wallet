@@ -13,7 +13,7 @@ import { ConfigService } from "hyli-wallet";
 import { NodeService } from "hyli-wallet";
 import { IndexerService } from "hyli-wallet";
 import { sessionKeyService } from "hyli-wallet";
-import { computed, onMounted, ref, watchEffect, type InjectionKey } from "vue";
+import { computed, ref, watchEffect, type InjectionKey } from "vue";
 
 export type ProviderOption = "password" | "google" | "github" | "x";
 
@@ -64,13 +64,30 @@ watchEffect(() => {
     if (wallet.value) storeWallet(wallet.value);
 });
 
-export const useWalletInternal = (props: WalletProviderProps) => {
+const walletConfig = ref<WalletProviderProps>({
+    config: {
+        // Defaults from Hylix for convenience
+        nodeBaseUrl: "http://localhost:4321",
+        walletServerBaseUrl: "http://localhost:4000",
+        applicationWsUrl: "ws://localhost:8081",
+    },
+    sessionKeyConfig: { duration: 72 * 60 * 60 * 1000 },
+    forceSessionKey: false,
+    onWalletEvent: undefined,
+    onError: undefined,
+});
+
+export const setWalletConfig = (config: WalletProviderProps) => {
+    walletConfig.value = config;
+};
+
+export const useWalletInternal = () => {
     // We are passing a reactive props object, so can't destructure here, add computed stuff
-    const config = computed(() => props.config);
-    const sessionKeyConfig = computed(() => props.sessionKeyConfig);
-    const forceSessionKey = computed(() => props.forceSessionKey);
-    const onWalletEvent = computed(() => props.onWalletEvent);
-    const onError = computed(() => props.onError);
+    const config = computed(() => walletConfig.value.config);
+    const sessionKeyConfig = computed(() => walletConfig.value.sessionKeyConfig);
+    const forceSessionKey = computed(() => walletConfig.value.forceSessionKey);
+    const onWalletEvent = computed(() => walletConfig.value.onWalletEvent);
+    const onError = computed(() => walletConfig.value.onError);
 
     // TODO: logic is somewhat identical to react
     const checkWalletExists = async () => {
@@ -84,6 +101,7 @@ export const useWalletInternal = (props: WalletProviderProps) => {
             // Check if the account exists
             try {
                 const exists = await WalletOperations.checkAccountExists(wallet.value, true);
+                console.log("Account existence check:", exists);
                 if (!exists) {
                     console.warn("Account", wallet.value, "does not exist, clearing wallet.");
                     // If the account does not exist, we clear the wallet
@@ -95,9 +113,6 @@ export const useWalletInternal = (props: WalletProviderProps) => {
             }
         }
     };
-    onMounted(() => {
-        checkWalletExists();
-    });
 
     // Initialize config and services on mount
     watchEffect(() => {
@@ -105,6 +120,8 @@ export const useWalletInternal = (props: WalletProviderProps) => {
         NodeService.initialize(config.value.nodeBaseUrl);
         IndexerService.initialize(config.value.walletServerBaseUrl);
     });
+
+    checkWalletExists();
 
     const defaultSessionKeyConfig: { duration: number; whitelist?: string[] } = { duration: 72 * 60 * 60 * 1000 };
     const effectiveSessionKeyConfig = computed(() => sessionKeyConfig.value ?? defaultSessionKeyConfig);
@@ -320,8 +337,8 @@ export const useWalletInternal = (props: WalletProviderProps) => {
     };
 };
 
-export const useWallet = (props: WalletProviderProps) => {
-    const context = useWalletInternal(props);
+export const useWallet = () => {
+    const context = useWalletInternal();
     return {
         wallet: context.wallet,
         login: context.login,

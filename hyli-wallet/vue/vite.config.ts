@@ -2,6 +2,8 @@ import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import fs from "fs";
 import path from "path";
+// @ts-expect-error
+import dts from "unplugin-dts/vite";
 //import analyzer from "vite-bundle-analyzer";
 
 const wasmContentTypePlugin = () => ({
@@ -31,6 +33,13 @@ const wasmContentTypePlugin = () => ({
 
 // https://vite.dev/config/
 export default defineConfig({
+    optimizeDeps: {
+        include: ["hyli-noir"],
+    },
+    resolve: {
+        dedupe: ["hyli-noir"], // prevents duplicate instances (React-style issues)
+        // preserveSymlinks: true // try this if you're using pnpm/yarn workspaces and symlinks
+    },
     build: {
         lib: {
             entry: "src/lib.ts",
@@ -39,11 +48,11 @@ export default defineConfig({
             formats: ["es", "cjs"],
         },
         rollupOptions: {
-            external: ["hyli-noir"],
+            external: ["hyli-noir", "vue"],
         },
         outDir: "dist",
         sourcemap: true,
         minify: true,
     },
-    plugins: [vue(), wasmContentTypePlugin()],
+    plugins: [vue(), wasmContentTypePlugin(), dts({ tsconfigPath: "./tsconfig.app.json", processor: "vue" })],
 });

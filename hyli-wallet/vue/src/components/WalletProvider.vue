@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { provide } from "vue";
-import { useWalletInternal, walletKey, type WalletProviderProps } from "../composables/useWallet";
+import { provide, watchEffect } from "vue";
+import { setWalletConfig, useWalletInternal, walletKey, type WalletProviderProps } from "../composables/useWallet";
 
 const props = defineProps<WalletProviderProps>();
 
-const walletInternal = useWalletInternal(props);
+watchEffect(() => setWalletConfig(props));
+const walletInternal = useWalletInternal();
 provide(walletKey, walletInternal);
 </script>
 
