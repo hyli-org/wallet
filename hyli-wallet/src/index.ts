@@ -4,16 +4,7 @@ export { GoogleAuthProvider, type GoogleAuthCredentials } from "./providers/Goog
 export type { AuthProvider } from "./providers/BaseAuthProvider";
 export { authProviderManager, AuthProviderManager } from "./providers/AuthProviderManager";
 export type { AuthCredentials, AuthResult } from "./types/auth";
-export type {
-    AuthMethod,
-    Wallet,
-    WalletAction,
-    WalletEventCallback,
-    WalletErrorCallback,
-    WalletEvent,
-    LoginStage,
-    RegistrationStage,
-} from "./types/wallet";
+export type * from "./types/wallet";
 export { getStoredWallet, storeWallet, walletContractName } from "./types/wallet";
 export { ConfigService, type WalletConfig } from "./services/ConfigService";
 export {
@@ -28,7 +19,7 @@ export {
 export type { ProviderOption, WalletContextType, WalletProviderProps } from "./hooks/useWallet";
 export { WalletProvider, useWallet } from "./hooks/useWallet";
 export { sessionKeyService } from "./services/SessionKeyService";
-export type { SessionKey, AccountInfo } from "./services/IndexerService";
+export type { BackendSessionKey, AccountInfo } from "./services/IndexerService";
 export { IndexerService } from "./services/IndexerService";
 export { NodeService } from "./services/NodeService";
 export { getAuthErrorMessage } from "./utils/errorMessages";
