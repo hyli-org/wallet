@@ -13,11 +13,9 @@ import { ConfigService } from "hyli-wallet";
 import { NodeService } from "hyli-wallet";
 import { IndexerService } from "hyli-wallet";
 import { sessionKeyService } from "hyli-wallet";
-import { computed, ref, watchEffect, type InjectionKey } from "vue";
+import { computed, ref, watchEffect } from "vue";
 
 export type ProviderOption = "password" | "google" | "github" | "x";
-
-export const walletKey = Symbol() as InjectionKey<ReturnType<typeof useWalletInternal>>;
 
 export interface WalletProviderProps {
     config: {

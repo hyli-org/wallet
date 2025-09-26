@@ -1,7 +1,6 @@
 {
     "name": "hyli-wallet-vue",
-    "private": true,
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "module",
     "main": "./dist/hyli-wallet.cjs.js",
     "module": "./dist/hyli-wallet.es.js",
@@ -18,15 +17,17 @@
     ],
     "scripts": {
         "dev": "bunx --bun vite",
-        "build": "vue-tsc -b && vite build",
-        "preview": "vite preview"
+        "build": "vue-tsc -b && bunx --bun vite build",
+        "preview": "bunx --bun vite preview",
+        "prepublishOnly": "bun run build",
+        "pub": "npm publish"
     },
     "peerDependencies": {
-        "vue": "^3.5.21",
+        "vue": "^3.5.22",
         "hyli-noir": "^0.2.7"
     },
     "dependencies": {
-        "hyli-wallet": "workspace:.."
+        "hyli-wallet": "^0.5.3"
     },
     "devDependencies": {
         "@aztec/bb.js": "0.82.2",
@@ -35,7 +36,7 @@
         "@vitejs/plugin-vue": "^6.0.1",
         "@vue/tsconfig": "^0.8.1",
         "typescript": "^5.9.2",
-        "unplugin-dts": "^1.0.0-beta.0",
+        "unplugin-dts": "^1.0.0-beta.6",
         "vite": "npm:rolldown-vite@7.1.12",
         "vite-bundle-analyzer": "^1.2.3",
         "vue-tsc": "^3.0.8"

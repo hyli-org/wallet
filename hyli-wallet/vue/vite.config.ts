@@ -2,7 +2,6 @@ import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import fs from "fs";
 import path from "path";
-// @ts-expect-error
 import dts from "unplugin-dts/vite";
 //import analyzer from "vite-bundle-analyzer";
 
