@@ -3,6 +3,7 @@ import vue from "@vitejs/plugin-vue";
 import fs from "fs";
 import path from "path";
 import dts from "unplugin-dts/vite";
+import { nodePolyfills } from "vite-plugin-node-polyfills";
 //import analyzer from "vite-bundle-analyzer";
 
 const wasmContentTypePlugin = () => ({
@@ -31,7 +32,7 @@ const wasmContentTypePlugin = () => ({
 });
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ command }) => ({
     optimizeDeps: {
         include: ["hyli-noir"],
     },
@@ -53,5 +54,17 @@ export default defineConfig({
         sourcemap: true,
         minify: true,
     },
-    plugins: [vue(), wasmContentTypePlugin(), dts({ tsconfigPath: "./tsconfig.app.json", processor: "vue" })],
-});
+    plugins: (command === "serve"
+        ? [
+              nodePolyfills({
+                  include: ["buffer"],
+                  globals: {
+                      Buffer: true,
+                      global: false,
+                      process: false,
+                  },
+              }),
+          ]
+        : []
+    ).concat(vue(), wasmContentTypePlugin(), dts({ tsconfigPath: "./tsconfig.app.json", processor: "vue" })),
+}));
