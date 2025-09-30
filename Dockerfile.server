@@ -1,7 +1,15 @@
+ARG TARGETARCH
+ARG WITH_R0VM=true
+
 FROM rust:latest AS builder
 
-RUN curl -L https://risczero.com/install | bash
-RUN /root/.risc0/bin/rzup install
+RUN if [ "${WITH_R0VM}" = "true" ] && [ "$TARGETARCH" != "arm64" ]; then \
+        curl -L https://risczero.com/install | bash && \
+        /root/.risc0/bin/rzup install r0vm 2.3.2; \
+    else \
+        touch /usr/local/cargo/bin/r0vm; \
+    fi
+
 RUN apt-get update && apt-get install -y libdbus-1-dev
 
 WORKDIR /app
@@ -19,12 +27,15 @@ FROM rust:latest
 
 WORKDIR /app
 
+COPY --from=builder /usr/local/cargo/bin/r0vm /usr/local/bin/r0vm
 COPY --from=builder /app/target/release/server ./
 COPY --from=builder /app/target/release/autoprover ./
 
 RUN apt-get update && apt-get install -y libdbus-1-dev curl
-RUN curl -L https://risczero.com/install | bash
-RUN /root/.risc0/bin/rzup install r0vm 2.3.2
+
+RUN if [ "${WITH_R0VM}" != "true" ] || [ "$TARGETARCH" = "arm64" ]; then \
+        rm /usr/local/bin/r0vm; \
+    fi
 
 EXPOSE 4000
 
