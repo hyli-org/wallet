@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import HyliWallet from "./components/HyliWallet.vue";
-import WalletProvider from "./components/WalletProvider.vue";
+import { HyliWallet, WalletProvider } from "hyli-wallet-vue";
 </script>
 
 <template>
@@ -10,6 +9,7 @@ import WalletProvider from "./components/WalletProvider.vue";
             walletServerBaseUrl: 'http://localhost:4000',
             applicationWsUrl: 'ws://localhost:8081',
         }"
+        :force-session-key="undefined"
     >
         <HyliWallet></HyliWallet>
     </WalletProvider>

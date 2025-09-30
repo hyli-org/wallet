@@ -70,7 +70,7 @@ const walletConfig = ref<WalletProviderProps>({
         applicationWsUrl: "ws://localhost:8081",
     },
     sessionKeyConfig: { duration: 72 * 60 * 60 * 1000 },
-    forceSessionKey: false,
+    forceSessionKey: undefined,
     onWalletEvent: undefined,
     onError: undefined,
 });
@@ -99,7 +99,6 @@ export const useWalletInternal = () => {
             // Check if the account exists
             try {
                 const exists = await WalletOperations.checkAccountExists(wallet.value, true);
-                console.log("Account existence check:", exists);
                 if (!exists) {
                     console.warn("Account", wallet.value, "does not exist, clearing wallet.");
                     // If the account does not exist, we clear the wallet
