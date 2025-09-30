@@ -5,6 +5,10 @@
     <link rel="icon" type="image/png" href="/Favicon2.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Hyli - Wallet</title>
+    <script type="module">
+      import { Buffer } from "buffer";
+      window.Buffer = Buffer;
+    </script>   
     <script>
         window.__ENV__ = {
             NODE_BASE_URL: '${NODE_BASE_URL}',

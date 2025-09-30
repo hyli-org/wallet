@@ -1,7 +1,7 @@
 import { Blob, IndexerApiHttpClient } from "hyli";
 import { AuthMethod, walletContractName } from "../types/wallet";
 
-export interface SessionKey {
+export interface BackendSessionKey {
     key: string;
     expiration_date: number;
     nonce: number;
@@ -11,7 +11,7 @@ export interface SessionKey {
 export interface AccountInfo {
     account: string;
     auth_method: AuthMethod;
-    session_keys: SessionKey[];
+    session_keys: BackendSessionKey[];
     nonce: number;
     salt: string;
 }

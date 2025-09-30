@@ -2,8 +2,61 @@ import { sha3_256 } from "js-sha3";
 
 // --- Hashing utilities for Blob and BlobTransaction ---
 
-export const encodeToHex = (data: Uint8Array): string => {
-    return Array.from(data)
+const MAP_HEX = {
+    0: 0,
+    1: 1,
+    2: 2,
+    3: 3,
+    4: 4,
+    5: 5,
+    6: 6,
+    7: 7,
+    8: 8,
+    9: 9,
+    a: 10,
+    b: 11,
+    c: 12,
+    d: 13,
+    e: 14,
+    f: 15,
+    A: 10,
+    B: 11,
+    C: 12,
+    D: 13,
+    E: 14,
+    F: 15,
+};
+
+export const hexToBytes = (hexString: string): Uint8Array => {
+    if ("FromHex" in Uint8Array.prototype) {
+        console.warn("Using Uint8Array.FromHex, which may not be supported in all environments.");
+        // @ts-expect-error
+        return Uint8Array.FromHex(hexString);
+    }
+    // Copied from https://stackoverflow.com/questions/38987784/how-to-convert-a-hexadecimal-string-to-uint8array-and-back-in-javascript
+    const bytes = new Uint8Array(Math.floor((hexString || "").length / 2));
+    let i;
+    for (i = 0; i < bytes.length; i++) {
+        const a = MAP_HEX[hexString[i * 2] as keyof typeof MAP_HEX];
+        const b = MAP_HEX[hexString[i * 2 + 1] as keyof typeof MAP_HEX];
+        if (a === undefined || b === undefined) {
+            break;
+        }
+        bytes[i] = (a << 4) | b;
+    }
+    return i === bytes.length ? bytes : bytes.slice(0, i);
+};
+
+export const encodeToHex = (data: Uint8Array | number[]): string => {
+    return (() => {
+        if (data instanceof Uint8Array) {
+            return Array.from(data);
+        } else if (Array.isArray(data)) {
+            return data;
+        } else {
+            throw new TypeError("Unsupported data type for encodeToHex");
+        }
+    })()
         .map((byte) => byte.toString(16).padStart(2, "0"))
         .join("");
 };

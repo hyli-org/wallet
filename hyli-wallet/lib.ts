@@ -1,7 +1,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { HyliWallet } from "./src/components/HyliWallet";
-import type { ProviderOption } from "./src/hooks/useWallet";
+import { WalletProvider, type ProviderOption } from "./src/hooks/useWallet";
 
 class HyliWalletElement extends HTMLElement {
     connectedCallback() {
@@ -13,7 +13,9 @@ class HyliWalletElement extends HTMLElement {
             ? (providersAttr.split(",") as ProviderOption[])
             : ["password" as ProviderOption];
 
-        createRoot(mountPoint).render(React.createElement(HyliWallet, { providers }));
+        createRoot(mountPoint).render(
+            React.createElement(WalletProvider, null, React.createElement(HyliWallet, { providers }))
+        );
     }
 }
 

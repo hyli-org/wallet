@@ -1,6 +1,6 @@
 // GoogleAuthProvider.ts
 // Use Web Crypto API in browser instead of Node 'crypto'
-import { AuthProvider, AuthResult, RegisterAccountParams, LoginParams } from "./BaseAuthProvider";
+import { AuthProvider, RegisterAccountParams, LoginParams } from "./BaseAuthProvider";
 import {
     Wallet,
     registerBlob,
@@ -18,8 +18,9 @@ import { sessionKeyService } from "../services/SessionKeyService";
 import * as WalletOperations from "../services/WalletOperations";
 import { check_jwt } from "hyli-noir";
 import { fetchGooglePublicKeys } from "../utils/google";
+import { AuthCredentials, AuthResult } from "../types/auth";
 
-export interface GoogleAuthCredentials {
+export interface GoogleAuthCredentials extends AuthCredentials {
     username: string; // requis par AuthCredentials
     googleToken: string; // ID token Google
     inviteCode?: string; // requis en register()
@@ -117,7 +118,7 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
             const { success: checked_success, error } = await this.checkGoogleAccount(
                 username,
                 jwtBlobData.mail_hash,
-                onError,
+                onError
             );
 
             if (!checked_success) {
@@ -164,7 +165,7 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
                 0,
                 2,
                 credentials.googleToken,
-                jwtBlobData.pubkey,
+                jwtBlobData.pubkey
             );
 
             await nodeService.client.sendProofTx(proof_tx);
@@ -230,7 +231,7 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
                 jwtBlobData.nonce,
                 "",
                 { Jwt: { hash: jwtBlobData.mail_hash } },
-                inviteCode,
+                inviteCode
             );
 
             const blobTx: BlobTransaction = {
@@ -270,7 +271,7 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
                 0,
                 3,
                 googleToken,
-                jwtBlobData.pubkey,
+                jwtBlobData.pubkey
             );
 
             await nodeService.client.sendProofTx(proof_tx);

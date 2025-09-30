@@ -4,7 +4,7 @@ import { ProviderOption, useWalletInternal } from "../../hooks/useWallet";
 import { RegistrationStage, WalletEvent } from "../../types/wallet";
 import { getAuthErrorMessage } from "../../utils/errorMessages";
 import "./AuthForm.css";
-import { PasswordAuthCredentials } from "../../providers/PasswordAuthProvider";
+import type { PasswordAuthCredentials } from "../../providers/PasswordAuthProvider";
 import type { GoogleAuthCredentials } from "../../providers/GoogleAuthProvider";
 
 type AuthStage =
@@ -196,7 +196,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                     } as any,
                     onWalletEventWithStage,
                     onErrorWithStage,
-                    { registerSessionKey: autoSessionKey },
+                    { registerSessionKey: autoSessionKey }
                 );
             } else {
                 await registerWallet(
@@ -208,7 +208,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                     } as any,
                     onWalletEventWithStage,
                     onErrorWithStage,
-                    { registerSessionKey: autoSessionKey },
+                    { registerSessionKey: autoSessionKey }
                 );
             }
         } catch (err) {
@@ -253,7 +253,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
             provider: ProviderOption,
             credentials:
                 | (PasswordAuthCredentials & { inviteCode: string })
-                | (GoogleAuthCredentials & { inviteCode: string }),
+                | (GoogleAuthCredentials & { inviteCode: string })
         ) => {
             console.log("[Hyli][AuthForm] submit", {
                 provider,
