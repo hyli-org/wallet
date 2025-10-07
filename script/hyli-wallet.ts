@@ -5,7 +5,14 @@ import { NodeApiHttpClient, IndexerApiHttpClient, blob_builder, Blob, BlobTransa
 import { check_secret } from "hyli-noir";
 import EC from "elliptic";
 import pkg from "js-sha3";
-import { register as registerBlob, addSessionKey as addSessionKeyBlob, verifyIdentity, Wallet, AccountInfo } from "hyli-wallet";
+import {
+    register as registerBlob,
+    addSessionKey as addSessionKeyBlob,
+    verifyIdentity,
+    Wallet,
+    AccountInfo,
+} from "hyli-wallet";
+import { BorshSchema, borshSerialize } from "borsher";
 
 const { sha3_256 } = pkg;
 
@@ -40,6 +47,13 @@ interface TransferResult {
         amount: number;
         token: string;
     };
+    error?: string;
+}
+
+interface DeleteContractResult {
+    success: boolean;
+    transactionHash?: string;
+    contractName?: string;
     error?: string;
 }
 
@@ -81,14 +95,26 @@ async function hashBlobTransaction(tx: BlobTransaction): Promise<string> {
     return encodeToHex(new Uint8Array(sha3_256.arrayBuffer(input)));
 }
 
+// DeleteContractAction serialization
+const deleteContractActionSchema = BorshSchema.Struct({
+    contract_name: BorshSchema.String,
+});
+
+function deleteContractBlob(contractName: string): Blob {
+    return {
+        contract_name: "hyli",
+        data: Array.from(borshSerialize(deleteContractActionSchema, { contract_name: contractName })),
+    };
+}
+
 // Password validation function
 async function validatePassword(username: string, password: string, accountInfo: AccountInfo): Promise<boolean> {
     const identity = `${username}@${CONFIG.WALLET_CONTRACT_NAME}`;
-    
-    if (!('Password' in accountInfo.auth_method)) {
+
+    if (!("Password" in accountInfo.auth_method)) {
         throw new Error("Account does not use password authentication");
     }
-    
+
     const storedHash = accountInfo.auth_method.Password.hash;
     const storedSalt = accountInfo.salt;
 
@@ -139,7 +165,7 @@ async function registerAccount(
         let accountInfo: AccountInfo | undefined;
         try {
             const response = await fetch(
-                `${CONFIG.WALLET_API_BASE_URL}/v1/indexer/contract/${CONFIG.WALLET_CONTRACT_NAME}/account/${username}`,
+                `${CONFIG.WALLET_API_BASE_URL}/v1/indexer/contract/${CONFIG.WALLET_CONTRACT_NAME}/account/${username}`
             );
             if (!response.ok) {
                 throw new Error(`Failed to check account existence: ${response.statusText}`);
@@ -152,11 +178,14 @@ async function registerAccount(
 
         if (accountInfo) {
             console.log(`Account ${username} already exists`);
-            return { success: true, wallet: {
-                username,
-                address: `${username}@${CONFIG.WALLET_CONTRACT_NAME}`,
-                salt: accountInfo.salt
-            } };
+            return {
+                success: true,
+                wallet: {
+                    username,
+                    address: `${username}@${CONFIG.WALLET_CONTRACT_NAME}`,
+                    salt: accountInfo.salt,
+                },
+            };
         }
 
         // Validate password
@@ -234,7 +263,7 @@ async function registerAccount(
             salted_password,
             txHash,
             0,
-            blobTx.blobs.length,
+            blobTx.blobs.length
         );
 
         console.log("Sending proof transaction...");
@@ -293,7 +322,7 @@ async function transferFunds(
         let accountInfo: AccountInfo;
         try {
             const response = await fetch(
-                `${CONFIG.WALLET_API_BASE_URL}/v1/indexer/contract/${CONFIG.WALLET_CONTRACT_NAME}/account/${username}`,
+                `${CONFIG.WALLET_API_BASE_URL}/v1/indexer/contract/${CONFIG.WALLET_CONTRACT_NAME}/account/${username}`
             );
             if (!response.ok) {
                 throw new Error(`Failed to get account info: ${response.statusText}`);
@@ -321,10 +350,10 @@ async function transferFunds(
         console.log("Checking balance...");
         let balance: number;
         try {
-            const result = await indexerService.get(
+            const result = (await indexerService.get(
                 `v1/indexer/contract/${token}/balance/${identity}`,
-                "Checking balance",
-            ) as { balance: number };
+                "Checking balance"
+            )) as { balance: number };
             balance = result.balance;
         } catch (error: any) {
             throw new Error(`Failed to get balance: ${error.message}. User might have no balance for this token.`);
@@ -363,7 +392,7 @@ async function transferFunds(
             salted_password,
             txHash,
             0,
-            blobTx.blobs.length,
+            blobTx.blobs.length
         );
 
         console.log("Sending proof transaction...");
@@ -390,6 +419,89 @@ async function transferFunds(
     }
 }
 
+// Delete contract function
+async function deleteContract(password: string, contractName: string): Promise<DeleteContractResult> {
+    console.log(`Starting contract deletion for: ${contractName}`);
+
+    try {
+        // Initialize services
+        const nodeService = new NodeApiHttpClient(CONFIG.NODE_BASE_URL);
+
+        let accountInfo: AccountInfo;
+        try {
+            const response = await fetch(
+                `${CONFIG.WALLET_API_BASE_URL}/v1/indexer/contract/${CONFIG.WALLET_CONTRACT_NAME}/account/hyli`
+            );
+            accountInfo = await response.json();
+        } catch (error: any) {
+            throw new Error(`Failed to get account info for hyli@wallet: ${error.message}`);
+        }
+        if (!accountInfo) {
+            throw new Error("hyli@wallet account does not exist");
+        }
+
+        // Use hyli@wallet as the admin account
+        const username = "hyli";
+        const identity = `${username}@${CONFIG.WALLET_CONTRACT_NAME}`;
+        const salted_password = `${password}:${accountInfo.salt}`;
+
+        // Create blobs
+        console.log("Creating blobs...");
+        const blob0 = await check_secret.build_blob(identity, salted_password);
+        const blob1 = verifyIdentity(username, Date.now());
+
+        // Create DeleteContractAction blob
+        const actionBlob = deleteContractBlob(contractName);
+
+        const emptyBlob: Blob = {
+            contract_name: contractName,
+            data: [],
+        };
+
+        const blobTx: BlobTransaction = {
+            identity,
+            blobs: [blob0, blob1, actionBlob, emptyBlob],
+        };
+
+        // Send blob transaction
+        console.log("Sending blob transaction...");
+        const txHash = await hashBlobTransaction(blobTx);
+        console.log(`Blob transaction hash: ${txHash}`);
+
+        console.log("Registering contract check_secret...");
+        await check_secret.register_contract(nodeService);
+
+        // Send the actual blob transaction
+        await nodeService.sendBlobTx(blobTx);
+        console.log("Blob transaction sent successfully");
+
+        // Generate and send proof transaction
+        console.log("Generating proof transaction...");
+        const proofTx = await check_secret.build_proof_transaction(
+            identity,
+            salted_password,
+            txHash,
+            0,
+            blobTx.blobs.length
+        );
+
+        console.log("Sending proof transaction...");
+        const proofTxHash = await nodeService.sendProofTx(proofTx);
+        console.log(`Proof transaction hash: ${proofTxHash}`);
+
+        console.log(`Contract deletion request for "${contractName}" completed successfully!`);
+
+        return {
+            success: true,
+            transactionHash: txHash,
+            contractName: contractName,
+        };
+    } catch (error: any) {
+        console.error("Contract deletion failed:", error);
+        return { success: false, error: error.message };
+    }
+}
+
 // CLI interface
 async function main(): Promise<void> {
     const args = process.argv.slice(2);
@@ -405,6 +517,8 @@ async function main(): Promise<void> {
         await handleRegisterCommand(args.slice(1));
     } else if (command === "transfer") {
         await handleTransferCommand(args.slice(1));
+    } else if (command === "delete_contract") {
+        await handleDeleteContractCommand(args.slice(1));
     } else {
         console.log(`Unknown command: ${command}`);
         showUsage();
@@ -418,6 +532,7 @@ function showUsage(): void {
     console.log("Commands:");
     console.log("  register <username> <password> <inviteCode> [salt] [enableSessionKey]");
     console.log("  transfer <username> <password> <amount> <token> <destination>");
+    console.log("  delete_contract <password> <contractName>");
     console.log("");
     console.log("Register command:");
     console.log("  username        - The username for the account");
@@ -433,6 +548,10 @@ function showUsage(): void {
     console.log("  token           - The token/currency to transfer (e.g., 'oranj')");
     console.log("  destination     - The destination address or username");
     console.log("");
+    console.log("Delete Contract command (admin only):");
+    console.log("  contractName    - The name of the contract to delete");
+    console.log("  password        - The password for hyli@wallet account");
+    console.log("");
     console.log("Environment variables:");
     console.log("  NODE_BASE_URL   - Node service URL (default: http://localhost:4321)");
     console.log("  INDEXER_BASE_URL - Indexer service URL (default: http://localhost:4322)");
@@ -441,6 +560,7 @@ function showUsage(): void {
     console.log("Examples:");
     console.log("  hyli-wallet register myuser mypassword123 INVITE123");
     console.log("  hyli-wallet transfer myuser mypassword123 100 oranj otheruser@wallet");
+    console.log("  hyli-wallet delete_contract adminpassword mycontract");
     console.log("  NODE_BASE_URL=http://localhost:4321 hyli-wallet register myuser mypassword123 INVITE123");
 }
 
@@ -505,6 +625,36 @@ async function handleTransferCommand(args: string[]): Promise<void> {
     }
 }
 
+async function handleDeleteContractCommand(args: string[]): Promise<void> {
+    if (args.length < 2) {
+        console.log("Delete contract command requires 2 arguments: password, contractName");
+        console.log("Usage: hyli-wallet delete_contract <contractName> <password>");
+        process.exit(1);
+    }
+
+    const [contractName, password] = args;
+
+    console.log("Configuration:");
+    console.log(`  Node URL: ${CONFIG.NODE_BASE_URL}`);
+    console.log(`  Indexer URL: ${CONFIG.INDEXER_BASE_URL}`);
+    console.log(`  Wallet API URL: ${CONFIG.WALLET_API_BASE_URL}`);
+    console.log(`  Contract to delete: ${contractName}`);
+    console.log(`  Admin account: hyli@wallet`);
+    console.log("");
+
+    const result = await deleteContract(password, contractName);
+
+    if (result.success) {
+        console.log("✅ Contract deletion request successful!");
+        console.log(`Transaction Hash: ${result.transactionHash}`);
+        console.log(`Contract: ${result.contractName}`);
+        process.exit(0);
+    } else {
+        console.log("❌ Contract deletion failed!");
+        process.exit(1);
+    }
+}
+
 // Run the script
 // Check if this is the main module being executed
 if (import.meta.url.endsWith("hyli-wallet.js") || process.argv[1].includes("hyli-wallet")) {
@@ -514,4 +664,4 @@ if (import.meta.url.endsWith("hyli-wallet.js") || process.argv[1].includes("hyli
     });
 }
 
-export { registerAccount, transferFunds };
+export { registerAccount, transferFunds, deleteContract };
