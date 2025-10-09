@@ -89,13 +89,11 @@ export const useWalletInternal = () => {
 
     // TODO: logic is somewhat identical to react
     const checkWalletExists = async () => {
-        if (!wallet.value) {
-            return false;
-        }
         const lastCheck = localStorage.getItem("last_wallet_check");
         if (!lastCheck || Date.now() > +lastCheck + 5 * 60 * 1000) {
             // Update last check time
             localStorage.setItem("last_wallet_check", Date.now().toFixed(0));
+            if (!wallet.value) return;
             // Check if the account exists
             try {
                 const exists = await WalletOperations.checkAccountExists(wallet.value, true);
