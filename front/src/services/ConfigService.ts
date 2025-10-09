@@ -5,6 +5,7 @@ export interface AppConfig {
     indexerBaseUrl: string;
     txExplorerUrl: string;
     faucetUrl: string;
+    googleClientId?: string;
 }
 
 export class ConfigService {
@@ -14,7 +15,7 @@ export class ConfigService {
         if (!this.config) {
             // Récupérer depuis window.__ENV__ (variables d'environnement au runtime)
             const runtimeConfig = (window as any).__ENV__;
-            
+
             // Helper function to validate URL
             const isValidUrl = (url: string | undefined): boolean => {
                 if (!url) return false;
@@ -25,20 +26,27 @@ export class ConfigService {
                     return false;
                 }
             };
-            
+
             this.config = {
-                nodeBaseUrl: isValidUrl(runtimeConfig?.NODE_BASE_URL) ? runtimeConfig.NODE_BASE_URL : 
-                            (import.meta.env.VITE_NODE_BASE_URL || 'http://localhost:8080'),
-                walletServerBaseUrl: isValidUrl(runtimeConfig?.WALLET_SERVER_BASE_URL) ? runtimeConfig.WALLET_SERVER_BASE_URL : 
-                                    (import.meta.env.VITE_WALLET_SERVER_BASE_URL || 'http://localhost:3000'),
-                applicationWsUrl: isValidUrl(runtimeConfig?.WALLET_WS_URL) ? runtimeConfig.WALLET_WS_URL : 
-                                 (import.meta.env.VITE_WALLET_WS_URL || 'ws://localhost:3000'),
-                indexerBaseUrl: isValidUrl(runtimeConfig?.INDEXER_BASE_URL) ? runtimeConfig.INDEXER_BASE_URL : 
-                               (import.meta.env.VITE_INDEXER_BASE_URL || 'http://localhost:8080'),
-                txExplorerUrl: isValidUrl(runtimeConfig?.TX_EXPLORER_URL) ? runtimeConfig.TX_EXPLORER_URL : 
-                              (import.meta.env.VITE_TX_EXPLORER_URL || 'http://localhost:8080'),
-                faucetUrl: isValidUrl(runtimeConfig?.FAUCET_URL) ? runtimeConfig.FAUCET_URL : 
-                          (import.meta.env.VITE_FAUCET_URL || 'http://localhost:8080')
+                nodeBaseUrl: isValidUrl(runtimeConfig?.NODE_BASE_URL)
+                    ? runtimeConfig.NODE_BASE_URL
+                    : import.meta.env.VITE_NODE_BASE_URL || "http://localhost:8080",
+                walletServerBaseUrl: isValidUrl(runtimeConfig?.WALLET_SERVER_BASE_URL)
+                    ? runtimeConfig.WALLET_SERVER_BASE_URL
+                    : import.meta.env.VITE_WALLET_SERVER_BASE_URL || "http://localhost:3000",
+                applicationWsUrl: isValidUrl(runtimeConfig?.WALLET_WS_URL)
+                    ? runtimeConfig.WALLET_WS_URL
+                    : import.meta.env.VITE_WALLET_WS_URL || "ws://localhost:3000",
+                indexerBaseUrl: isValidUrl(runtimeConfig?.INDEXER_BASE_URL)
+                    ? runtimeConfig.INDEXER_BASE_URL
+                    : import.meta.env.VITE_INDEXER_BASE_URL || "http://localhost:8080",
+                txExplorerUrl: isValidUrl(runtimeConfig?.TX_EXPLORER_URL)
+                    ? runtimeConfig.TX_EXPLORER_URL
+                    : import.meta.env.VITE_TX_EXPLORER_URL || "http://localhost:8080",
+                faucetUrl: isValidUrl(runtimeConfig?.FAUCET_URL)
+                    ? runtimeConfig.FAUCET_URL
+                    : import.meta.env.VITE_FAUCET_URL || "http://localhost:8080",
+                googleClientId: runtimeConfig?.GOOGLE_CLIENT_ID || import.meta.env.VITE_GOOGLE_CLIENT_ID,
             };
         }
         return this.config;
@@ -66,5 +74,9 @@ export class ConfigService {
 
     static getFaucetUrl(): string {
         return this.getConfig().faucetUrl;
+    }
+
+    static getGoogleClientId(): string | undefined {
+        return this.getConfig().googleClientId;
     }
 }

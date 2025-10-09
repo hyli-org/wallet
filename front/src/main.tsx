@@ -3,15 +3,15 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.tsx";
 import { authProviderManager, GoogleAuthProvider, NodeService, IndexerService } from "hyli-wallet";
+import { ConfigService } from "./services/ConfigService.ts";
 
 // Initialize SDK services and register Google provider if configured
 (() => {
     try {
-        const { VITE_GOOGLE_CLIENT_ID, VITE_NODE_BASE_URL, VITE_WALLET_SERVER_BASE_URL } = import.meta.env as any;
-        const GOOGLE_CLIENT_ID = VITE_GOOGLE_CLIENT_ID as string | undefined;
-        const NODE_URL = VITE_NODE_BASE_URL as string | undefined;
-        const INDEXER_URL = VITE_WALLET_SERVER_BASE_URL as string | undefined;
-        console.log("[Hyli] Env:", { GOOGLE_CLIENT_ID, NODE_URL, INDEXER_URL });
+        const GOOGLE_CLIENT_ID = ConfigService.getGoogleClientId();
+        const NODE_URL = ConfigService.getNodeBaseUrl();
+        const INDEXER_URL = ConfigService.getWalletServerBaseUrl();
+        console.log("[Hyli] Config:", { GOOGLE_CLIENT_ID, NODE_URL, INDEXER_URL });
         if (NODE_URL) NodeService.initialize(NODE_URL);
         if (INDEXER_URL) IndexerService.initialize(INDEXER_URL);
         if (GOOGLE_CLIENT_ID) {
@@ -75,7 +75,7 @@ import { authProviderManager, GoogleAuthProvider, NodeService, IndexerService } 
                         // Wait a tick for button to mount, then click it programmatically (user-initiated handler)
                         setTimeout(() => {
                             const btn = container.querySelector(
-                                "div[role=button], div[aria-label]",
+                                "div[role=button], div[aria-label]"
                             ) as HTMLElement | null;
                             if (!btn) {
                                 try {
@@ -102,7 +102,7 @@ import { authProviderManager, GoogleAuthProvider, NodeService, IndexerService } 
                 });
             };
         } else {
-            console.warn("[Hyli] Google provider NOT registered: missing VITE_GOOGLE_CLIENT_ID");
+            console.warn("[Hyli] Google provider NOT registered: missing GOOGLE_CLIENT_ID configuration");
         }
     } catch (e) {
         console.warn("Failed to initialize Google provider:", e);
@@ -112,5 +112,5 @@ import { authProviderManager, GoogleAuthProvider, NodeService, IndexerService } 
 createRoot(document.getElementById("root")!).render(
     <StrictMode>
         <App />
-    </StrictMode>,
+    </StrictMode>
 );

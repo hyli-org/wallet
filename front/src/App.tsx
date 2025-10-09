@@ -80,7 +80,7 @@ export default function App() {
                 >
                     <WebSocketProvider>
                         {/* @ts-ignore */}
-                        <maintenance-widget />
+                        <maintenance-widget nodeUrl={ConfigService.getNodeBaseUrl()} />
                         <AppContent />
                     </WebSocketProvider>
                 </WalletProvider>
