@@ -26,7 +26,7 @@
         "vue": "^3.5.22"
     },
     "dependencies": {
-        "hyli-wallet": "^0.5.6"
+        "hyli-wallet": "^0.5.7"
     },
     "devDependencies": {
         "@vitejs/plugin-vue": "^6.0.1",
