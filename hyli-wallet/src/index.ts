@@ -2,7 +2,11 @@ export { HyliWallet } from "./components/HyliWallet";
 export { PasswordAuthProvider, type PasswordAuthCredentials } from "./providers/PasswordAuthProvider";
 export { GoogleAuthProvider, type GoogleAuthCredentials } from "./providers/GoogleAuthProvider";
 export type { AuthProvider } from "./providers/BaseAuthProvider";
-export { authProviderManager, AuthProviderManager } from "./providers/AuthProviderManager";
+export {
+    authProviderManager,
+    AuthProviderManager,
+    type AuthProviderManagerConfig,
+} from "./providers/AuthProviderManager";
 export type { AuthCredentials, AuthResult } from "./types/auth";
 export type * from "./types/wallet";
 export { getStoredWallet, storeWallet, walletContractName } from "./types/wallet";

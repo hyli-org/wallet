@@ -3,7 +3,7 @@ import { AuthProvider } from "./BaseAuthProvider";
 import { PasswordAuthProvider } from "./PasswordAuthProvider";
 import { GoogleAuthProvider } from "./GoogleAuthProvider";
 
-type AuthProviderManagerConfig = {
+export type AuthProviderManagerConfig = {
     /** Active/désactive le provider password (par défaut: true) */
     password?: { enabled?: boolean };
 
@@ -22,6 +22,7 @@ export class AuthProviderManager {
     }
 
     private registerDefaultProviders(config?: AuthProviderManagerConfig) {
+        this.providers = new Map();
         // PasswordAuthProvider activé par défaut
         if (config?.password?.enabled !== false) {
             this.registerProvider(new PasswordAuthProvider());
