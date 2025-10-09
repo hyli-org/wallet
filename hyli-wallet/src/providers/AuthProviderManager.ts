@@ -21,7 +21,7 @@ export class AuthProviderManager {
         this.registerDefaultProviders(config);
     }
 
-    private registerDefaultProviders(config?: AuthProviderManagerConfig) {
+    registerDefaultProviders(config?: AuthProviderManagerConfig) {
         this.providers = new Map();
         // PasswordAuthProvider activé par défaut
         if (config?.password?.enabled !== false) {
