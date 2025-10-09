@@ -70,7 +70,9 @@ const walletConfig = ref<WalletProviderProps>({
         nodeBaseUrl: "http://localhost:4321",
         walletServerBaseUrl: "http://localhost:4000",
         applicationWsUrl: "ws://localhost:8081",
-        providers: undefined,
+        providers: {
+            password: { enabled: true },
+        },
     },
     sessionKeyConfig: { duration: 72 * 60 * 60 * 1000 },
     forceSessionKey: undefined,
