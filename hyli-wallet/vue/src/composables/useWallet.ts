@@ -4,6 +4,7 @@ import {
     type Wallet,
     type WalletEventCallback,
     type WalletErrorCallback,
+    type AuthProviderManagerConfig,
 } from "hyli-wallet";
 import type { AuthCredentials, AuthResult } from "hyli-wallet";
 import { authProviderManager } from "hyli-wallet";
@@ -22,6 +23,7 @@ export interface WalletProviderProps {
         nodeBaseUrl: string;
         walletServerBaseUrl: string;
         applicationWsUrl: string;
+        providers: AuthProviderManagerConfig;
     };
     sessionKeyConfig?: {
         duration: number; // ms
@@ -68,6 +70,7 @@ const walletConfig = ref<WalletProviderProps>({
         nodeBaseUrl: "http://localhost:4321",
         walletServerBaseUrl: "http://localhost:4000",
         applicationWsUrl: "ws://localhost:8081",
+        providers: undefined,
     },
     sessionKeyConfig: { duration: 72 * 60 * 60 * 1000 },
     forceSessionKey: undefined,
@@ -114,6 +117,7 @@ export const useWalletInternal = () => {
         ConfigService.initialize(config.value);
         NodeService.initialize(config.value.nodeBaseUrl);
         IndexerService.initialize(config.value.walletServerBaseUrl);
+        authProviderManager.registerDefaultProviders(config.value.providers);
     });
 
     checkWalletExists();
