@@ -55,7 +55,8 @@ export const registerSessionKey = async (
         });
 
         const blob0 = await check_secret.build_blob(identity, password);
-        const blob1 = addSessionKeyBlob(accountName, newSessionKey.publicKey, expiration, whitelist, laneId);
+        const nonce = Date.now();
+        const blob1 = addSessionKeyBlob(accountName, newSessionKey.publicKey, expiration, nonce, whitelist, laneId);
 
         const blobTx: BlobTransaction = {
             identity,
@@ -133,7 +134,8 @@ export const removeSessionKey = async (
         const identity = `${accountName}@${walletContractName}`;
 
         const blob0 = await check_secret.build_blob(identity, password);
-        const blob1 = removeSessionKeyBlob(wallet.username, publicKey);
+        const nonce = Date.now();
+        const blob1 = removeSessionKeyBlob(wallet.username, publicKey, nonce);
 
         const blobTx: BlobTransaction = {
             identity,

@@ -63,12 +63,14 @@ export type WalletAction =
               expiration_date: number;
               whitelist?: string[];
               laneId?: string;
+              nonce: number;
           };
       }
     | {
           RemoveSessionKey: {
               account: string;
               key: string;
+              nonce: number;
           };
       }
     | {
@@ -135,6 +137,7 @@ export const addSessionKeyBlob = (
     account: string,
     key: string,
     expiration_date: number,
+    nonce: number,
     whitelist?: string[],
     laneId?: string
 ): Blob => {
@@ -147,6 +150,7 @@ export const addSessionKeyBlob = (
             // ⚠️ Le schéma BORSH attend "lane_id"
             laneId, // ← si ton type WalletAction conserve "laneId",
             // on mappe juste avant la sérialisation (voir ci-dessous)
+            nonce,
         },
     };
     // --- mapping vers le schéma ---
@@ -157,6 +161,7 @@ export const addSessionKeyBlob = (
             expiration_date: action.AddSessionKey.expiration_date,
             whitelist: action.AddSessionKey.whitelist,
             lane_id: action.AddSessionKey.laneId, // <= IMPORTANT
+            nonce: action.AddSessionKey.nonce,
         },
     } as any;
 
@@ -167,9 +172,9 @@ export const addSessionKeyBlob = (
     return blob;
 };
 
-export const removeSessionKeyBlob = (account: string, key: string): Blob => {
+export const removeSessionKeyBlob = (account: string, key: string, nonce: number): Blob => {
     const action: WalletAction = {
-        RemoveSessionKey: { account, key },
+        RemoveSessionKey: { account, key, nonce },
     };
     const blob: Blob = {
         contract_name: walletContractName,
@@ -244,10 +249,12 @@ const schema = BorshSchema.Enum({
         expiration_date: BorshSchema.u128,
         whitelist: BorshSchema.Option(BorshSchema.Vec(BorshSchema.String)),
         lane_id: BorshSchema.Option(BorshSchema.String),
+        nonce: BorshSchema.u128,
     }),
     RemoveSessionKey: BorshSchema.Struct({
         account: BorshSchema.String,
         key: BorshSchema.String,
+        nonce: BorshSchema.u128,
     }),
     UseSessionKey: BorshSchema.Struct({
         account: BorshSchema.String,

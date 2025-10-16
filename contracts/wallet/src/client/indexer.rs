@@ -148,7 +148,6 @@ pub async fn get_state<S: Serialize + Clone + 'static>(
 struct ApiSessionKey {
     key: String,
     expiration_date: u128,
-    nonce: u128,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -202,7 +201,6 @@ pub async fn get_account_info(
         .map(|sk| ApiSessionKey {
             key: sk.public_key.clone(),
             expiration_date: sk.expiration_date.0,
-            nonce: sk.nonce,
         })
         .collect();
 
