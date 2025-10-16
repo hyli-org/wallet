@@ -195,7 +195,7 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
 
             const indexerService = IndexerService.getInstance();
             try {
-                const accountInfo = await indexerService.getAccountInfo(identity);
+                const accountInfo = await indexerService.getAccountInfo(username);
                 if (accountInfo) {
                     const error = `Account with username "${identity}" already exists.`;
                     onError?.(new Error(error));

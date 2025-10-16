@@ -4,6 +4,7 @@ import type { ProviderOption } from "hyli-wallet";
 import type { RegistrationStage, WalletEvent } from "hyli-wallet";
 import type { PasswordAuthCredentials } from "hyli-wallet";
 import type { GoogleAuthCredentials } from "hyli-wallet";
+import type { MetamaskAuthCredentials } from "hyli-wallet";
 import { getAuthErrorMessage } from "hyli-wallet";
 import { computed, ref, watch } from "vue";
 import { useWalletInternal } from "../lib";
@@ -78,23 +79,65 @@ const isLocalhost =
     typeof window !== "undefined" &&
     (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
 
-const isGoogle = computed(() => provider.type === "google");
-const credentials = ref<
-    (PasswordAuthCredentials & { inviteCode: string }) | (GoogleAuthCredentials & { inviteCode: string })
->({
-    username: "bob",
-    ...(isGoogle.value
-        ? ({ googleToken: "", inviteCode: isLocalhost ? "vip" : "" } as any)
-        : ({ password: isLocalhost ? "hylisecure" : "", confirmPassword: isLocalhost ? "hylisecure" : "" } as any)),
-    inviteCode: isLocalhost ? "vip" : "",
-    salt: getRandomSalt(),
-});
+type FormCredentials =
+    | (PasswordAuthCredentials & { inviteCode: string })
+    | (GoogleAuthCredentials & { inviteCode: string })
+    | (MetamaskAuthCredentials & { inviteCode: string });
+
+const providerType = computed(() => provider.type as ProviderOption);
+const isGoogle = computed(() => providerType.value === "google");
+const isMetamask = computed(() => providerType.value === "metamask");
+const isPassword = computed(() => providerType.value === "password");
+
+const createInitialCredentials = (): FormCredentials => {
+    const defaultInvite = isLocalhost ? "vip" : "";
+    if (isGoogle.value) {
+        return {
+            username: "bob",
+            googleToken: "",
+            inviteCode: defaultInvite,
+            type: "google",
+        } as FormCredentials;
+    }
+    if (isMetamask.value) {
+        return {
+            username: "bob",
+            inviteCode: defaultInvite,
+            type: "metamask",
+        } as FormCredentials;
+    }
+    return {
+        username: "bob",
+        password: isLocalhost ? "hylisecure" : "",
+        confirmPassword: isLocalhost ? "hylisecure" : "",
+        inviteCode: defaultInvite,
+        salt: getRandomSalt(),
+        type: "password",
+    } as FormCredentials;
+};
+
+const credentials = ref<FormCredentials>(createInitialCredentials());
 const error = ref("");
+watch(
+    () => providerType.value,
+    () => {
+        credentials.value = createInitialCredentials();
+    }
+);
 const isSubmitting = ref(false);
 const stage = ref<AuthStage>("idle");
 // Session key checkbox state logic
 const autoSessionKey = ref(forceSessionKey === true);
 const funFact = ref(getRandomFact());
+const submitLabel = computed(() => {
+    if (isSubmitting.value) {
+        return "Processing...";
+    }
+    if (isMetamask.value) {
+        return mode === "login" ? "Sign with MetaMask" : "Create with MetaMask";
+    }
+    return mode === "login" ? "Login" : "Create Account";
+});
 
 // If forceSessionKey changes, update autoSessionKey accordingly
 watch(
@@ -185,7 +228,10 @@ const handleGoogleSubmit = async () => {
 
         console.log("[Hyli][AuthForm] received Google token", idToken);
 
-        credentials.value.googleToken = idToken;
+        credentials.value = {
+            ...(credentials.value as any),
+            googleToken: idToken,
+        } as FormCredentials;
 
         if (mode == "login") {
             await login(
@@ -230,48 +276,49 @@ const handleSubmit = async (e: Event) => {
     e.preventDefault();
     error.value = "";
 
-    const cred = credentials.value as PasswordAuthCredentials & { inviteCode: string };
+    const cred = credentials.value as FormCredentials;
     if (!cred.username) {
         error.value = "Please provide a username";
-        return;
-    }
-    if (!cred.password) {
-        error.value = "Please provide a password";
-        return;
-    }
-    if (cred.password.length < 8) {
-        error.value = "Password must be at least 8 characters long";
-        return;
-    }
-    if (mode === "register" && cred.password !== cred.confirmPassword) {
-        error.value = "Passwords do not match.";
         return;
     }
     if (mode === "register" && !cred.inviteCode) {
         error.value = "Invite code is required.";
         return;
     }
+    if (isPassword.value) {
+        const passwordCreds = cred as PasswordAuthCredentials & { inviteCode: string };
+        if (!passwordCreds.password) {
+            error.value = "Please provide a password";
+            return;
+        }
+        if (passwordCreds.password.length < 8) {
+            error.value = "Password must be at least 8 characters long";
+            return;
+        }
+        if (mode === "register" && passwordCreds.password !== passwordCreds.confirmPassword) {
+            error.value = "Passwords do not match.";
+            return;
+        }
+    }
     isSubmitting.value = true;
     stage.value = "sending_blob";
     const authAction = async (
         provider: ProviderOption,
-        credentials:
-            | (PasswordAuthCredentials & { inviteCode: string })
-            | (GoogleAuthCredentials & { inviteCode: string })
+        submittedCredentials: FormCredentials
     ) => {
         console.log("[Hyli][AuthForm] submit", {
             provider,
             mode,
-            username: cred.username,
-            hasGoogleToken: Boolean(cred.googleToken),
+            username: (submittedCredentials as any).username,
+            hasGoogleToken: Boolean((submittedCredentials as any).googleToken),
         });
 
         if (mode === "login") {
-            await login(provider, credentials, onWalletEventWithStage, onErrorWithStage, {
+            await login(provider, submittedCredentials, onWalletEventWithStage, onErrorWithStage, {
                 registerSessionKey: autoSessionKey.value,
             });
         } else if (mode === "register") {
-            let finalCreds = cred;
+            let finalCreds = submittedCredentials as any;
             console.log("[Hyli][AuthForm] registering with credentials", {
                 ...finalCreds,
                 googleToken: Boolean(finalCreds.googleToken),
@@ -358,7 +405,7 @@ const handleSubmit = async (e: Event) => {
                 />
             </div>
 
-            <div v-if="!isGoogle" :class="`${classPrefix}-form-group`">
+            <div v-if="isPassword" :class="`${classPrefix}-form-group`">
                 <label for="password" :class="`${classPrefix}-form-label`">Password</label>
                 <input
                     id="password"
@@ -371,7 +418,7 @@ const handleSubmit = async (e: Event) => {
                 />
             </div>
 
-            <template v-if="mode === 'register' && !isGoogle">
+            <template v-if="mode === 'register' && isPassword">
                 <div :class="`${classPrefix}-form-group`">
                     <label for="confirmPassword" :class="`${classPrefix}-form-label`">Confirm Password</label>
                     <input
@@ -385,6 +432,14 @@ const handleSubmit = async (e: Event) => {
                     />
                 </div>
             </template>
+
+            <div
+                v-if="isMetamask"
+                :class="`${classPrefix}-form-group`"
+                style="font-size: 13px; line-height: 1.4; color: #666"
+            >
+                When you continue, MetaMask will request a signature to confirm your identity.
+            </div>
 
             <div v-if="mode === 'register'" :class="`${classPrefix}-form-group`">
                 <label for="inviteCode" :class="`${classPrefix}-form-label`">Invite Code</label>
@@ -441,7 +496,7 @@ const handleSubmit = async (e: Event) => {
                 :class="`${classPrefix}-auth-submit-button`"
                 :disabled="isSubmitting"
             >
-                {{ isSubmitting ? "Processing..." : mode === "login" ? "Login" : "Create Account" }}
+                {{ submitLabel }}
             </button>
         </form>
     </div>

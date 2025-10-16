@@ -25,6 +25,6 @@ pub fn new_wallet(contract_name: &sdk::ContractName) -> (WalletConstructor, Wall
 
     (
         wallet_constructor.clone(),
-        Wallet::new(&contract_name, &Some(wallet_constructor)).expect("must succeed"),
+        Wallet::new(contract_name, &Some(wallet_constructor)).expect("must succeed"),
     )
 }

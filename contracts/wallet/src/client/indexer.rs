@@ -191,7 +191,7 @@ pub async fn get_account_info(
             tracing::debug!("Error retrieving account info or salt: {}", e);
             return Err(AppError(
                 StatusCode::NOT_FOUND,
-                anyhow!("Account '{}' not found", account),
+                anyhow!("Account '{account}' not found"),
             ));
         }
     };

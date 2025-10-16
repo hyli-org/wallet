@@ -129,11 +129,7 @@ impl TxExecutorHandler for Wallet {
 
     fn handle(&mut self, calldata: &Calldata) -> anyhow::Result<sdk::HyliOutput> {
         self.actual_handle(calldata).map_err(|e| {
-            anyhow::anyhow!(
-                "Failed to handle Wallet action with calldata {:?}: {}",
-                calldata,
-                e
-            )
+            anyhow::anyhow!("Failed to handle Wallet action with calldata {calldata:?}: {e}")
         })
     }
 
@@ -170,7 +166,7 @@ impl TxExecutorHandler for Wallet {
                         nonce: 0,
                     },
                 )
-                .map_err(|e| anyhow::anyhow!("Failed to update account info in SMT: {}", e))?;
+                .map_err(|e| anyhow::anyhow!("Failed to update account info in SMT: {e}"))?;
             this.salts
                 .insert("hyli".to_string(), "hyli-random-salt".to_string());
         }
@@ -208,11 +204,9 @@ impl Wallet {
             .smt
             .0
             .get(&AccountInfo::compute_key(account))
-            .map_err(|e| {
-                anyhow::anyhow!("Failed to get account {} info from SMT: {}", account, e)
-            })?;
+            .map_err(|e| anyhow::anyhow!("Failed to get account {account} info from SMT: {e}"))?;
         if acc.auth_method == AuthMethod::Uninitialized {
-            Err(anyhow::anyhow!("Account {} does not exist", account))
+            Err(anyhow::anyhow!("Account {account} does not exist"))
         } else {
             Ok(acc)
         }
@@ -222,7 +216,7 @@ impl Wallet {
         self.salts
             .get(account)
             .cloned()
-            .ok_or_else(|| anyhow::anyhow!("Salt for account {} not found", account))
+            .ok_or_else(|| anyhow::anyhow!("Salt for account {account} not found"))
     }
 
     fn handle_action(
@@ -310,12 +304,12 @@ impl Wallet {
 
         match sdk::utils::parse_raw_calldata::<WalletAction>(calldata) {
             Ok((action, exec_ctx)) => {
-                return self.handle_action(action, initial_state_commitment, exec_ctx, calldata);
+                self.handle_action(action, initial_state_commitment, exec_ctx, calldata)
             }
             Err(_) => {
                 // Check for a registration tx
 
-                return Ok(as_hyli_output(
+                Ok(as_hyli_output(
                     initial_state_commitment.clone(),
                     initial_state_commitment,
                     calldata,
@@ -324,9 +318,9 @@ impl Wallet {
                         ExecutionContext::default(),
                         vec![],
                     )),
-                ));
+                ))
             }
-        };
+        }
     }
 }
 

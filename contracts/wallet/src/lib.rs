@@ -7,15 +7,18 @@ use sdk::{
     hyli_model_utils::TimestampMs,
     merkle_utils::{BorshableMerkleProof, SHA256Hasher},
     secp256k1::CheckSecp256k1,
-    BlobData, ContractName, LaneId, RunResult, StateCommitment,
+    verifiers::Secp256k1Blob,
+    BlobData, BlobIndex, ContractName, LaneId, RunResult, StateCommitment,
 };
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
+use sha2::{digest::Digest, Sha256};
+use sha3::Keccak256;
 use sparse_merkle_tree::{traits::Value, H256};
 
 #[cfg(feature = "client")]
 pub mod client;
 pub mod smt;
+pub mod utils;
 
 pub type InviteCodePubKey = [u8; 33];
 pub const DEFAULT_INVITE_CODE_PUBLIC_KEY: InviteCodePubKey = [
@@ -197,6 +200,9 @@ pub enum AuthMethod {
     Jwt {
         hash: [u8; 32], // Hash of the JWT token email
     },
+    Ethereum {
+        address: String, // Ethereum public key
+    },
     // Special "0" value to indicate uninitialized wallet - second for retrocomp
     #[default]
     Uninitialized,
@@ -220,11 +226,11 @@ impl AuthMethod {
 
         // Reconstruct the timestamp from the nonce bytes (ascii encoded from left to right)
         let nonce_str =
-            std::str::from_utf8(nonce_bytes).map_err(|e| format!("Invalid nonce bytes: {}", e))?;
+            std::str::from_utf8(nonce_bytes).map_err(|e| format!("Invalid nonce bytes: {e}"))?;
 
         let nonce: u128 = nonce_str
             .parse()
-            .map_err(|e| format!("Invalid nonce '{}': {}", nonce_str, e))?;
+            .map_err(|e| format!("Invalid nonce '{nonce_str}': {e}"))?;
 
         Ok((mail_hash, nonce))
     }
@@ -252,6 +258,46 @@ impl AuthMethod {
                 // Check that the nonce is superior to the last one used for this account
                 if nonce != wallet_blob_nonce {
                     return Err("Invalid nonce".to_string());
+                }
+
+                Ok("Authentication successful".to_string())
+            }
+
+            AuthMethod::Ethereum { address } => {
+                let blob = calldata
+                    .blobs
+                    .get(&BlobIndex(1)) // FIXME: hardcoded index for now
+                    .ok_or("Invalid blob index for secp256k1")?;
+                let secp256k1blob: Secp256k1Blob = borsh::from_slice(&blob.data.0)
+                    .map_err(|_| "Failed to decode Secp256k1Blob")?;
+
+                let identity = &calldata.identity;
+
+                let signing_message =
+                    format!("Sign in to Hyli as {identity} with nonce {wallet_blob_nonce}");
+                let expected_message = format!(
+                    "\x19Ethereum Signed Message:\n{}{signing_message}",
+                    signing_message.len()
+                );
+
+                let digest: [u8; 32] = Keccak256::digest(expected_message.as_bytes()).into();
+                if secp256k1blob.data != digest {
+                    return Err(format!(
+                        "Invalid signature data, expected {} got {}, expected_message was: {expected_message}, nonce is {wallet_blob_nonce}",
+                        hex::encode(digest),
+                        hex::encode(secp256k1blob.data)
+                    ));
+                }
+
+                let public_key = utils::parse_public_key(&secp256k1blob.public_key)?;
+
+                let derived_address_hex = utils::ethereum_address_from_public_key(&public_key);
+                let expected_address = address.trim_start_matches("0x").to_lowercase();
+
+                if derived_address_hex != expected_address {
+                    return Err(format!(
+                        "Invalid address: expected {address}, derived 0x{derived_address_hex}",
+                    ));
                 }
 
                 Ok("Authentication successful".to_string())
@@ -534,12 +580,8 @@ impl WalletAction {
     }
 
     pub fn from_blob_data(blob_data: &sdk::BlobData) -> anyhow::Result<Self> {
-        borsh::from_slice(&blob_data.0).map_err(|e| {
-            anyhow::anyhow!(
-                "Failed to decode WalletAction from blob data: {}",
-                e.to_string()
-            )
-        })
+        borsh::from_slice(&blob_data.0)
+            .map_err(|e| anyhow::anyhow!("Failed to decode WalletAction from blob data: {e}"))
     }
 }
 
@@ -554,22 +596,19 @@ mod tests {
     #[test]
     fn test_blob_data_decode() {
         let time = 1672531199000u128; // Example timestamp in milliseconds
-        let ascii_time_0padded_at_the_end = format!("{:0>16}", time);
+        let ascii_time_0padded_at_the_end = format!("{time:0>16}");
 
-        println!(
-            "ascii_time_0padded_at_the_end: {}",
-            ascii_time_0padded_at_the_end
-        );
+        println!("ascii_time_0padded_at_the_end: {ascii_time_0padded_at_the_end}");
         let hash32bytes = [1u8; 32]; // Example 32-byte hash
 
         // separate the 32 bytes of hash and 16 bytes of timestamp with : character
         let blob_data = sdk::BlobData(
             [
                 hash32bytes.as_slice(),
-                &[b':'],
+                b":",
                 ascii_time_0padded_at_the_end.as_bytes(),
                 // add some extra junk bytes to ensure we only read the first 48 bytes
-                &[b'e', b'j', b'b'],
+                b"ejb",
             ]
             .concat(),
         );
@@ -577,7 +616,6 @@ mod tests {
             AuthMethod::parse_blob_infos(&blob_data).expect("Failed to parse blob data");
         assert_eq!(parsed_hash, &hash32bytes);
         assert_eq!(parsed_time, time);
-        assert!(false);
     }
 
     #[test]

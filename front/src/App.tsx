@@ -41,7 +41,7 @@ function AppContent() {
 
     return (
         <>
-            {!wallet && <WalletShowcase providers={["password", "google", "github"]} />}
+            {!wallet && <WalletShowcase providers={["password", "google", "metamask", "github"]} />}
             {wallet && (
                 <Routes>
                     {allRoutes.map((route) => (

@@ -4,8 +4,9 @@ import { ProviderOption, useWalletInternal } from "../../hooks/useWallet";
 import { RegistrationStage, WalletEvent } from "../../types/wallet";
 import { getAuthErrorMessage } from "../../utils/errorMessages";
 import "./AuthForm.css";
-import type { PasswordAuthCredentials } from "../../providers/PasswordAuthProvider";
 import type { GoogleAuthCredentials } from "../../providers/GoogleAuthProvider";
+import type { MetamaskAuthCredentials } from "../../providers/MetamaskAuthProvider";
+import type { PasswordAuthCredentials } from "../../providers/PasswordAuthProvider";
 
 type AuthStage =
     | "idle" // Initial state, no authentication in progress
@@ -69,6 +70,11 @@ function getRandomSalt() {
     return Math.random().toString(36).substring(2, 20);
 }
 
+type FormCredentials =
+    | (PasswordAuthCredentials & { inviteCode: string })
+    | (GoogleAuthCredentials & { inviteCode: string })
+    | (MetamaskAuthCredentials & { inviteCode: string });
+
 export const AuthForm: React.FC<AuthFormProps> = ({
     provider,
     mode,
@@ -81,23 +87,58 @@ export const AuthForm: React.FC<AuthFormProps> = ({
     const isLocalhost =
         typeof window !== "undefined" &&
         (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
-    const isGoogle = provider.type === "google";
-    const [credentials, setCredentials] = useState<
-        (PasswordAuthCredentials & { inviteCode: string }) | (GoogleAuthCredentials & { inviteCode: string })
-    >({
-        username: "bob",
-        ...(isGoogle
-            ? ({ googleToken: "", inviteCode: isLocalhost ? "vip" : "" } as any)
-            : ({ password: isLocalhost ? "hylisecure" : "", confirmPassword: isLocalhost ? "hylisecure" : "" } as any)),
-        inviteCode: isLocalhost ? "vip" : "",
-        salt: getRandomSalt(),
-    });
+    const providerType = provider.type as ProviderOption;
+    const isGoogle = providerType === "google";
+    const isMetamask = providerType === "metamask";
+    const isPassword = providerType === "password";
+
+    const createInitialCredentials = (): FormCredentials => {
+        const defaultInvite = isLocalhost ? "vip" : "";
+        if (isGoogle) {
+            return {
+                username: "bob",
+                googleToken: "",
+                inviteCode: defaultInvite,
+                type: "google",
+            } as FormCredentials;
+        }
+        if (isMetamask) {
+            return {
+                username: "bob",
+                inviteCode: defaultInvite,
+                type: "metamask",
+            } as FormCredentials;
+        }
+        return {
+            username: "bob",
+            password: isLocalhost ? "hylisecure" : "",
+            confirmPassword: isLocalhost ? "hylisecure" : "",
+            inviteCode: defaultInvite,
+            salt: getRandomSalt(),
+            type: "password",
+        } as FormCredentials;
+    };
+
+    const [credentials, setCredentials] = useState<FormCredentials>(() => createInitialCredentials());
+
+    useEffect(() => {
+        setCredentials(createInitialCredentials());
+    }, [providerType]);
     const [error, setError] = useState<string>("");
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [stage, setStage] = useState<AuthStage>("idle");
     // Session key checkbox state logic
     const [autoSessionKey, setAutoSessionKey] = useState<boolean>(forceSessionKey === true ? true : true);
     const [funFact, setFunFact] = useState<string>(getRandomFact());
+    const getSubmitLabel = () => {
+        if (isSubmitting) {
+            return "Processing...";
+        }
+        if (isMetamask) {
+            return mode === "login" ? "Sign with MetaMask" : "Create with MetaMask";
+        }
+        return mode === "login" ? "Login" : "Create Account";
+    };
 
     // If forceSessionKey changes, update autoSessionKey accordingly
     useEffect(() => {
@@ -230,18 +271,21 @@ export const AuthForm: React.FC<AuthFormProps> = ({
             setError("Please provide a username");
             return;
         }
-        const cred = credentials as PasswordAuthCredentials & { inviteCode: string };
-        if (!cred.password) {
-            setError("Please provide a password");
-            return;
-        }
-        if (cred.password.length < 8) {
-            setError("Password must be at least 8 characters long");
-            return;
-        }
-        if (mode === "register" && cred.password !== cred.confirmPassword) {
-            setError("Passwords do not match.");
-            return;
+        const cred = credentials as FormCredentials;
+        if (isPassword) {
+            const passwordCreds = cred as PasswordAuthCredentials & { inviteCode: string };
+            if (!passwordCreds.password) {
+                setError("Please provide a password");
+                return;
+            }
+            if (passwordCreds.password.length < 8) {
+                setError("Password must be at least 8 characters long");
+                return;
+            }
+            if (mode === "register" && passwordCreds.password !== passwordCreds.confirmPassword) {
+                setError("Passwords do not match.");
+                return;
+            }
         }
         if (mode === "register" && !cred.inviteCode) {
             setError("Invite code is required.");
@@ -249,25 +293,20 @@ export const AuthForm: React.FC<AuthFormProps> = ({
         }
         setIsSubmitting(true);
         setStage("sending_blob");
-        const authAction = async (
-            provider: ProviderOption,
-            credentials:
-                | (PasswordAuthCredentials & { inviteCode: string })
-                | (GoogleAuthCredentials & { inviteCode: string })
-        ) => {
+        const authAction = async (provider: ProviderOption, submittedCredentials: FormCredentials) => {
             console.log("[Hyli][AuthForm] submit", {
                 provider,
                 mode,
-                username: (credentials as any).username,
-                hasGoogleToken: Boolean((credentials as any).googleToken),
+                username: (submittedCredentials as any).username,
+                hasGoogleToken: Boolean((submittedCredentials as any).googleToken),
             });
 
             if (mode === "login") {
-                await login(provider, credentials, onWalletEventWithStage, onErrorWithStage, {
+                await login(provider, submittedCredentials, onWalletEventWithStage, onErrorWithStage, {
                     registerSessionKey: autoSessionKey,
                 });
             } else if (mode === "register") {
-                let finalCreds = credentials as any;
+                let finalCreds = submittedCredentials as any;
                 console.log("[Hyli][AuthForm] registering with credentials", {
                     ...finalCreds,
                     googleToken: Boolean(finalCreds.googleToken),
@@ -362,7 +401,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                         </div>
                     }
 
-                    {!isGoogle && (
+                    {isPassword && (
                         <div className={`${classPrefix}-form-group`}>
                             <label htmlFor="password" className={`${classPrefix}-form-label`}>
                                 Password
@@ -380,7 +419,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                         </div>
                     )}
 
-                    {mode === "register" && !isGoogle && (
+                    {mode === "register" && isPassword && (
                         <>
                             <div className={`${classPrefix}-form-group`}>
                                 <label htmlFor="confirmPassword" className={`${classPrefix}-form-label`}>
@@ -398,6 +437,20 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                                 />
                             </div>
                         </>
+                    )}
+
+                    {isMetamask && (
+                        <div className={`${classPrefix}-form-group`}>
+                            <div
+                                style={{
+                                    fontSize: 13,
+                                    lineHeight: 1.4,
+                                    color: "#666",
+                                }}
+                            >
+                                When you continue, MetaMask will request a signature to confirm your identity.
+                            </div>
+                        </div>
                     )}
 
                     {mode === "register" && (
@@ -467,9 +520,9 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                     {error && <div className={`${classPrefix}-error-message`}>{error}</div>}
                     {statusMessage && <div className={`${classPrefix}-status-message`}>{statusMessage}</div>}
 
-                    {!isGoogle && (
+                    {providerType !== "google" && (
                         <button type="submit" className={`${classPrefix}-auth-submit-button`} disabled={isSubmitting}>
-                            {isSubmitting ? "Processing..." : mode === "login" ? "Login" : "Create Account"}
+                            {getSubmitLabel()}
                         </button>
                     )}
                 </form>

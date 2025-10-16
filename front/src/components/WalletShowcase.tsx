@@ -1,7 +1,7 @@
 import React from "react";
 import { HyliWallet } from "hyli-wallet";
 
-type ProviderOption = "password" | "google" | "github";
+type ProviderOption = "password" | "google" | "metamask" | "github";
 
 interface WalletShowcaseProps {
     providers: ProviderOption[];
