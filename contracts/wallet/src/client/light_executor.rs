@@ -137,7 +137,7 @@ impl LightWalletExecutor {
 
         let calldata = &Calldata {
             tx_hash: tx.hashed(),
-            identity: Identity::new(&format!("{}@wallet", acc)),
+            identity: Identity::new(format!("{acc}@wallet")),
             blobs: IndexedBlobs::from(tx.blobs.clone()),
             tx_blob_count: tx.blobs.len(),
             index,

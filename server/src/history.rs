@@ -97,7 +97,7 @@ impl TokenHistory {
             private_input: vec![],
         };
         let (action, _) = parse_calldata::<SmtTokenAction>(&calldata)
-            .map_err(|e| anyhow!("Failed to parse calldata: {}", e))?;
+            .map_err(|e| anyhow!("Failed to parse calldata: {e}"))?;
         Ok(action)
     }
 }
@@ -324,7 +324,7 @@ pub async fn get_history(
         .ok_or_else(|| {
             AppError(
                 StatusCode::NOT_FOUND,
-                anyhow!("No history found for account '{}'", account),
+                anyhow!("No history found for account '{account}'"),
             )
         })
 }

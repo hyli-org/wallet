@@ -17,7 +17,7 @@ import { NodeService } from "../services/NodeService";
 import { IndexerService } from "../services/IndexerService";
 import { sessionKeyService } from "../services/SessionKeyService";
 
-export type ProviderOption = "password" | "google" | "github" | "x";
+export type ProviderOption = "password" | "google" | "metamask" | "github" | "x";
 
 export interface WalletContextType {
     wallet: Wallet | null;

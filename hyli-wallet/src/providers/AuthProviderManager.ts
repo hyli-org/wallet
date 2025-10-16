@@ -1,7 +1,8 @@
 // AuthProviderManager.ts
 import { AuthProvider } from "./BaseAuthProvider";
-import { PasswordAuthProvider } from "./PasswordAuthProvider";
 import { GoogleAuthProvider } from "./GoogleAuthProvider";
+import { MetamaskAuthProvider } from "./MetamaskAuthProvider";
+import { PasswordAuthProvider } from "./PasswordAuthProvider";
 
 export type AuthProviderManagerConfig = {
     /** Active/désactive le provider password (par défaut: true) */
@@ -10,6 +11,11 @@ export type AuthProviderManagerConfig = {
     /** Config pour Google (obligatoire pour l’activer) */
     google?: {
         clientId: string;
+    };
+
+    /** Configuration MetaMask */
+    metamask?: {
+        enabled?: boolean;
     };
 };
 
@@ -31,6 +37,10 @@ export class AuthProviderManager {
         // GoogleAuthProvider seulement si la config est complète
         if (config?.google?.clientId) {
             this.registerProvider(new GoogleAuthProvider(config.google.clientId));
+        }
+
+        if (config?.metamask?.enabled !== false) {
+            this.registerProvider(new MetamaskAuthProvider());
         }
     }
 

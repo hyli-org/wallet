@@ -16,7 +16,7 @@ import { IndexerService } from "hyli-wallet";
 import { sessionKeyService } from "hyli-wallet";
 import { computed, ref, watchEffect } from "vue";
 
-export type ProviderOption = "password" | "google" | "github" | "x";
+export type ProviderOption = "password" | "google" | "metamask" | "github" | "x";
 
 export interface WalletProviderProps {
     config: {

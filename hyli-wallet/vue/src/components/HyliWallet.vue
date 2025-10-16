@@ -43,8 +43,6 @@ const {
 
 const { wallet, logout, forceSessionKey } = useWalletInternal();
 
-console.log("HyliWallet component mounted with props:", { defaultAuthMode, providers });
-
 const internalIsOpen = ref(false);
 
 // Use controlled state if provided, otherwise use internal state
@@ -220,6 +218,24 @@ const closeModal = () => {
                                     </svg>
 
                                     <svg
+                                        v-else-if="providerType === 'metamask'"
+                                        width="24"
+                                        height="24"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <path d="M3 3L10.5 8.2L9 5L3 3Z" fill="#E2761B" />
+                                        <path d="M21 3L13.5 8.2L15 5L21 3Z" fill="#E2761B" />
+                                        <path d="M6.5 15L5 20L9 18.5L6.5 15Z" fill="#C0A062" />
+                                        <path d="M17.5 15L19 20L15 18.5L17.5 15Z" fill="#C0A062" />
+                                        <path d="M10.5 8.2L9 5H15L13.5 8.2L12 9.5L10.5 8.2Z" fill="#E2761B" />
+                                        <path d="M6.5 15L7.5 10.5L12 9.5L7.5 12.5L6.5 15Z" fill="#E2761B" />
+                                        <path d="M17.5 15L16.5 10.5L12 9.5L16.5 12.5L17.5 15Z" fill="#E2761B" />
+                                        <path d="M9 18.5L12 16.5L15 18.5L12 21L9 18.5Z" fill="#161616" />
+                                    </svg>
+
+                                    <svg
                                         v-else-if="providerType === 'github'"
                                         width="24"
                                         height="24"
@@ -255,6 +271,8 @@ const closeModal = () => {
                                             ? "Password"
                                             : providerType === "google"
                                             ? "Google"
+                                            : providerType === "metamask"
+                                            ? "MetaMask"
                                             : providerType === "github"
                                             ? "GitHub"
                                             : "X"
