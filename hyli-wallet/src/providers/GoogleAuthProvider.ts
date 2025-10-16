@@ -138,7 +138,9 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
                 const { duration, whitelist } = registerSessionKey;
                 const expiration = Date.now() + duration; // still in milliseconds
                 newSessionKey = sessionKeyService.generateSessionKey(expiration, whitelist);
-                blobTx.blobs.push(addSessionKeyBlob(username, newSessionKey.publicKey, expiration, whitelist));
+                blobTx.blobs.push(
+                    addSessionKeyBlob(username, newSessionKey.publicKey, expiration, jwtBlobData.nonce, whitelist)
+                );
             }
 
             await check_jwt.register_contract(nodeService.client);
@@ -244,7 +246,9 @@ export class GoogleAuthProvider implements AuthProvider<GoogleAuthCredentials> {
                 const { duration, whitelist } = registerSessionKey;
                 const expiration = Date.now() + duration; // still in milliseconds
                 newSessionKey = sessionKeyService.generateSessionKey(expiration, whitelist);
-                blobTx.blobs.push(addSessionKeyBlob(username, newSessionKey.publicKey, expiration, whitelist));
+                blobTx.blobs.push(
+                    addSessionKeyBlob(username, newSessionKey.publicKey, expiration, jwtBlobData.nonce, whitelist)
+                );
             }
 
             await check_jwt.register_contract(nodeService.client);

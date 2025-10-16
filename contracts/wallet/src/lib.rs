@@ -181,7 +181,6 @@ pub struct AccountInfo {
 pub struct SessionKey {
     pub public_key: String,
     pub expiration_date: TimestampMs,
-    pub nonce: u128,
     pub whitelist: Option<Vec<ContractName>>,
     pub lane_id: Option<LaneId>,
 }
@@ -372,7 +371,10 @@ impl AccountInfo {
         }
         let secp256k1blob = CheckSecp256k1::new(calldata, nonce.to_string().as_bytes()).expect()?;
         let public_key = hex::encode(secp256k1blob.public_key);
-        self.use_session_key(public_key, calldata, nonce)
+
+        self.verify_and_update_nonce(nonce)?;
+
+        self.use_session_key(public_key, calldata)
     }
 
     fn handle_authenticated_action(
@@ -387,7 +389,7 @@ impl AccountInfo {
                 if self.identity != account {
                     return Err("Account does not match registered identity".to_string());
                 }
-                self.verify_identity(nonce)
+                self.verify_and_update_nonce(nonce)
             }
             WalletAction::AddSessionKey {
                 account,
@@ -395,18 +397,23 @@ impl AccountInfo {
                 expiration_date,
                 whitelist,
                 lane_id,
+                nonce,
             } => {
                 // Verify identity before executing the action
-                self.auth_method.verify(calldata, u128::MAX)?;
+                self.auth_method.verify(calldata, nonce)?;
+
+                self.verify_and_update_nonce(nonce)?;
 
                 if self.identity != account {
                     return Err("Account does not match registered identity".to_string());
                 }
                 self.add_session_key(key, expiration_date, whitelist, lane_id)
             }
-            WalletAction::RemoveSessionKey { key, .. } => {
+            WalletAction::RemoveSessionKey { key, nonce, .. } => {
                 // Verify identity before executing the action
-                self.auth_method.verify(calldata, u128::MAX)?;
+                self.auth_method.verify(calldata, nonce)?;
+
+                self.verify_and_update_nonce(nonce)?;
 
                 self.remove_session_key(key)
             }
@@ -435,7 +442,7 @@ impl AccountInfo {
         Ok(ret)
     }
 
-    fn verify_identity(&mut self, nonce: u128) -> Result<String, String> {
+    fn verify_and_update_nonce(&mut self, nonce: u128) -> Result<String, String> {
         if nonce <= self.nonce {
             return Err("Invalid nonce".to_string());
         }
@@ -457,11 +464,9 @@ impl AccountInfo {
         self.session_keys.push(SessionKey {
             public_key: key,
             expiration_date: TimestampMs(expiration_date),
-            nonce: 0, // Initialize nonce at 0
             whitelist,
             lane_id,
         });
-        self.nonce += 1;
         Ok("Session key added".to_string())
     }
 
@@ -473,7 +478,6 @@ impl AccountInfo {
             return Err("Session key not found".to_string());
         }
 
-        self.nonce += 1;
         Ok("Session key removed".to_string())
     }
 
@@ -481,7 +485,6 @@ impl AccountInfo {
         &mut self,
         public_key: String,
         calldata: &sdk::Calldata,
-        nonce: u128,
     ) -> Result<String, String> {
         let Some(tx_ctx) = &calldata.tx_ctx else {
             return Err("tx_ctx is missing".to_string());
@@ -516,7 +519,6 @@ impl AccountInfo {
                 return Err("Session key not valid for this lane".to_string());
             }
             if session_key.expiration_date > tx_ctx.timestamp {
-                session_key.nonce = nonce;
                 return Ok("Session key is valid".to_string());
             } else {
                 return Err("Session key expired".to_string());
@@ -554,10 +556,12 @@ pub enum WalletAction {
         expiration_date: u128,
         whitelist: Option<Vec<ContractName>>,
         lane_id: Option<LaneId>,
+        nonce: u128,
     },
     RemoveSessionKey {
         account: String,
         key: String,
+        nonce: u128,
     },
     UseSessionKey {
         account: String,

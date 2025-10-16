@@ -341,7 +341,7 @@ export class MetamaskAuthProvider implements AuthProvider<MetamaskAuthCredential
                 const { duration, whitelist } = registerSessionKey;
                 const expiration = Date.now() + duration;
                 newSessionKey = sessionKeyService.generateSessionKey(expiration, whitelist);
-                blobTx.blobs.push(addSessionKeyBlob(username, newSessionKey.publicKey, expiration, whitelist));
+                blobTx.blobs.push(addSessionKeyBlob(username, newSessionKey.publicKey, expiration, nonce, whitelist));
             }
 
             onWalletEvent?.({

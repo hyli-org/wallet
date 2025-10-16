@@ -239,7 +239,8 @@ async function registerAccount(
             const { duration = 24 * 60 * 60 * 1000, whitelist = [] } = {}; // 24 hours default
             const expiration = Date.now() + duration;
             newSessionKey = generateSessionKey(expiration, whitelist);
-            blobTx.blobs.push(addSessionKeyBlob(username, newSessionKey.publicKey, expiration, whitelist));
+            const sessionKeyNonce = Date.now();
+            blobTx.blobs.push(addSessionKeyBlob(username, newSessionKey.publicKey, expiration, sessionKeyNonce, whitelist));
         }
 
         // Register contract
