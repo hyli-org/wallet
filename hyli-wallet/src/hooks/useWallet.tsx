@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import {
     storeWallet,
+    walletContractName,
     type Wallet,
     type SessionKey,
     type TransactionCallback,
@@ -235,6 +236,26 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
                 const error = new Error(`Provider ${provider} not found`);
                 (onError ?? internalOnError)?.(error);
                 throw error;
+            }
+            const indexer = IndexerService.getInstance();
+            const rawUsername = credentials.username?.trim();
+            if (rawUsername) {
+                const accountsToCheck = new Set<string>([rawUsername]);
+                if (!rawUsername.includes("@")) {
+                    accountsToCheck.add(`${rawUsername}@${walletContractName}`);
+                }
+                for (const accountId of accountsToCheck) {
+                    try {
+                        const accountInfo = await indexer.getAccountInfo(accountId);
+                        if (accountInfo) {
+                            const error = new Error(`Account with username "${rawUsername}" already exists.`);
+                            (onError ?? internalOnError)?.(error);
+                            return undefined;
+                        }
+                    } catch {
+                        // Ignore errors: they indicate the account does not exist or the check failed.
+                    }
+                }
             }
             let result: AuthResult;
             try {
