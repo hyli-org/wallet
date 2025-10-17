@@ -182,12 +182,11 @@ pub async fn get_account_info(
     ))?;
 
     let account_info = state.get(&account);
-    let salt = state.get_salt(&account);
 
-    let (account_info, salt) = match (account_info, salt) {
-        (Ok(info), Ok(salt)) => (info, salt),
-        (Err(e), _) | (_, Err(e)) => {
-            tracing::debug!("Error retrieving account info or salt: {}", e);
+    let account_info = match account_info {
+        Ok(info) => info,
+        Err(e) => {
+            tracing::debug!("Error retrieving account info: {}", e);
             return Err(AppError(
                 StatusCode::NOT_FOUND,
                 anyhow!("Account '{account}' not found"),
@@ -209,6 +208,6 @@ pub async fn get_account_info(
         auth_method: account_info.auth_method.clone(),
         session_keys,
         nonce: account_info.nonce,
-        salt,
+        salt: account_info.salt,
     }))
 }

@@ -100,27 +100,7 @@ impl sdk::ZkContract for WalletZkView {
             panic!("Proof verification failed for the contract state",);
         }
 
-        let res = match action {
-            WalletAction::RegisterIdentity {
-                account,
-                nonce,
-                auth_method,
-                invite_code,
-                salt: _,
-            } => {
-                check_for_invite_code(
-                    &account,
-                    &invite_code,
-                    calldata,
-                    &self.invite_code_public_key,
-                )?;
-                account_info.handle_registration(account, nonce, auth_method, calldata)?
-            }
-            WalletAction::UseSessionKey { account, nonce } => {
-                account_info.handle_session_key_usage(account, nonce, calldata)?
-            }
-            _ => account_info.handle_authenticated_action(action, calldata)?,
-        };
+        let res = account_info.execution_action(action, calldata, &self.invite_code_public_key)?;
 
         // Now update the commitment
         let leaves = vec![(account_key, account_info.to_h256())];
@@ -168,6 +148,7 @@ pub struct AccountInfo {
 
     pub auth_method: AuthMethod,
     pub session_keys: Vec<SessionKey>,
+    pub salt: String,
     pub nonce: u128,
 }
 
@@ -348,41 +329,37 @@ fn check_for_invite_code(
 
 /// Methods to handle the actions of the Wallet contract
 impl AccountInfo {
-    fn handle_registration(
-        &mut self,
-        account: String,
-        nonce: u128,
-        auth_method: AuthMethod,
-        calldata: &sdk::Calldata,
-    ) -> Result<String, String> {
-        auth_method.verify(calldata, nonce)?;
-        self.register_identity(account, nonce, auth_method)
-    }
-
-    fn handle_session_key_usage(
-        &mut self,
-        account: String,
-        nonce: u128,
-        calldata: &sdk::Calldata,
-    ) -> Result<String, String> {
-        // TODO: think this is now un-necessary, we can just check Identity
-        if self.identity != account {
-            return Err("Account does not match registered identity".to_string());
-        }
-        let secp256k1blob = CheckSecp256k1::new(calldata, nonce.to_string().as_bytes()).expect()?;
-        let public_key = hex::encode(secp256k1blob.public_key);
-
-        self.verify_and_update_nonce(nonce, calldata)?;
-
-        self.use_session_key(public_key, calldata)
-    }
-
-    fn handle_authenticated_action(
+    fn execution_action(
         &mut self,
         action: WalletAction,
         calldata: &sdk::Calldata,
+        invite_code_public_key: &InviteCodePubKey,
     ) -> Result<String, String> {
         match action {
+            WalletAction::RegisterIdentity {
+                account,
+                nonce,
+                auth_method,
+                invite_code,
+                salt,
+            } => {
+                check_for_invite_code(&account, &invite_code, calldata, invite_code_public_key)?;
+                auth_method.verify(calldata, nonce)?;
+                self.register_identity(account, nonce, auth_method, salt)
+            }
+            WalletAction::UseSessionKey { account, nonce } => {
+                // TODO: think this is now un-necessary, we can just check Identity
+                if self.identity != account {
+                    return Err("Account does not match registered identity".to_string());
+                }
+                let secp256k1blob =
+                    CheckSecp256k1::new(calldata, nonce.to_string().as_bytes()).expect()?;
+                let public_key = hex::encode(secp256k1blob.public_key);
+
+                self.verify_and_update_nonce(nonce, calldata)?;
+
+                self.use_session_key(public_key, calldata)
+            }
             WalletAction::VerifyIdentity { nonce, account } => {
                 // Verify identity before executing the action
                 self.auth_method.verify(calldata, nonce)?;
@@ -417,7 +394,7 @@ impl AccountInfo {
 
                 self.remove_session_key(key)
             }
-            _ => unreachable!(),
+            WalletAction::UpdateInviteCodePublicKey { .. } => unreachable!(),
         }
     }
 
@@ -462,6 +439,7 @@ impl AccountInfo {
         account: String,
         nonce: u128,
         auth_method: AuthMethod,
+        salt: String,
     ) -> Result<String, String> {
         if self.identity != account {
             return Err("Identity already registered".to_string());
@@ -472,6 +450,7 @@ impl AccountInfo {
         let ret = format!("Successfully registered identity for account: {account}");
         self.auth_method = auth_method;
         self.nonce = nonce;
+        self.salt = salt;
         Ok(ret)
     }
 
@@ -1058,6 +1037,7 @@ mod tests {
             },
             session_keys: vec![],
             nonce,
+            salt: "***".to_string(),
         };
 
         // Create blob #0 - secp256k1 blob (from image)

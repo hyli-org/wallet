@@ -1,5 +1,4 @@
 use sha2::Digest;
-use std::collections::HashMap;
 
 use anyhow::Context;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -11,9 +10,8 @@ use sdk::{
 use serde::Serialize;
 
 use crate::{
-    check_for_invite_code, get_state_commitment, smt::AccountSMT, AccountInfo, AuthMethod,
-    InviteCodePubKey, PartialWalletData, WalletAction, WalletZkView,
-    DEFAULT_INVITE_CODE_PUBLIC_KEY,
+    get_state_commitment, smt::AccountSMT, AccountInfo, AuthMethod, InviteCodePubKey,
+    PartialWalletData, WalletAction, WalletZkView, DEFAULT_INVITE_CODE_PUBLIC_KEY,
 };
 
 #[serde_with::serde_as]
@@ -22,8 +20,6 @@ pub struct Wallet {
     #[serde_as(as = "[_; 33]")]
     invite_code_public_key: InviteCodePubKey,
     smt: AccountSMT,
-    // Keep track of salts so users can query them.
-    salts: HashMap<String, String>,
 }
 
 #[serde_with::serde_as]
@@ -146,7 +142,6 @@ impl TxExecutorHandler for Wallet {
             // Default bad pubkey, replaced immediately
             invite_code_public_key: DEFAULT_INVITE_CODE_PUBLIC_KEY,
             smt: AccountSMT::default(),
-            salts: HashMap::new(),
         };
         if let Some(Ok(constructor_data)) = metadata
             .as_ref()
@@ -164,11 +159,10 @@ impl TxExecutorHandler for Wallet {
                         },
                         session_keys: vec![],
                         nonce: 0,
+                        salt: "hyli-random-salt".to_string(),
                     },
                 )
                 .map_err(|e| anyhow::anyhow!("Failed to update account info in SMT: {e}"))?;
-            this.salts
-                .insert("hyli".to_string(), "hyli-random-salt".to_string());
         }
 
         Ok(this)
@@ -212,13 +206,6 @@ impl Wallet {
         }
     }
 
-    pub fn get_salt(&self, account: &String) -> anyhow::Result<String> {
-        self.salts
-            .get(account)
-            .cloned()
-            .ok_or_else(|| anyhow::anyhow!("Salt for account {account} not found"))
-    }
-
     fn handle_action(
         &mut self,
         action: WalletAction,
@@ -258,30 +245,7 @@ impl Wallet {
             .map_err(|e| format!("Failed to get account info from SMT: {e}"))?;
         account_info.identity = acc.clone();
 
-        let result = match action {
-            WalletAction::RegisterIdentity {
-                account,
-                nonce,
-                salt,
-                auth_method,
-                invite_code,
-            } => {
-                check_for_invite_code(
-                    &account,
-                    &invite_code,
-                    calldata,
-                    &self.invite_code_public_key,
-                )?;
-                let res =
-                    account_info.handle_registration(account.clone(), nonce, auth_method, calldata);
-                self.salts.insert(account, salt);
-                res
-            }
-            WalletAction::UseSessionKey { account, nonce } => {
-                account_info.handle_session_key_usage(account, nonce, calldata)
-            }
-            _ => account_info.handle_authenticated_action(action, calldata),
-        };
+        let result = account_info.execution_action(action, calldata, &self.invite_code_public_key);
 
         self.smt
             .0
