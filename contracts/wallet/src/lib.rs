@@ -372,7 +372,7 @@ impl AccountInfo {
         let secp256k1blob = CheckSecp256k1::new(calldata, nonce.to_string().as_bytes()).expect()?;
         let public_key = hex::encode(secp256k1blob.public_key);
 
-        self.verify_and_update_nonce(nonce)?;
+        self.verify_and_update_nonce(nonce, calldata)?;
 
         self.use_session_key(public_key, calldata)
     }
@@ -389,7 +389,7 @@ impl AccountInfo {
                 if self.identity != account {
                     return Err("Account does not match registered identity".to_string());
                 }
-                self.verify_and_update_nonce(nonce)
+                self.verify_and_update_nonce(nonce, calldata)
             }
             WalletAction::AddSessionKey {
                 account,
@@ -402,7 +402,7 @@ impl AccountInfo {
                 // Verify identity before executing the action
                 self.auth_method.verify(calldata, nonce)?;
 
-                self.verify_and_update_nonce(nonce)?;
+                self.verify_and_update_nonce(nonce, calldata)?;
 
                 if self.identity != account {
                     return Err("Account does not match registered identity".to_string());
@@ -413,12 +413,45 @@ impl AccountInfo {
                 // Verify identity before executing the action
                 self.auth_method.verify(calldata, nonce)?;
 
-                self.verify_and_update_nonce(nonce)?;
+                self.verify_and_update_nonce(nonce, calldata)?;
 
                 self.remove_session_key(key)
             }
             _ => unreachable!(),
         }
+    }
+
+    /// Helper function to check if a VerifyIdentity action exists in previous blobs for the same user
+    fn check_verify_identity_in_previous_blobs(
+        &self,
+        calldata: &sdk::Calldata,
+        expected_account: &str,
+    ) -> Result<(), String> {
+        // Iterate through blobs before the current one
+        for (blob_index, blob) in &calldata.blobs {
+            // Skip the current blob and any after it
+            if blob_index >= &calldata.index {
+                break;
+            }
+
+            // Check if this is a wallet blob
+            if blob.contract_name.0 == "wallet" {
+                // Try to decode the blob as a WalletAction
+                if let Ok(
+                    WalletAction::VerifyIdentity { account, .. }
+                    | WalletAction::RegisterIdentity { account, .. },
+                ) = WalletAction::from_blob_data(&blob.data)
+                {
+                    if account == expected_account {
+                        return Ok(());
+                    }
+                }
+            }
+        }
+
+        Err(format!(
+            "No action that proves identity found in previous blobs for account: {expected_account}. calldata.blobs: {:?}", calldata.blobs
+        ))
     }
 }
 
@@ -442,9 +475,18 @@ impl AccountInfo {
         Ok(ret)
     }
 
-    fn verify_and_update_nonce(&mut self, nonce: u128) -> Result<String, String> {
-        if nonce <= self.nonce {
+    fn verify_and_update_nonce(
+        &mut self,
+        nonce: u128,
+        calldata: &sdk::Calldata,
+    ) -> Result<String, String> {
+        if nonce < self.nonce {
             return Err("Invalid nonce".to_string());
+        }
+        if nonce == self.nonce {
+            // Check if there's a VerifyIdentity action in previous blobs for this user
+            self.check_verify_identity_in_previous_blobs(calldata, &self.identity)?;
+            return Ok("Identity verified".to_string());
         }
         self.nonce = nonce;
         Ok("Identity verified".to_string())
@@ -1003,5 +1045,128 @@ mod tests {
         wallet
             .handle(register_call)
             .expect("Failed to handle register call");
+    }
+
+    #[test]
+    fn test_check_verify_identity_in_previous_blobs() {
+        let nonce = 1769086402327;
+        // Test based on the image showing 3 blobs with bob identity
+        let account_info = AccountInfo {
+            identity: "bob".to_string(),
+            auth_method: AuthMethod::Ethereum {
+                address: "0x6853cc7d35451325053706ad5f188df79f0387c".to_string(),
+            },
+            session_keys: vec![],
+            nonce,
+        };
+
+        // Create blob #0 - secp256k1 blob (from image)
+        let secp256k1_blob = Blob {
+            contract_name: sdk::ContractName("secp256k1".to_string()),
+            data: sdk::BlobData(vec![/* secp256k1 data would go here */]),
+        };
+
+        // Create blob #1 - secp256k1 blob (from image)
+        let secp256k1_blob2 = Blob {
+            contract_name: sdk::ContractName("secp256k1".to_string()),
+            data: sdk::BlobData(vec![/* secp256k1 data would go here */]),
+        };
+
+        // Create blob #2 - RegisterIdentity action for bob (from image)
+        let register_identity_blob = WalletAction::RegisterIdentity {
+            account: "bob".to_string(),
+            nonce,
+            salt: "***".to_string(),
+            auth_method: AuthMethod::Ethereum {
+                address: "0x6853cc7d35451325053706ad5f188df79f0387c".to_string(),
+            },
+            invite_code: "***".to_string(),
+        }
+        .as_blob(sdk::ContractName("wallet".to_string()));
+
+        // Create blob #3 - AddSessionKey action for bob (from image)
+        let add_session_key_blob = WalletAction::AddSessionKey {
+            account: "bob".to_string(),
+            key: "0288fb774209924f7ea2221bf136919b3765d662f6d1d93c36c2ef0b8c3b71db6".to_string(),
+            expiration_date: 1769945603806,
+            whitelist: None,
+            lane_id: None,
+            nonce,
+        }
+        .as_blob(sdk::ContractName("wallet".to_string()));
+
+        // Test case 1: Current blob is #3, should find RegisterIdentity in blob #2
+        let calldata_with_register = Calldata {
+            blobs: IndexedBlobs::from(vec![
+                secp256k1_blob.clone(),
+                secp256k1_blob2.clone(),
+                register_identity_blob.clone(),
+                add_session_key_blob.clone(),
+            ]),
+            index: BlobIndex(3), // Current blob is #3 (AddSessionKey)
+            identity: "bob".into(),
+            ..Default::default()
+        };
+
+        // Should succeed because RegisterIdentity for bob exists in blob #2
+        let result =
+            account_info.check_verify_identity_in_previous_blobs(&calldata_with_register, "bob");
+        assert!(
+            result.is_ok(),
+            "Should find RegisterIdentity in previous blobs"
+        );
+
+        // Test case 2: Current blob is #2, should not find any previous identity proof
+        let calldata_current_register = Calldata {
+            blobs: IndexedBlobs::from(vec![
+                secp256k1_blob.clone(),
+                secp256k1_blob2.clone(),
+                register_identity_blob.clone(),
+                add_session_key_blob.clone(),
+            ]),
+            index: BlobIndex(2), // Current blob is #2 (RegisterIdentity)
+            identity: "bob".into(),
+            ..Default::default()
+        };
+
+        // Should fail because no previous identity proof exists before blob #2
+        let result =
+            account_info.check_verify_identity_in_previous_blobs(&calldata_current_register, "bob");
+        assert!(
+            result.is_err(),
+            "Should not find identity proof in previous blobs"
+        );
+
+        // Test case 3: Wrong account name
+        let result = account_info
+            .check_verify_identity_in_previous_blobs(&calldata_with_register, "wrongAccount");
+        assert!(result.is_err(), "Should fail with wrong account name");
+
+        // Test case 4: Test with VerifyIdentity action instead of RegisterIdentity
+        let verify_identity_blob = WalletAction::VerifyIdentity {
+            account: "bob".to_string(),
+            nonce,
+        }
+        .as_blob(sdk::ContractName("wallet".to_string()));
+
+        let calldata_with_verify = Calldata {
+            blobs: IndexedBlobs::from(vec![
+                secp256k1_blob.clone(),
+                secp256k1_blob2.clone(),
+                verify_identity_blob.clone(),
+                add_session_key_blob.clone(),
+            ]),
+            index: BlobIndex(3), // Current blob is #3
+            identity: "bob".into(),
+            ..Default::default()
+        };
+
+        // Should succeed because VerifyIdentity for bob exists in blob #2
+        let result =
+            account_info.check_verify_identity_in_previous_blobs(&calldata_with_verify, "bob");
+        assert!(
+            result.is_ok(),
+            "Should find VerifyIdentity in previous blobs"
+        );
     }
 }
