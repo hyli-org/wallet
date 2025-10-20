@@ -2,6 +2,8 @@ use anyhow::Result;
 use axum::http::StatusCode;
 use axum::{extract::State, routing::post, Json, Router};
 use chrono::NaiveDateTime;
+use client_sdk::contract_indexer::AppError;
+use hyli_modules::log_error;
 use hyli_modules::modules::BuildApiContextInner;
 use hyli_modules::{
     bus::SharedMessageBus, module_bus_client, module_handle_messages, modules::Module,
@@ -32,8 +34,9 @@ pub struct ConsumeInviteBody {
 
 impl InviteModuleInner {
     async fn consume_invite(&self, code: &str, wallet: &str) -> Result<Blob> {
-        let invite: Option<InviteCode> = sqlx::query_as(
-            "
+        let invite: Option<InviteCode> = log_error!(
+            sqlx::query_as(
+                "
             UPDATE invite_codes
             SET used_at = NOW(), wallet = $2
             WHERE id = (
@@ -44,11 +47,13 @@ impl InviteModuleInner {
             )
             RETURNING id, code, wallet, used_at
             ",
-        )
-        .bind(code)
-        .bind(wallet)
-        .fetch_optional(&self.pool)
-        .await?;
+            )
+            .bind(code)
+            .bind(wallet)
+            .fetch_optional(&self.pool)
+            .await,
+            "SQL query failed"
+        )?;
 
         if invite.is_none() {
             return Err(anyhow::anyhow!("Invite code not found or already used"));
@@ -79,12 +84,12 @@ impl InviteModuleInner {
 async fn route_consume_invite(
     State(ctx): State<Arc<InviteModuleInner>>,
     Json(body): Json<ConsumeInviteBody>,
-) -> Result<Json<Blob>, StatusCode> {
+) -> Result<Json<Blob>, AppError> {
     match ctx.consume_invite(&body.code, &body.wallet).await {
         Ok(invite) => Ok(Json(invite)),
         Err(e) => {
             tracing::error!("Error consuming invite: {:?}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            Err(AppError::from(e))
         }
     }
 }
@@ -238,10 +243,13 @@ impl MockInviteModuleInner {
 async fn mock_route_consume_invite(
     State(ctx): State<Arc<MockInviteModuleInner>>,
     Json(body): Json<ConsumeInviteBody>,
-) -> Result<Json<Blob>, StatusCode> {
+) -> Result<Json<Blob>, AppError> {
     match ctx.consume_invite(&body.code, &body.wallet).await {
         Ok(invite) => Ok(Json(invite)),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(e) => {
+            tracing::error!("Error consuming invite: {:?}", e);
+            Err(AppError::from(e))
+        }
     }
 }
 
@@ -274,6 +282,7 @@ impl Module for MockInviteModule {
                 guard.replace(router.merge(api));
             }
         }
+        tracing::info!("Mock invite module initialized");
         Ok(Self {
             bus: InviteModuleBusClient::new_from_bus(bus.new_handle()).await,
             inner,
