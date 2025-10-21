@@ -51,8 +51,7 @@ pub(crate) async fn setup_wallet_modules(
         match init_node(node_client.clone(), contracts).await {
             Ok(_) => {}
             Err(e) => {
-                error!("Error initializing node: {:?}", e);
-                return Ok(());
+                anyhow::bail!("Error initializing node: {:?}", e);
             }
         }
     }
