@@ -268,7 +268,7 @@ impl AuthMethod {
                     .get(&BlobIndex(1)) // FIXME: hardcoded index for now
                     .ok_or("Invalid blob index for secp256k1")?;
                 let secp256k1blob: Secp256k1Blob = borsh::from_slice(&blob.data.0)
-                    .map_err(|_| "Failed to decode Secp256k1Blob")?;
+                    .map_err(|e| format!("Failed to decode Eth Secp256k1Blob: {e}"))?;
 
                 let identity = &calldata.identity;
 

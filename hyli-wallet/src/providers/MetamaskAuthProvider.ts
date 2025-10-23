@@ -8,6 +8,7 @@ import {
     WalletEventCallback,
     Secp256k1Blob,
     serializeSecp256k1Blob,
+    verifyIdentityBlob,
 } from "../types/wallet";
 import { NodeService } from "../services/NodeService";
 import { IndexerService } from "../services/IndexerService";
@@ -200,7 +201,7 @@ export class MetamaskAuthProvider implements AuthProvider<MetamaskAuthCredential
         credentials,
         onWalletEvent,
         onError,
-        registerSessionKey: _registerSessionKey,
+        registerSessionKey,
     }: LoginParams<MetamaskAuthCredentials>): Promise<AuthResult> {
         try {
             const username = this.sanitizeUsername(credentials.username);
@@ -225,7 +226,7 @@ export class MetamaskAuthProvider implements AuthProvider<MetamaskAuthCredential
             const storedAddress = this.normalizeEthereumAddress(
                 `${accountInfo.auth_method.Ethereum.address ?? ""}`,
             );
-            const nonce = accountInfo.nonce ?? 0;
+            const nonce = Date.now();
             const message = this.buildSigningMessage(identity, nonce);
             const { ethAddr, signature } = await this.signWithMetamask(message);
             const walletAddress = this.normalizeEthereumAddress(ethAddr[0]);
@@ -235,7 +236,7 @@ export class MetamaskAuthProvider implements AuthProvider<MetamaskAuthCredential
             }
 
             const digest = this.buildEthereumMessageDigest(message);
-            const { address: recoveredAddress } = this.buildSecp256k1SignatureComponents(digest, signature);
+            const { publicKey, compactSignature, address: recoveredAddress } = this.buildSecp256k1SignatureComponents(digest, signature);
 
             if (recoveredAddress !== walletAddress) {
                 return { success: false, error: "Recovered address does not match MetaMask account" };
@@ -248,6 +249,44 @@ export class MetamaskAuthProvider implements AuthProvider<MetamaskAuthCredential
                 address: identity,
                 salt,
             };
+
+            let newSessionKey;
+            if (registerSessionKey) {
+                const nodeService = NodeService.getInstance();
+                const secp256k1Blob: Secp256k1Blob = {
+                    identity,
+                    data: digest,
+                    public_key: publicKey,
+                    signature: compactSignature,
+                };
+                const secp_blob = {
+                    contract_name: "secp256k1",
+                    data: serializeSecp256k1Blob(secp256k1Blob),
+                };
+
+                const wallet_blob = verifyIdentityBlob(username, nonce);
+
+                const { duration, whitelist } = registerSessionKey;
+                const expiration = Date.now() + duration;
+                newSessionKey = sessionKeyService.generateSessionKey(expiration, whitelist);
+
+                const newPKblob = addSessionKeyBlob(username, newSessionKey.publicKey, expiration, nonce, whitelist)
+                const blobTx: BlobTransaction = {
+                    identity,
+                    // warning: secp_blob need to be at index 1
+                    blobs: [wallet_blob, secp_blob, newPKblob],
+                };
+
+
+                onWalletEvent?.({ account: identity, type: "sending_blob", message: "Sending blob transaction" });
+
+                const txHash = await hashBlobTransaction(blobTx);
+                onWalletEvent?.({ account: identity, type: "blob_sent", message: `Blob transaction sent: ${txHash}` });
+
+                await nodeService.client.sendBlobTx(blobTx);
+
+                // TODO(?): Assert transaction settles to assure the session key is valid (?)
+            }
 
             onWalletEvent?.({
                 account: identity,
@@ -288,7 +327,6 @@ export class MetamaskAuthProvider implements AuthProvider<MetamaskAuthCredential
             const nonce = Date.now();
             
             const message = this.buildSigningMessage(identity, nonce);
-            console.log("Signing message:", message);
             const { ethAddr, signature } = await this.signWithMetamask(message);
             const walletAddress = this.normalizeEthereumAddress(ethAddr[0]);
 

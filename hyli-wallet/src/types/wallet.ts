@@ -147,20 +147,18 @@ export const addSessionKeyBlob = (
             key,
             expiration_date,
             whitelist,
-            // ⚠️ Le schéma BORSH attend "lane_id"
-            laneId, // ← si ton type WalletAction conserve "laneId",
-            // on mappe juste avant la sérialisation (voir ci-dessous)
+            laneId,
             nonce,
         },
     };
-    // --- mapping vers le schéma ---
+
     const raw = {
         AddSessionKey: {
             account: action.AddSessionKey.account,
             key: action.AddSessionKey.key,
             expiration_date: action.AddSessionKey.expiration_date,
             whitelist: action.AddSessionKey.whitelist,
-            lane_id: action.AddSessionKey.laneId, // <= IMPORTANT
+            lane_id: action.AddSessionKey.laneId,
             nonce: action.AddSessionKey.nonce,
         },
     } as any;

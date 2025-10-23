@@ -76,7 +76,7 @@ export default function App() {
                         duration: 60 * 60 * 1000, // 1 hour
                         whitelist: ["oranj"],
                     }}
-                    forceSessionKey={false}
+                    forceSessionKey={true}
                 >
                     <WebSocketProvider>
                         {/* @ts-ignore */}
