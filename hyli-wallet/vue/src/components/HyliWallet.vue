@@ -78,6 +78,38 @@ const handleButtonClick = () => {
     }
 };
 
+const handleProviderClick = async (providerType: ProviderOption) => {
+    const provider = authProviderManager.getProvider(providerType);
+    if (!provider?.isEnabled()) {
+        return;
+    }
+
+    console.log("Provider clicked:", {
+        providerType,
+        defaultAuthMode,
+        willSetShowLoginTo: defaultAuthMode === "login",
+    });
+
+    // For MetaMask, check and prepare the provider first
+    if (providerType === "metamask") {
+        if (provider && "checkAndPrepareProvider" in provider) {
+            try {
+                const result = await (provider as any).checkAndPrepareProvider();
+                if (!result.success) {
+                    alert(`MetaMask Error: ${result.error}`);
+                    return;
+                }
+            } catch (error: any) {
+                alert(`MetaMask Error: ${error.message}`);
+                return;
+            }
+        }
+    }
+
+    selectedProvider.value = providerType;
+    showLogin.value = defaultAuthMode === "login";
+};
+
 const closeModal = () => {
     if (lockOpen.value) {
         return;
@@ -148,17 +180,7 @@ const closeModal = () => {
                                 'provider-row',
                                 !authProviderManager.getProvider(providerType)?.isEnabled() ? 'disabled' : '',
                             ]"
-                            @click="
-                                !authProviderManager.getProvider(providerType)?.isEnabled()
-                                    ? null
-                                    : (console.log('Provider clicked:', {
-                                          providerType,
-                                          defaultAuthMode,
-                                          willSetShowLoginTo: defaultAuthMode === 'login',
-                                      }),
-                                      (selectedProvider = providerType),
-                                      (showLogin = defaultAuthMode === 'login'))
-                            "
+                            @click="handleProviderClick(providerType)"
                         >
                             <span :class="['label', `${classPrefix}-provider-label`]">
                                 <span :class="['provider-icon', `${classPrefix}-provider-icon`]">

@@ -56,6 +56,46 @@ export class MetamaskAuthProvider implements AuthProvider<MetamaskAuthCredential
         return Boolean(eth?.isMetaMask);
     }
 
+    /**
+     * Checks if MetaMask is available and unlocked. If locked, prompts user to unlock.
+     * Should be called when the user selects MetaMask as their provider.
+     */
+    async checkAndPrepareMetamask(): Promise<{ success: boolean; error?: string }> {
+        try {
+            if (!this.isEnabled()) {
+                return { success: false, error: "MetaMask is not installed or available" };
+            }
+
+            const ethereum = this.getEthereum();
+            
+            // Check if MetaMask is unlocked
+            const isUnlocked = await this.isMetamaskUnlocked(ethereum);
+            if (!isUnlocked) {
+                // Prompt user to unlock MetaMask
+                try {
+                    await this.getPrimaryAccount(ethereum);
+                    return { success: true };
+                } catch (error: any) {
+                    if (error.code === 4001) {
+                        return { success: false, error: "MetaMask access was denied by user" };
+                    }
+                    return { success: false, error: "Failed to connect to MetaMask" };
+                }
+            }
+
+            return { success: true };
+        } catch (error: any) {
+            return { success: false, error: error.message || "Failed to prepare MetaMask" };
+        }
+    }
+
+    /**
+     * Implementation of the optional checkAndPrepareProvider method
+     */
+    async checkAndPrepareProvider(): Promise<{ success: boolean; error?: string }> {
+        return this.checkAndPrepareMetamask();
+    }
+
     private getEthereum(): EthereumProvider {
         if (typeof window === "undefined") {
             throw new Error("MetaMask is only available in the browser");
@@ -75,6 +115,17 @@ export class MetamaskAuthProvider implements AuthProvider<MetamaskAuthCredential
             throw new Error("No MetaMask account connected");
         }
         return accounts;
+    }
+
+    private async isMetamaskUnlocked(ethereum: EthereumProvider): Promise<boolean> {
+        try {
+            const accounts = (await ethereum.request<string[]>({
+                method: "eth_accounts",
+            })) as string[];
+            return accounts && accounts.length > 0;
+        } catch (error) {
+            return false;
+        }
     }
 
     private buildSigningMessage(username: string, nonce: number): string {
@@ -228,7 +279,24 @@ export class MetamaskAuthProvider implements AuthProvider<MetamaskAuthCredential
             );
             const nonce = Date.now();
             const message = this.buildSigningMessage(identity, nonce);
-            const { ethAddr, signature } = await this.signWithMetamask(message);
+            
+            let ethAddr: string[];
+            let signature: string;
+            try {
+                const result = await this.signWithMetamask(message);
+                ethAddr = result.ethAddr;
+                signature = result.signature;
+            } catch (error: any) {
+                // Handle MetaMask specific errors
+                if (error.code === 4001) {
+                    return { success: false, error: "MetaMask signature request was rejected by user" };
+                }
+                if (error.message.includes("User rejected") || error.message.includes("User denied")) {
+                    return { success: false, error: "MetaMask signature request was rejected by user" };
+                }
+                throw error; // Re-throw other errors
+            }
+            
             const walletAddress = this.normalizeEthereumAddress(ethAddr[0]);
 
             if (walletAddress !== storedAddress) {
@@ -327,7 +395,23 @@ export class MetamaskAuthProvider implements AuthProvider<MetamaskAuthCredential
             const nonce = Date.now();
             
             const message = this.buildSigningMessage(identity, nonce);
-            const { ethAddr, signature } = await this.signWithMetamask(message);
+            let ethAddr: string[];
+            let signature: string;
+            try {
+                const result = await this.signWithMetamask(message);
+                ethAddr = result.ethAddr;
+                signature = result.signature;
+            } catch (error: any) {
+                // Handle MetaMask specific errors
+                if (error.code === 4001) {
+                    return { success: false, error: "MetaMask signature request was rejected by user" };
+                }
+                if (error.message.includes("User rejected") || error.message.includes("User denied")) {
+                    return { success: false, error: "MetaMask signature request was rejected by user" };
+                }
+                throw error; // Re-throw other errors
+            }
+            
             const walletAddress = this.normalizeEthereumAddress(ethAddr[0]);
 
             const digest = this.buildEthereumMessageDigest(message);

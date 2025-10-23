@@ -26,4 +26,9 @@ export interface AuthProvider<K extends AuthCredentials = AuthCredentials> {
     login(params: LoginParams<K>): Promise<AuthResult>;
     register(params: RegisterAccountParams<K>): Promise<AuthResult>;
     isEnabled(): boolean;
+    /**
+     * Optional method to check and prepare the provider when selected by user.
+     * Useful for providers like MetaMask that need to check wallet status.
+     */
+    checkAndPrepareProvider?(): Promise<{ success: boolean; error?: string }>;
 }

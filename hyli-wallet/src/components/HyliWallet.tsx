@@ -249,9 +249,25 @@ export const HyliWallet = ({
             <button
                 key={providerType}
                 className={`provider-row${disabled ? " disabled" : ""}`}
-                onClick={() => {
+                onClick={async () => {
                     if (disabled) return;
-                    console.log('Provider clicked:', { providerType, defaultAuthMode, willSetShowLoginTo: defaultAuthMode === 'login' });
+                    // For MetaMask, check and prepare the provider first
+                    if (providerType === 'metamask') {
+                        const metamaskProvider = authProviderManager.getProvider('metamask');
+                        if (metamaskProvider && 'checkAndPrepareProvider' in metamaskProvider) {
+                            try {
+                                const result = await (metamaskProvider as any).checkAndPrepareProvider();
+                                if (!result.success) {
+                                    alert(`MetaMask Error: ${result.error}`);
+                                    return;
+                                }
+                            } catch (error: any) {
+                                alert(`MetaMask Error: ${error.message}`);
+                                return;
+                            }
+                        }
+                    }
+                    
                     setSelectedProvider(providerType);
                     setShowLogin(defaultAuthMode === 'login');
                 }}
