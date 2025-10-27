@@ -4,16 +4,16 @@
     "": {
       "name": "hyli-wallet-vue",
       "dependencies": {
-        "hyli-wallet": "^0.5.11",
+        "hyli-wallet": "^0.5.14",
       },
       "devDependencies": {
         "@vitejs/plugin-vue": "^6.0.1",
         "@vue/tsconfig": "^0.8.1",
-        "typescript": "^5.9.2",
+        "typescript": "^5.9.3",
         "unplugin-dts": "^1.0.0-beta.6",
         "vite": "npm:rolldown-vite@7.1.12",
         "vite-bundle-analyzer": "^1.2.3",
-        "vue-tsc": "^3.1.0",
+        "vue-tsc": "^3.1.2",
       },
       "peerDependencies": {
         "vue": "^3.5.22",
@@ -218,7 +218,7 @@
 
     "hyli-noir": ["hyli-noir@0.3.0", "", { "dependencies": { "hyli": "^0.4.1", "noir-jwt": "^0.4.5" }, "peerDependencies": { "@aztec/bb.js": "0.87.9", "@noir-lang/noir_js": "1.0.0-beta.11", "@noir-lang/noir_wasm": "1.0.0-beta.11" } }, "sha512-2aAhpbYvaGzxuWS5Jqcl5QY51FcPg4wrPdbWR3GJBYapiw9So/C40lkmEyEVmEXE+F5cDPNSFs67Hvjnb5Camg=="],
 
-    "hyli-wallet": ["hyli-wallet@0.5.13", "", { "dependencies": { "@noble/hashes": "^2.0.1", "@types/crypto-js": "^4.2.2", "@types/elliptic": "^6.4.18", "@types/react-router-dom": "^5.3.3", "elliptic": "^6.6.1", "hyli": "^0.4.1", "js-sha3": "^0.9.3" }, "peerDependencies": { "hyli-noir": "^0.3.0", "react": "^19.1.1", "react-dom": "^19.1.1", "react-router-dom": "^7.9.3" } }, "sha512-XWM+X9AMrPM7BijFpXgyYcVNJgEVCnAPubOLhb7CCALixhp0FhlUj4c1Qkz9yfN8D83jE4iF9j2F7Af/4YmcEA=="],
+    "hyli-wallet": ["hyli-wallet@0.5.14", "", { "dependencies": { "@noble/hashes": "^2.0.1", "@types/crypto-js": "^4.2.2", "@types/elliptic": "^6.4.18", "@types/react-router-dom": "^5.3.3", "elliptic": "^6.6.1", "hyli": "^0.4.1", "js-sha3": "^0.9.3" }, "peerDependencies": { "hyli-noir": "^0.3.0", "react": "^19.1.1", "react-dom": "^19.1.1", "react-router-dom": "^7.9.3" } }, "sha512-93jZglYUh9zU+mx+Kf31xwgY17qaDX0SwDm1YXouifMVXAy0ZPK0jP+gSdO1pQsKLfHs4LYljUWngr80zwgGyA=="],
 
     "idb-keyval": ["idb-keyval@6.2.2", "", {}, "sha512-yjD9nARJ/jb1g+CvD0tlhUHOrJ9Sy0P8T9MF3YaLlHnSRpwPfpTX0XIvpmw3gAJUmEu3FiICLBDPXVwyEvrleg=="],
 

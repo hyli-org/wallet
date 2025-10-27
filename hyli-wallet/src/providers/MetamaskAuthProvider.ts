@@ -318,43 +318,74 @@ export class MetamaskAuthProvider implements AuthProvider<MetamaskAuthCredential
                 salt,
             };
 
-            let newSessionKey;
+            const sessionKeyPromise = registerSessionKey ? WalletOperations.getOrReuseSessionKey(wallet) : undefined;
+
             if (registerSessionKey) {
-                const nodeService = NodeService.getInstance();
-                const secp256k1Blob: Secp256k1Blob = {
-                    identity,
-                    data: digest,
-                    public_key: publicKey,
-                    signature: compactSignature,
-                };
-                const secp_blob = {
-                    contract_name: "secp256k1",
-                    data: serializeSecp256k1Blob(secp256k1Blob),
-                };
+                try {
+                    const existingSessionKey = sessionKeyPromise ? await sessionKeyPromise : undefined;
+                    if (existingSessionKey) {
+                        wallet.sessionKey = existingSessionKey;
+                    } else {
+                        const nodeService = NodeService.getInstance();
+                        const secp256k1Blob: Secp256k1Blob = {
+                            identity,
+                            data: digest,
+                            public_key: publicKey,
+                            signature: compactSignature,
+                        };
+                        const secp_blob = {
+                            contract_name: "secp256k1",
+                            data: serializeSecp256k1Blob(secp256k1Blob),
+                        };
 
-                const wallet_blob = verifyIdentityBlob(username, nonce);
+                        const wallet_blob = verifyIdentityBlob(username, nonce);
 
-                const { duration, whitelist } = registerSessionKey;
-                const expiration = Date.now() + duration;
-                newSessionKey = sessionKeyService.generateSessionKey(expiration, whitelist);
+                        const { duration, whitelist, laneId } = registerSessionKey;
+                        const expiration = Date.now() + duration;
+                        const generatedSessionKey = sessionKeyService.generateSessionKey(expiration, whitelist);
+                        const newSessionKey = laneId
+                            ? { ...generatedSessionKey, laneId }
+                            : generatedSessionKey;
 
-                const newPKblob = addSessionKeyBlob(username, newSessionKey.publicKey, expiration, nonce, whitelist)
-                const blobTx: BlobTransaction = {
-                    identity,
-                    // warning: secp_blob need to be at index 1
-                    blobs: [wallet_blob, secp_blob, newPKblob],
-                };
+                        const newPKblob = addSessionKeyBlob(
+                            username,
+                            newSessionKey.publicKey,
+                            expiration,
+                            nonce,
+                            whitelist,
+                            laneId,
+                        );
+                        const blobTx: BlobTransaction = {
+                            identity,
+                            // warning: secp_blob need to be at index 1
+                            blobs: [wallet_blob, secp_blob, newPKblob],
+                        };
 
+                        onWalletEvent?.({ account: identity, type: "sending_blob", message: "Sending blob transaction" });
 
-                onWalletEvent?.({ account: identity, type: "sending_blob", message: "Sending blob transaction" });
+                        const txHash = await hashBlobTransaction(blobTx);
+                        onWalletEvent?.({
+                            account: identity,
+                            type: "blob_sent",
+                            message: `Blob transaction sent: ${txHash}`,
+                        });
 
-                const txHash = await hashBlobTransaction(blobTx);
-                onWalletEvent?.({ account: identity, type: "blob_sent", message: `Blob transaction sent: ${txHash}` });
+                        await nodeService.client.sendBlobTx(blobTx);
 
-                await nodeService.client.sendBlobTx(blobTx);
-
-                // TODO(?): Assert transaction settles to assure the session key is valid (?)
+                        // TODO(?): Assert transaction settles to assure the session key is valid (?)
+                        wallet.sessionKey = newSessionKey;
+                    }
+                } catch (sessionKeyError) {
+                    console.error("Failed to register session key via MetaMask:", sessionKeyError);
+                    onError?.(
+                        sessionKeyError instanceof Error
+                            ? sessionKeyError
+                            : new Error("Failed to register MetaMask session key"),
+                    );
+                }
             }
+
+            wallet = WalletOperations.cleanExpiredSessionKeys(wallet);
 
             onWalletEvent?.({
                 account: identity,
