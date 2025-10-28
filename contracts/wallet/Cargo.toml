@@ -32,7 +32,7 @@ secp256k1 = { version = "0.29.0", default-features = false, features = [
 ] }
 sha3 = "0.10.8"
 
-risc0-zkvm = { version = "=2.3", default-features = false, optional = true, features = [
+risc0-zkvm = { version = "3.0", default-features = false, optional = true, features = [
   'std',
 ] }
 
@@ -42,7 +42,7 @@ wallet = { path = ".", features = ["client"] }
 clap = { version = "4.5.23", features = ["derive"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tokio = { version = "1.44.2", features = ["full", "tracing"] }
-risc0-zkvm = { version = "=2.3", default-features = false, features = [
+risc0-zkvm = { version = "3.0", default-features = false, features = [
   'std',
   'prove',
 ] }

@@ -11,14 +11,14 @@ hyli-modules = { git = "https://github.com/hyli-org/hyli.git", package = "hyli-m
 
 contracts = { path = "contracts", default-features = false, package = "contracts" }
 wallet = { path = "contracts/wallet", package = "wallet" }
-sha2 = "0.10.8"
+sha2 = "=0.10.9"                                                                    # pinned to a specific version via patch
 
 [workspace.package]
 version = "0.4.1"
 edition = "2021"
 
 [patch.crates-io]
-sha2 = { git = "https://github.com/risc0/RustCrypto-hashes", tag = "sha2-v0.10.8-risczero.0" }
+sha2 = { git = "https://github.com/risc0/RustCrypto-hashes", tag = "sha2-v0.10.9-risczero.0" }
 # boundless-market = { git = "https://github.com/hyli-org/boundless.git" }
 
 # [patch."https://github.com/hyli_org/hyli"]
