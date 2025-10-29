@@ -240,17 +240,11 @@ export class EthereumWalletAuthProvider implements AuthProvider<EthereumWalletAu
         indexerService: IndexerService,
         onError?: WalletErrorCallback
     ) {
-        try {
-            const accountInfo = await indexerService.getAccountInfo(username);
-            if (accountInfo) {
-                const error = `Account with username "${username}" already exists.`;
-                onError?.(new Error(error));
-                throw new Error(error);
-            }
-        } catch (error: any) {
-            // Any failure from the indexer means the account is not registered yet.
-            // We ignore 404 and network errors to allow registration to proceed.
-            return;
+        const accountInfo = await indexerService.getAccountInfo(username);
+        if (accountInfo) {
+            const error = `Account with username "${username}" already exists.`;
+            onError?.(new Error(error));
+            throw new Error(error);
         }
 
         if (!inviteCode) {

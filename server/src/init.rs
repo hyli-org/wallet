@@ -39,7 +39,7 @@ async fn init_contract(node: &dyn NodeApiClient, contract: ContractInit) -> Resu
         Err(_) => {
             info!("🚀 Registering {} contract", contract.name);
             node.register_contract(APIRegisterContract {
-                verifier: "risc0-1".into(),
+                verifier: "risc0-3".into(),
                 program_id: ProgramId(contract.program_id.to_vec()),
                 state_commitment: contract.initial_state,
                 contract_name: contract.name.clone(),
