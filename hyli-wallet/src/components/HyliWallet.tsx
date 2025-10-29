@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useSyncExternalStore } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import ReactDOM from "react-dom";
 import { authProviderManager } from "../providers/AuthProviderManager";
 import { AuthForm } from "./auth/AuthForm";
@@ -300,7 +300,7 @@ export const HyliWallet = ({
 
     // Render Ethereum wallet buttons
     const renderEthereumProviderButton = (providerDetail: any) => {
-        const { info, provider } = providerDetail;
+        const { info } = providerDetail;
         
         return (
             <button
