@@ -1,5 +1,7 @@
 import {
+    findEthereumProviderByUuid,
     getStoredWallet,
+    initializeEthereumProviders,
     storeWallet,
     type Wallet,
     type WalletEventCallback,
@@ -15,8 +17,9 @@ import { NodeService } from "hyli-wallet";
 import { IndexerService } from "hyli-wallet";
 import { sessionKeyService } from "hyli-wallet";
 import { computed, ref, watchEffect } from "vue";
+import type { EIP1193Provider } from "mipd";
 
-export type ProviderOption = "password" | "google" | "metamask" | "github" | "x";
+export type ProviderOption = "password" | "google" | "ethereum" | "github" | "x";
 
 export interface WalletProviderProps {
     config: {
@@ -120,6 +123,7 @@ export const useWalletInternal = () => {
         NodeService.initialize(config.value.nodeBaseUrl);
         IndexerService.initialize(config.value.walletServerBaseUrl);
         authProviderManager.registerDefaultProviders(config.value.providers);
+        initializeEthereumProviders();
     });
 
     checkWalletExists();
@@ -320,6 +324,15 @@ export const useWalletInternal = () => {
         return { hash, signature };
     };
 
+    const getEthereumProvider = (): EIP1193Provider | null => {
+        if (!wallet.value?.ethereumProviderUuid) {
+            return null;
+        }
+        const currentProvider = findEthereumProviderByUuid(wallet.value.ethereumProviderUuid);
+
+        return currentProvider?.provider || null;
+    };
+
     return {
         wallet,
         login,
@@ -330,6 +343,7 @@ export const useWalletInternal = () => {
         cleanExpiredSessionKey,
         getOrReuseSessionKey,
         signMessageWithSessionKey,
+        getEthereumProvider,
         logout,
         sessionKeyConfig: effectiveSessionKeyConfig,
         onWalletEvent,
@@ -350,6 +364,7 @@ export const useWallet = () => {
         cleanExpiredSessionKey: context.cleanExpiredSessionKey,
         createIdentityBlobs: context.createIdentityBlobs,
         signMessageWithSessionKey: context.signMessageWithSessionKey,
+        getEthereumProvider: context.getEthereumProvider,
         logout: context.logout,
     };
 };

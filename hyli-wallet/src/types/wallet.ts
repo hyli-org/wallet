@@ -11,6 +11,7 @@ export interface Wallet {
     address: string;
     salt: string;
     sessionKey?: SessionKey;
+    ethereumProviderUuid?: string;
 }
 
 import { borshSerialize, BorshSchema, borshDeserialize } from "borsher";
