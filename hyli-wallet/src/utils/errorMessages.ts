@@ -130,6 +130,13 @@ export const getAuthErrorMessage = (error: unknown): ErrorDetails => {
         };
     }
 
+    if (errorString) {
+        return {
+            userMessage: errorString,
+            technicalMessage: errorString,
+        };
+    }
+
     // Generic errors
     return {
         userMessage: "Something went wrong. Please try again.",

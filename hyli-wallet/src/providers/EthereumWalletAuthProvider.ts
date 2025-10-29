@@ -24,6 +24,7 @@ import {
     initializeEthereumProviders,
 } from "./ethereumProviders";
 import { EIP1193Provider } from "mipd";
+import { createPath } from "react-router-dom";
 
 export interface EthereumWalletAuthCredentials extends AuthCredentials {
     inviteCode?: string;
@@ -240,11 +241,17 @@ export class EthereumWalletAuthProvider implements AuthProvider<EthereumWalletAu
         indexerService: IndexerService,
         onError?: WalletErrorCallback
     ) {
-        const accountInfo = await indexerService.getAccountInfo(username);
-        if (accountInfo) {
-            const error = `Account with username "${username}" already exists.`;
-            onError?.(new Error(error));
-            throw new Error(error);
+        try {
+            const accountInfo = await indexerService.getAccountInfo(username);
+            if (accountInfo) {
+                const error = `Account with username "${username}" already exists.`;
+                onError?.(new Error(error));
+                throw new Error(error);
+            }
+        } catch (error: any) {
+            // Any failure from the indexer means the account is not registered yet.
+            // We ignore 404 and network errors to allow registration to proceed.
+            return;
         }
 
         if (!inviteCode) {
@@ -266,12 +273,6 @@ export class EthereumWalletAuthProvider implements AuthProvider<EthereumWalletAu
 
             const identity = `${username}@${walletContractName}`;
 
-            onWalletEvent?.({
-                account: identity,
-                type: "checking_password",
-                message: "Requesting Ethereum wallet signature…",
-            });
-
             const indexerService = IndexerService.getInstance();
             const accountInfo = await indexerService.getAccountInfo(username);
             if (!("Ethereum" in accountInfo.auth_method)) {
@@ -281,30 +282,28 @@ export class EthereumWalletAuthProvider implements AuthProvider<EthereumWalletAu
             const storedAddress = this.normalizeEthereumAddress(
                 `${accountInfo.auth_method.Ethereum.address ?? ""}`,
             );
+
+            const ethereum = this.getEthereum(credentials.providerId);
+            const ethAddr = await this.getPrimaryAccount(ethereum);
+            
+            const walletAddress = this.normalizeEthereumAddress(ethAddr[0]);
+            
+            if (walletAddress !== storedAddress) {
+                // onError?.(new Error("Ethereum account does not match registered wallet address"));
+                return { success: false, error: "Ethereum account does not match registered wallet address" };
+            }
+
             const nonce = Date.now();
             const message = this.buildSigningMessage(identity, nonce);
             
-            let ethAddr: string[];
+            // let ethAddr: string[];
             let signature: string;
             try {
                 const result = await this.signWithEthereumWallet(message, credentials.providerId);
-                ethAddr = result.ethAddr;
                 signature = result.signature;
             } catch (error: any) {
-                // Handle wallet specific errors
-                if (error.code === 4001) {
-                    return { success: false, error: "Wallet signature request was rejected by user" };
-                }
-                if (error.message.includes("User rejected") || error.message.includes("User denied")) {
-                    return { success: false, error: "Wallet signature request was rejected by user" };
-                }
-                throw error; // Re-throw other errors
-            }
-            
-            const walletAddress = this.normalizeEthereumAddress(ethAddr[0]);
-
-            if (walletAddress !== storedAddress) {
-                return { success: false, error: "Ethereum account does not match registered wallet address" };
+                // onError?.(new Error("Wallet signature request was rejected by user: " + (error.message || error)));
+                return { success: false, error: "Wallet signature request was rejected by user" };
             }
 
             const digest = this.buildEthereumMessageDigest(message);
@@ -444,14 +443,7 @@ export class EthereumWalletAuthProvider implements AuthProvider<EthereumWalletAu
                 ethAddr = result.ethAddr;
                 signature = result.signature;
             } catch (error: any) {
-                // Handle wallet specific errors
-                if (error.code === 4001) {
-                    return { success: false, error: "Wallet signature request was rejected by user" };
-                }
-                if (error.message.includes("User rejected") || error.message.includes("User denied")) {
-                    return { success: false, error: "Wallet signature request was rejected by user" };
-                }
-                throw error; // Re-throw other errors
+                return { success: false, error: "Wallet signature request was rejected by user" };
             }
             
             const walletAddress = this.normalizeEthereumAddress(ethAddr[0]);
@@ -461,7 +453,7 @@ export class EthereumWalletAuthProvider implements AuthProvider<EthereumWalletAu
                 this.buildSecp256k1SignatureComponents(digest, signature);
 
             if (recoveredAddress !== walletAddress) {
-                throw new Error("Recovered public key does not match wallet address");
+                return { success: false, error: "Recovered public key does not match wallet address" };
             }
             let inviteCodeBlob;
             try {

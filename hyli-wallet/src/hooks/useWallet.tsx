@@ -208,12 +208,57 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
                 (onError ?? internalOnError)?.(error);
                 throw error;
             }
-            let result = await authProvider.login({
-                credentials,
-                onWalletEvent: onWalletEvent ?? internalOnWalletEvent,
-                onError: onError ?? internalOnError,
-                registerSessionKey: getRegSessKey(extraParams?.registerSessionKey),
-            });
+            const rawUsername = credentials.username?.trim();
+            const indexer = (() => {
+                try {
+                    return IndexerService.getInstance();
+                } catch {
+                    return null;
+                }
+            })();
+            if (rawUsername && indexer) {
+                const accountsToCheck = new Set<string>([rawUsername]);
+                if (!rawUsername.includes("@")) {
+                    accountsToCheck.add(`${rawUsername}@${walletContractName}`);
+                }
+                let accountExists = false;
+                for (const accountId of accountsToCheck) {
+                    try {
+                        await indexer.getAccountInfo(accountId);
+                        accountExists = true;
+                        break;
+                    } catch {
+                        // Ignore errors from the indexer; they indicate the account was not found.
+                    }
+                }
+                if (!accountExists) {
+                    const error = new Error(`Account with username "${rawUsername}" does not exist.`);
+                    (onError ?? internalOnError)?.(error);
+                    return undefined;
+                }
+            }
+
+            let result: AuthResult;
+            try {
+                result = await authProvider.login({
+                    credentials,
+                    onWalletEvent: onWalletEvent ?? internalOnWalletEvent,
+                    onError: onError ?? internalOnError,
+                    registerSessionKey: getRegSessKey(extraParams?.registerSessionKey),
+                });
+            } catch (error) {
+                (onError ?? internalOnError)?.(error as Error);
+                result = {
+                    success: false,
+                    error: "Unknown error",
+                };
+            }
+            if (!result.success) {
+                const error = new Error(result.error || "Registration failed");
+                (onError ?? internalOnError)?.(error);
+                return undefined;
+            }
+            
             setWallet(result.wallet ?? null);
             if (result.wallet)
                 (onWalletEvent ?? internalOnWalletEvent)?.({
