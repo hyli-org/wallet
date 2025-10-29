@@ -1,7 +1,7 @@
 // AuthProviderManager.ts
 import { AuthProvider } from "./BaseAuthProvider";
 import { GoogleAuthProvider } from "./GoogleAuthProvider";
-import { MetamaskAuthProvider } from "./MetamaskAuthProvider";
+import { EthereumWalletAuthProvider } from "./EthereumWalletAuthProvider";
 import { PasswordAuthProvider } from "./PasswordAuthProvider";
 
 export type AuthProviderManagerConfig = {
@@ -13,8 +13,8 @@ export type AuthProviderManagerConfig = {
         clientId: string;
     };
 
-    /** Configuration MetaMask */
-    metamask?: {
+    /** Configuration Ethereum Wallets */
+    ethereum?: {
         enabled?: boolean;
     };
 };
@@ -39,8 +39,8 @@ export class AuthProviderManager {
             this.registerProvider(new GoogleAuthProvider(config.google.clientId));
         }
 
-        if (config?.metamask?.enabled !== false) {
-            this.registerProvider(new MetamaskAuthProvider());
+        if (config?.ethereum?.enabled !== false) {
+            this.registerProvider(new EthereumWalletAuthProvider());
         }
     }
 

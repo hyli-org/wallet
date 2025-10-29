@@ -160,15 +160,9 @@ export const removeSessionKey = async (
         onWalletEvent?.({ account: identity, type: "proof_sent", message: `Proof transaction sent: ${proofTxHash}` });
 
         // Create optimistic wallet update
-        let updatedWallet: Wallet;
+        let updatedWallet: Wallet = { ...wallet };
         if (wallet.sessionKey && wallet.sessionKey.publicKey === publicKey) {
-            updatedWallet = {
-                username: wallet.username,
-                address: wallet.address,
-                salt: wallet.salt,
-            };
-        } else {
-            updatedWallet = { ...wallet };
+            delete updatedWallet.sessionKey;
         }
 
         // TODO(?): Add a websocket listener to confirm the transaction
@@ -237,11 +231,8 @@ export const cleanExpiredSessionKeys = (wallet: Wallet): Wallet => {
     }
     if (wallet.sessionKey.expiration < Date.now()) {
         // Remove expired keys from wallet
-        const updatedWallet = {
-            username: wallet.username,
-            address: wallet.address,
-            salt: wallet.salt,
-        };
+        const updatedWallet: Wallet = { ...wallet };
+        delete updatedWallet.sessionKey;
         return updatedWallet;
     }
     return wallet;

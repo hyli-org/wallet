@@ -5,7 +5,6 @@ import {
     registerBlob,
     walletContractName,
     WalletErrorCallback,
-    WalletEventCallback,
     Secp256k1Blob,
     serializeSecp256k1Blob,
     verifyIdentityBlob,
@@ -19,73 +18,79 @@ import { encodeToHex, hashBlobTransaction, hexToBytes } from "../utils/hash";
 import { AuthCredentials, AuthResult } from "../types/auth";
 import EC from "elliptic";
 import { keccak_256 } from "js-sha3";
+import {
+    findEthereumProviderByUuid,
+    getEthereumProviders,
+    initializeEthereumProviders,
+} from "./ethereumProviders";
+import { EIP1193Provider } from "mipd";
 
-export interface MetamaskAuthCredentials extends AuthCredentials {
+export interface EthereumWalletAuthCredentials extends AuthCredentials {
     inviteCode?: string;
+    providerId?: string; // ID du provider EIP-6963 utilisé
 }
 
-export interface MetamaskAuthProviderOptions {
+export interface EthereumWalletAuthProviderOptions {
     /**
-     * Optional prefix for the MetaMask signing message.
+     * Optional prefix for the Ethereum wallet signing message.
      * The username will be appended to this value when requesting a signature.
      */
     messagePrefix?: string;
 }
 
-type EthereumProvider = {
-    request<T = unknown>(args: { method: string; params?: unknown[] }): Promise<T>;
-    isMetaMask?: boolean;
-};
-
 const DEFAULT_SIGNING_PREFIX = "Sign in to Hyli as";
 const secp256k1 = new EC.ec("secp256k1");
 
-export class MetamaskAuthProvider implements AuthProvider<MetamaskAuthCredentials> {
-    readonly type = "metamask";
+export class EthereumWalletAuthProvider implements AuthProvider<EthereumWalletAuthCredentials> {
+    readonly type = "ethereum";
     private messagePrefix: string;
 
-    constructor(options?: MetamaskAuthProviderOptions) {
+    constructor(options?: EthereumWalletAuthProviderOptions) {
         this.messagePrefix = options?.messagePrefix ?? DEFAULT_SIGNING_PREFIX;
+        initializeEthereumProviders();
     }
 
     isEnabled(): boolean {
         if (typeof window === "undefined") {
             return false;
         }
-        const eth = (window as any).ethereum as EthereumProvider | undefined;
-        return Boolean(eth?.isMetaMask);
+        const providers = getEthereumProviders();
+        return providers.length > 0;
     }
 
     /**
-     * Checks if MetaMask is available and unlocked. If locked, prompts user to unlock.
-     * Should be called when the user selects MetaMask as their provider.
+     * Checks if Ethereum wallets are available and unlocked. If locked, prompts user to unlock.
+     * Should be called when the user selects an Ethereum wallet as their provider.
      */
-    async checkAndPrepareMetamask(): Promise<{ success: boolean; error?: string }> {
+    async checkAndPrepareEthereumWallet(providerId?: string): Promise<{ success: boolean; error?: string }> {
         try {
             if (!this.isEnabled()) {
-                return { success: false, error: "MetaMask is not installed or available" };
+                return { success: false, error: "No Ethereum wallets are installed or available" };
             }
 
-            const ethereum = this.getEthereum();
-            
-            // Check if MetaMask is unlocked
-            const isUnlocked = await this.isMetamaskUnlocked(ethereum);
-            if (!isUnlocked) {
-                // Prompt user to unlock MetaMask
-                try {
-                    await this.getPrimaryAccount(ethereum);
-                    return { success: true };
-                } catch (error: any) {
-                    if (error.code === 4001) {
-                        return { success: false, error: "MetaMask access was denied by user" };
-                    }
-                    return { success: false, error: "Failed to connect to MetaMask" };
+            const providers = getEthereumProviders();
+            if (providers.length === 0) {
+                return { success: false, error: "No Ethereum wallets detected" };
+            }
+
+            // Use specific provider if provided, otherwise first available
+            let targetProvider;
+            if (providerId) {
+                targetProvider = providers.find(p => p.info.uuid === providerId);
+                if (!targetProvider) {
+                    return { success: false, error: `Ethereum wallet with ID ${providerId} not found` };
                 }
+            } else {
+                targetProvider = providers[0];
             }
 
+            const ethereum = targetProvider.provider;
+            
+            // Check if wallet is unlocked
+            await this.ensureWalletIsUnlocked(ethereum);
             return { success: true };
         } catch (error: any) {
-            return { success: false, error: error.message || "Failed to prepare MetaMask" };
+            return { success: false, error: error.message || "Failed to prepare Ethereum wallet" };
         }
     }
 
@@ -93,39 +98,45 @@ export class MetamaskAuthProvider implements AuthProvider<MetamaskAuthCredential
      * Implementation of the optional checkAndPrepareProvider method
      */
     async checkAndPrepareProvider(): Promise<{ success: boolean; error?: string }> {
-        return this.checkAndPrepareMetamask();
+        return this.checkAndPrepareEthereumWallet();
     }
 
-    private getEthereum(): EthereumProvider {
-        if (typeof window === "undefined") {
-            throw new Error("MetaMask is only available in the browser");
+    private getEthereum(providerId?: string): any {
+        const providers = getEthereumProviders();
+
+        if (providers.length === 0) {
+            throw new Error("No Ethereum wallets detected");
         }
-        const eth = (window as any).ethereum as EthereumProvider | undefined;
-        if (!eth) {
-            throw new Error("MetaMask provider not found");
+
+        // Si un providerId spécifique est demandé
+        if (providerId) {
+            const specificProvider = findEthereumProviderByUuid(providerId);
+            if (!specificProvider) {
+                throw new Error(`Ethereum wallet with ID ${providerId} not found`);
+            }
+            return specificProvider.provider;
         }
-        return eth;
+
+        // Sinon, utiliser le premier provider disponible
+        return providers[0].provider;
     }
 
-    private async getPrimaryAccount(ethereum: EthereumProvider): Promise<string[]> {
-        const accounts = (await ethereum.request<string[]>({
+    private async getPrimaryAccount(ethereum: EIP1193Provider): Promise<string[]> {
+        const accounts = await ethereum.request({
             method: "eth_requestAccounts",
-        })) as string[];
+        });
+        console.log("primary accounts: ", accounts);
         if (!accounts || accounts.length === 0) {
-            throw new Error("No MetaMask account connected");
+            throw new Error("No wallet account connected");
         }
         return accounts;
     }
 
-    private async isMetamaskUnlocked(ethereum: EthereumProvider): Promise<boolean> {
-        try {
-            const accounts = (await ethereum.request<string[]>({
-                method: "eth_accounts",
-            })) as string[];
-            return accounts && accounts.length > 0;
-        } catch (error) {
-            return false;
-        }
+    private async ensureWalletIsUnlocked(ethereum: EIP1193Provider) {
+        await ethereum.request({
+          method: "wallet_requestPermissions",
+          params: [{ eth_accounts: {} }],
+        });
     }
 
     private buildSigningMessage(username: string, nonce: number): string {
@@ -143,15 +154,15 @@ export class MetamaskAuthProvider implements AuthProvider<MetamaskAuthCredential
         return new Uint8Array(keccak_256.arrayBuffer(signedMessage));
     }
 
-    private async signWithMetamask(message: string): Promise<{ ethAddr: string[]; signature: string }> {
-        const ethereum = this.getEthereum();
+    private async signWithEthereumWallet(message: string, providerId?: string): Promise<{ ethAddr: string[]; signature: string }> {
+        const ethereum = this.getEthereum(providerId);
         const ethAddr = await this.getPrimaryAccount(ethereum);
-        const signature = (await ethereum.request<string>({
+        const signature = await ethereum.request({
             method: "personal_sign",
             params: [message, ethAddr[0]],
-        })) as string;
+        });
         if (!signature) {
-            throw new Error("MetaMask digest signature failed");
+            throw new Error("Ethereum wallet signature failed");
         }
         return { ethAddr, signature };
     }
@@ -253,7 +264,7 @@ export class MetamaskAuthProvider implements AuthProvider<MetamaskAuthCredential
         onWalletEvent,
         onError,
         registerSessionKey,
-    }: LoginParams<MetamaskAuthCredentials>): Promise<AuthResult> {
+    }: LoginParams<EthereumWalletAuthCredentials>): Promise<AuthResult> {
         try {
             const username = this.sanitizeUsername(credentials.username);
             if (!username) {
@@ -265,13 +276,13 @@ export class MetamaskAuthProvider implements AuthProvider<MetamaskAuthCredential
             onWalletEvent?.({
                 account: identity,
                 type: "checking_password",
-                message: "Requesting MetaMask signature…",
+                message: "Requesting Ethereum wallet signature…",
             });
 
             const indexerService = IndexerService.getInstance();
             const accountInfo = await indexerService.getAccountInfo(username);
             if (!("Ethereum" in accountInfo.auth_method)) {
-                return { success: false, error: "Wallet is not registered with MetaMask authentication" };
+                return { success: false, error: "Wallet is not registered with Ethereum authentication" };
             }
 
             const storedAddress = this.normalizeEthereumAddress(
@@ -283,16 +294,16 @@ export class MetamaskAuthProvider implements AuthProvider<MetamaskAuthCredential
             let ethAddr: string[];
             let signature: string;
             try {
-                const result = await this.signWithMetamask(message);
+                const result = await this.signWithEthereumWallet(message, credentials.providerId);
                 ethAddr = result.ethAddr;
                 signature = result.signature;
             } catch (error: any) {
-                // Handle MetaMask specific errors
+                // Handle wallet specific errors
                 if (error.code === 4001) {
-                    return { success: false, error: "MetaMask signature request was rejected by user" };
+                    return { success: false, error: "Wallet signature request was rejected by user" };
                 }
                 if (error.message.includes("User rejected") || error.message.includes("User denied")) {
-                    return { success: false, error: "MetaMask signature request was rejected by user" };
+                    return { success: false, error: "Wallet signature request was rejected by user" };
                 }
                 throw error; // Re-throw other errors
             }
@@ -307,15 +318,22 @@ export class MetamaskAuthProvider implements AuthProvider<MetamaskAuthCredential
             const { publicKey, compactSignature, address: recoveredAddress } = this.buildSecp256k1SignatureComponents(digest, signature);
 
             if (recoveredAddress !== walletAddress) {
-                return { success: false, error: "Recovered address does not match MetaMask account" };
+                return { success: false, error: "Recovered address does not match wallet account" };
             }
 
             const salt = accountInfo.salt;
+
+            // Store Ethereum provider information
+            let ethereumProviderUuid: string | undefined;
+            if (credentials.providerId) {
+                    ethereumProviderUuid = credentials.providerId;
+            }
 
             let wallet: Wallet = {
                 username,
                 address: identity,
                 salt,
+                ethereumProviderUuid,
             };
 
             const sessionKeyPromise = registerSessionKey ? WalletOperations.getOrReuseSessionKey(wallet) : undefined;
@@ -376,11 +394,11 @@ export class MetamaskAuthProvider implements AuthProvider<MetamaskAuthCredential
                         wallet.sessionKey = newSessionKey;
                     }
                 } catch (sessionKeyError) {
-                    console.error("Failed to register session key via MetaMask:", sessionKeyError);
+                    console.error("Failed to register session key via Ethereum wallet:", sessionKeyError);
                     onError?.(
                         sessionKeyError instanceof Error
                             ? sessionKeyError
-                            : new Error("Failed to register MetaMask session key"),
+                            : new Error("Failed to register Ethereum wallet session key"),
                     );
                 }
             }
@@ -395,7 +413,7 @@ export class MetamaskAuthProvider implements AuthProvider<MetamaskAuthCredential
 
             return { success: true, wallet };
         } catch (error: any) {
-            const err = error instanceof Error ? error : new Error("MetaMask login failed");
+            const err = error instanceof Error ? error : new Error("Ethereum wallet login failed");
             onError?.(err);
             return { success: false, error: err.message };
         }
@@ -406,7 +424,7 @@ export class MetamaskAuthProvider implements AuthProvider<MetamaskAuthCredential
         onWalletEvent,
         onError,
         registerSessionKey,
-    }: RegisterAccountParams<MetamaskAuthCredentials>): Promise<AuthResult> {
+    }: RegisterAccountParams<EthereumWalletAuthCredentials>): Promise<AuthResult> {
         try {
             const username = this.sanitizeUsername(credentials.username);
             const inviteCode = credentials.inviteCode ?? "";
@@ -429,16 +447,16 @@ export class MetamaskAuthProvider implements AuthProvider<MetamaskAuthCredential
             let ethAddr: string[];
             let signature: string;
             try {
-                const result = await this.signWithMetamask(message);
+                const result = await this.signWithEthereumWallet(message, credentials.providerId);
                 ethAddr = result.ethAddr;
                 signature = result.signature;
             } catch (error: any) {
-                // Handle MetaMask specific errors
+                // Handle wallet specific errors
                 if (error.code === 4001) {
-                    return { success: false, error: "MetaMask signature request was rejected by user" };
+                    return { success: false, error: "Wallet signature request was rejected by user" };
                 }
                 if (error.message.includes("User rejected") || error.message.includes("User denied")) {
-                    return { success: false, error: "MetaMask signature request was rejected by user" };
+                    return { success: false, error: "Wallet signature request was rejected by user" };
                 }
                 throw error; // Re-throw other errors
             }
@@ -450,7 +468,7 @@ export class MetamaskAuthProvider implements AuthProvider<MetamaskAuthCredential
                 this.buildSecp256k1SignatureComponents(digest, signature);
 
             if (recoveredAddress !== walletAddress) {
-                throw new Error("Recovered public key does not match MetaMask address");
+                throw new Error("Recovered public key does not match wallet address");
             }
             let inviteCodeBlob;
             try {
@@ -513,10 +531,17 @@ export class MetamaskAuthProvider implements AuthProvider<MetamaskAuthCredential
             // TODO: change this event
             onWalletEvent?.({ account: identity, type: "sending_proof", message: "Sending proof transaction" });
 
+            // Store Ethereum provider information
+            let ethereumProviderUuid: string | undefined;
+            if (credentials.providerId) {
+                    ethereumProviderUuid = credentials.providerId;
+            }
+
             let wallet: Wallet = {
                 username,
                 address: identity,
                 salt,
+                ethereumProviderUuid,
             };
 
             if (newSessionKey) {
@@ -526,7 +551,7 @@ export class MetamaskAuthProvider implements AuthProvider<MetamaskAuthCredential
             const cleanedWallet = WalletOperations.cleanExpiredSessionKeys(wallet);
             return { success: true, wallet: cleanedWallet };
         } catch (error: any) {
-            const err = error instanceof Error ? error : new Error("MetaMask registration failed");
+            const err = error instanceof Error ? error : new Error("Ethereum wallet registration failed");
             onError?.(err);
             return { success: false, error: err.message };
         }

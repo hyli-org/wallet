@@ -1,10 +1,16 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import ReactDOM from "react-dom";
 import { authProviderManager } from "../providers/AuthProviderManager";
 import { AuthForm } from "./auth/AuthForm";
+// @ts-ignore: CSS import lacks type declarations
 import "./HyliWallet.css";
 import type { ProviderOption } from "../hooks/useWallet";
 import { useWallet, useWalletInternal } from "../hooks/useWallet";
+import {
+    getEthereumProviders,
+    initializeEthereumProviders,
+    subscribeToEthereumProviders,
+} from "../providers/ethereumProviders";
 
 // SVG Icons for providers
 const ProviderIcons = {
@@ -42,20 +48,14 @@ const ProviderIcons = {
             />
         </svg>
     ),
-    metamask: (
-        <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 256 240">
-            <path fill="#E17726" d="M250.066 0L140.219 81.279l20.427-47.9z"/>
-            <path fill="#E27625" d="m6.191.096l89.181 33.289l19.396 48.528zM205.86 172.858l48.551.924l-16.968 57.642l-59.243-16.311zm-155.721 0l27.557 42.255l-59.143 16.312l-16.865-57.643z"/>
-            <path fill="#E27625" d="m112.131 69.552l1.984 64.083l-59.371-2.701l16.888-25.478l.214-.245zm31.123-.715l40.9 36.376l.212.244l16.888 25.478l-59.358 2.7zM79.435 173.044l32.418 25.259l-37.658 18.181zm97.136-.004l5.131 43.445l-37.553-18.184z"/>
-            <path fill="#D5BFB2" d="m144.978 195.922l38.107 18.452l-35.447 16.846l.368-11.134zm-33.967.008l-2.909 23.974l.239 11.303l-35.53-16.833z"/>
-            <path fill="#233447" d="m100.007 141.999l9.958 20.928l-33.903-9.932zm55.985.002l24.058 10.994l-34.014 9.929z"/>
-            <path fill="#CC6228" d="m82.026 172.83l-5.48 45.04l-29.373-44.055zm91.95.001l34.854.984l-29.483 44.057zm28.136-44.444l-25.365 25.851l-19.557-8.937l-9.363 19.684l-6.138-33.849zm-148.237 0l60.435 2.749l-6.139 33.849l-9.365-19.681l-19.453 8.935z"/>
-            <path fill="#E27525" d="m52.166 123.082l28.698 29.121l.994 28.749zm151.697-.052l-29.746 57.973l1.12-28.8zm-90.956 1.826l1.155 7.27l2.854 18.111l-1.835 55.625l-8.675-44.685l-.003-.462zm30.171-.101l6.521 35.96l-.003.462l-8.697 44.797l-.344-11.205l-1.357-44.862z"/>
-            <path fill="#F5841F" d="m177.788 151.046l-.971 24.978l-30.274 23.587l-6.12-4.324l6.86-35.335zm-99.471 0l30.399 8.906l6.86 35.335l-6.12 4.324l-30.275-23.589z"/>
-            <path fill="#C0AC9D" d="m67.018 208.858l38.732 18.352l-.164-7.837l3.241-2.845h38.334l3.358 2.835l-.248 7.831l38.487-18.29l-18.728 15.476l-22.645 15.553h-38.869l-22.63-15.617z"/>
-            <path fill="#161616" d="m142.204 193.479l5.476 3.869l3.209 25.604l-4.644-3.921h-36.476l-4.556 4l3.104-25.681l5.478-3.871z"/>
-            <path fill="#763E1A" d="M242.814 2.25L256 41.807l-8.235 39.997l5.864 4.523l-7.935 6.054l5.964 4.606l-7.897 7.191l4.848 3.511l-12.866 15.026l-52.77-15.365l-.457-.245l-38.027-32.078zm-229.628 0l98.326 72.777l-38.028 32.078l-.457.245l-52.77 15.365l-12.866-15.026l4.844-3.508l-7.892-7.194l5.952-4.601l-8.054-6.071l6.085-4.526L0 41.809z"/>
-            <path fill="#F5841F" d="m180.392 103.99l55.913 16.279l18.165 55.986h-47.924l-33.02.416l24.014-46.808zm-104.784 0l-17.151 25.873l24.017 46.808l-33.005-.416H1.631l18.063-55.985zm87.776-70.878l-15.639 42.239l-3.319 57.06l-1.27 17.885l-.101 45.688h-30.111l-.098-45.602l-1.274-17.986l-3.32-57.045l-15.637-42.239z"/>
+    ethereum: (
+        <svg xmlns="http://www.w3.org/2000/svg" enable-background="new 0 0 1920 1920" viewBox="0 0 1920 1920">
+            <path d="m959.8 80.7-539.7 895.6 539.7-245.3z" fill="#8a92b2"/>
+            <path d="m959.8 731-539.7 245.3 539.7 319.1z" fill="#62688f"/>
+            <path d="m1499.6 976.3-539.8-895.6v650.3z" fill="#62688f"/>
+            <path d="m959.8 1295.4 539.8-319.1-539.8-245.3z" fill="#454a75"/>
+            <path d="m420.1 1078.7 539.7 760.6v-441.7z" fill="#8a92b2"/>
+            <path d="m959.8 1397.6v441.7l540.1-760.6z" fill="#62688f"/>
         </svg>
     ),
     github: (
@@ -131,6 +131,7 @@ export const HyliWallet = ({
     // Use controlled state if provided, otherwise use internal state
     const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
     const [selectedProvider, setSelectedProvider] = useState<ProviderOption | null>(null);
+    const [selectedEthereumProvider, setSelectedEthereumProvider] = useState<string | null>(null);
     const [showLogin, setShowLogin] = useState(defaultAuthMode === 'login');
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
@@ -141,6 +142,17 @@ export const HyliWallet = ({
 
     // To prevent closing while registering or logging in
     const [lockOpen, setLockOpen] = useState(false);
+
+    // Get detected Ethereum providers
+    const ethereumProviders = useSyncExternalStore(
+        subscribeToEthereumProviders,
+        getEthereumProviders,
+        () => []
+    );
+
+    useEffect(() => {
+        initializeEthereumProviders();
+    }, []);
 
     useEffect(() => {
         const mq = window.matchMedia("(prefers-color-scheme: dark)");
@@ -221,13 +233,14 @@ export const HyliWallet = ({
         if (lockOpen) {
             return;
         }
-        if (controlledIsOpen === undefined) {
+        if (!controlledIsOpen) {
             setInternalIsOpen(false);
         }
         if (controlledOnClose) {
             controlledOnClose();
         }
         setSelectedProvider(null);
+        setSelectedEthereumProvider(null);
         setShowLogin(defaultAuthMode === 'login');
     };
 
@@ -238,7 +251,7 @@ export const HyliWallet = ({
         const config: Record<ProviderOption, { label: string; icon: React.ReactNode }> = {
             password: { label: "Password", icon: ProviderIcons.password },
             google: { label: "Google", icon: ProviderIcons.google },
-            metamask: { label: "MetaMask", icon: ProviderIcons.metamask },
+            ethereum: { label: "Ethereum Wallet", icon: ProviderIcons.ethereum },
             github: { label: "GitHub", icon: ProviderIcons.github },
             x: { label: "X", icon: ProviderIcons.x },
         };
@@ -251,18 +264,18 @@ export const HyliWallet = ({
                 className={`provider-row${disabled ? " disabled" : ""}`}
                 onClick={async () => {
                     if (disabled) return;
-                    // For MetaMask, check and prepare the provider first
-                    if (providerType === 'metamask') {
-                        const metamaskProvider = authProviderManager.getProvider('metamask');
-                        if (metamaskProvider && 'checkAndPrepareProvider' in metamaskProvider) {
+                    // For Ethereum wallets, check and prepare the provider first
+                    if (providerType === 'ethereum') {
+                        const ethereumProvider = authProviderManager.getProvider('ethereum');
+                        if (ethereumProvider && 'checkAndPrepareProvider' in ethereumProvider) {
                             try {
-                                const result = await (metamaskProvider as any).checkAndPrepareProvider();
+                                const result = await (ethereumProvider as any).checkAndPrepareProvider();
                                 if (!result.success) {
-                                    alert(`MetaMask Error: ${result.error}`);
+                                    alert(`Ethereum Wallet Error: ${result.error}`);
                                     return;
                                 }
                             } catch (error: any) {
-                                alert(`MetaMask Error: ${error.message}`);
+                                alert(`Ethereum Wallet Error: ${error.message}`);
                                 return;
                             }
                         }
@@ -281,6 +294,55 @@ export const HyliWallet = ({
                 ) : (
                     <span className={`row-arrow ${classPrefix}-row-arrow`}>›</span>
                 )}
+            </button>
+        );
+    };
+
+    // Render Ethereum wallet buttons
+    const renderEthereumProviderButton = (providerDetail: any) => {
+        const { info } = providerDetail;
+        
+        return (
+            <button
+                key={info.uuid}
+                className="provider-row"
+                onClick={async () => {
+                    // Check and prepare the specific Ethereum provider first
+                    const ethereumProvider = authProviderManager.getProvider('ethereum');
+                    if (ethereumProvider && 'checkAndPrepareEthereumWallet' in ethereumProvider) {
+                        try {
+                            const result = await (ethereumProvider as any).checkAndPrepareEthereumWallet(info.uuid);
+                            if (!result.success) {
+                                alert(`${info.name} Error: ${result.error}`);
+                                return;
+                            }
+                        } catch (error: any) {
+                            alert(`${info.name} Error: ${error.message}`);
+                            return;
+                        }
+                    }
+                    
+                    setSelectedProvider('ethereum');
+                    setSelectedEthereumProvider(info.uuid);
+                    setShowLogin(defaultAuthMode === 'login');
+                }}
+            >
+                <span className={`label ${classPrefix}-provider-label`}>
+                    <span className={`provider-icon ${classPrefix}-provider-icon`}>
+                        {info.icon ? (
+                            <img 
+                                src={info.icon} 
+                                alt={info.name} 
+                                width="24" 
+                                height="24" 
+                            />
+                        ) : (
+                            ProviderIcons.ethereum
+                        )}
+                    </span>
+                    {info.name}
+                </span>
+                <span className={`row-arrow ${classPrefix}-row-arrow`}>›</span>
             </button>
         );
     };
@@ -314,7 +376,14 @@ export const HyliWallet = ({
                 <div className={`${classPrefix}-provider-selection`}>
                     <h2 className={`${classPrefix}-section-title`}>Sign in</h2>
                     <div className={`${classPrefix}-provider-list`}>
-                        {(providers ?? availableProviders).map(renderProviderButton)}
+                        {/* Render standard providers (excluding ethereum if we have detected wallets) */}
+                        {(providers ?? availableProviders)
+                            .filter(p => !(p === 'ethereum' && ethereumProviders.length > 0))
+                            .map(renderProviderButton)}
+                        
+                        {/* Render detected Ethereum wallet providers */}
+                        {ethereumProviders.length > 0 && 
+                            ethereumProviders.map(renderEthereumProviderButton)}
                     </div>
                 </div>
             )}
@@ -333,6 +402,7 @@ export const HyliWallet = ({
                                 closeModal={closeModal}
                                 forceSessionKey={forceSessionKey}
                                 setLockOpen={setLockOpen}
+                                ethereumProviderId={selectedEthereumProvider}
                             />
                             <button className={`${classPrefix}-switch-auth-button`} onClick={() => setShowLogin(false)}>
                                 Don't have an account? Sign up
@@ -348,6 +418,7 @@ export const HyliWallet = ({
                                 closeModal={closeModal}
                                 forceSessionKey={forceSessionKey}
                                 setLockOpen={setLockOpen}
+                                ethereumProviderId={selectedEthereumProvider}
                             />
                             <button className={`${classPrefix}-switch-auth-button`} onClick={() => setShowLogin(true)}>
                                 Already have an account? Log in

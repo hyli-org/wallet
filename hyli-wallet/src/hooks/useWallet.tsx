@@ -5,7 +5,6 @@ import {
     walletContractName,
     type Wallet,
     type SessionKey,
-    type TransactionCallback,
     WalletEventCallback,
     WalletErrorCallback,
 } from "../types/wallet";
@@ -17,8 +16,10 @@ import { ConfigService } from "../services/ConfigService";
 import { NodeService } from "../services/NodeService";
 import { IndexerService } from "../services/IndexerService";
 import { sessionKeyService } from "../services/SessionKeyService";
+import { findEthereumProviderByUuid, initializeEthereumProviders } from "../providers/ethereumProviders";
+import { EIP1193Provider } from "mipd";
 
-export type ProviderOption = "password" | "google" | "metamask" | "github" | "x";
+export type ProviderOption = "password" | "google" | "ethereum" | "github" | "x";
 
 export interface WalletContextType {
     wallet: Wallet | null;
@@ -54,6 +55,7 @@ export interface WalletContextType {
     cleanExpiredSessionKey: () => void;
     createIdentityBlobs: () => [Blob, Blob];
     signMessageWithSessionKey: (message: string) => { hash: Uint8Array; signature: Uint8Array };
+    getEthereumProvider: () => EIP1193Provider | null;
     logout: () => void;
 }
 
@@ -157,6 +159,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
             ConfigService.initialize(config);
             NodeService.initialize(config.nodeBaseUrl);
             IndexerService.initialize(config.walletServerBaseUrl);
+            initializeEthereumProviders();
             checkWalletExists();
         };
 
@@ -391,6 +394,16 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
         [wallet]
     );
 
+    const getEthereumProvider = useCallback((): EIP1193Provider | null => {
+        if (!wallet?.ethereumProviderUuid) {
+            return null;
+        }
+        
+        const providerDetail = findEthereumProviderByUuid(wallet.ethereumProviderUuid);
+
+        return providerDetail?.provider || null;
+    }, [wallet]);
+
     // Public context value (no sessionKeyConfig)
     const publicValue: WalletContextType = {
         wallet,
@@ -402,6 +415,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
         cleanExpiredSessionKey,
         getOrReuseSessionKey,
         signMessageWithSessionKey,
+        getEthereumProvider,
         logout,
     };
     // Private/internal context value (includes sessionKeyConfig)

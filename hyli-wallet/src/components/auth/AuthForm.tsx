@@ -3,9 +3,10 @@ import { AuthProvider } from "../../providers/BaseAuthProvider";
 import { ProviderOption, useWalletInternal } from "../../hooks/useWallet";
 import { RegistrationStage, WalletEvent } from "../../types/wallet";
 import { getAuthErrorMessage } from "../../utils/errorMessages";
+// @ts-ignore: CSS import lacks type declarations
 import "./AuthForm.css";
 import type { GoogleAuthCredentials } from "../../providers/GoogleAuthProvider";
-import type { MetamaskAuthCredentials } from "../../providers/MetamaskAuthProvider";
+import type { EthereumWalletAuthCredentials } from "../../providers/EthereumWalletAuthProvider";
 import type { PasswordAuthCredentials } from "../../providers/PasswordAuthProvider";
 
 type AuthStage =
@@ -38,6 +39,11 @@ interface AuthFormProps {
      * Use to prevent closing the modal while registering / logging in.
      */
     setLockOpen?: (lockOpen: boolean) => void;
+
+    /**
+     * ID of the selected Ethereum provider (for EIP-6963)
+     */
+    ethereumProviderId?: string | null;
 }
 
 const ZK_FUN_FACTS = [
@@ -73,7 +79,7 @@ function getRandomSalt() {
 type FormCredentials =
     | (PasswordAuthCredentials & { inviteCode: string })
     | (GoogleAuthCredentials & { inviteCode: string })
-    | (MetamaskAuthCredentials & { inviteCode: string });
+    | (EthereumWalletAuthCredentials & { inviteCode: string });
 
 export const AuthForm: React.FC<AuthFormProps> = ({
     provider,
@@ -82,6 +88,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
     closeModal,
     forceSessionKey,
     setLockOpen,
+    ethereumProviderId,
 }) => {
     const { login, registerAccount: registerWallet, onWalletEvent, onError } = useWalletInternal();
     const isLocalhost =
@@ -89,7 +96,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
         (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
     const providerType = provider.type as ProviderOption;
     const isGoogle = providerType === "google";
-    const isMetamask = providerType === "metamask";
+    const isEthereum = providerType === "ethereum";
     const isPassword = providerType === "password";
 
     const createInitialCredentials = (): FormCredentials => {
@@ -102,11 +109,12 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                 type: "google",
             } as FormCredentials;
         }
-        if (isMetamask) {
+        if (isEthereum) {
             return {
                 username: "bob",
                 inviteCode: defaultInvite,
-                type: "metamask",
+                type: "ethereum",
+                providerId: ethereumProviderId,
             } as FormCredentials;
         }
         return {
@@ -134,8 +142,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({
         if (isSubmitting) {
             return "Processing...";
         }
-        if (isMetamask) {
-            return mode === "login" ? "Sign with MetaMask" : "Create with MetaMask";
+        if (isEthereum) {
+            return mode === "login" ? "Sign with Ethereum Wallet" : "Create with Ethereum Wallet";
         }
         return mode === "login" ? "Login" : "Create Account";
     };
@@ -439,7 +447,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                         </>
                     )}
 
-                    {isMetamask && (
+                    {isEthereum && (
                         <div className={`${classPrefix}-form-group`}>
                             <div
                                 style={{
@@ -448,7 +456,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                                     color: "#666",
                                 }}
                             >
-                                When you continue, MetaMask will request a signature to confirm your identity.
+                                When you continue, your Ethereum wallet will request a signature to confirm your identity.
                             </div>
                         </div>
                     )}

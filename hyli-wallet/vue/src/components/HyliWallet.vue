@@ -4,7 +4,8 @@ import type { ProviderOption } from "hyli-wallet";
 import AuthForm from "./AuthForm.vue";
 
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { useWalletInternal } from "../lib";
+import { useEthereumProviders, useWalletInternal } from "../lib";
+import type { EIP6963ProviderDetail } from "mipd";
 
 // TODO: share this with react
 // NB: the react props are slots in vue, so skipped here.
@@ -50,6 +51,7 @@ const isOpen = computed(() => controlledIsOpen || internalIsOpen.value);
 
 const selectedProvider = ref<ProviderOption | null>(null);
 const showLogin = ref(defaultAuthMode === "login");
+const selectedEthereumProvider = ref<string | null>(null);
 
 const isDarkMode = ref(false);
 
@@ -58,6 +60,17 @@ const lockOpen = ref(false);
 
 // Get available providers dynamically
 const availableProviders = computed(() => authProviderManager.getAvailableProviders() as ProviderOption[]);
+const ethereumProviders = useEthereumProviders();
+const displayedProviders = computed(() => {
+    const baseProviders = providers ?? availableProviders.value;
+    if (!baseProviders) {
+        return [];
+    }
+    if (ethereumProviders.value.length > 0) {
+        return baseProviders.filter((providerType) => providerType !== "ethereum");
+    }
+    return baseProviders;
+});
 
 const mq = window.matchMedia("(prefers-color-scheme: dark)");
 const handler = (e: MediaQueryListEvent) => (isDarkMode.value = e.matches);
@@ -90,23 +103,44 @@ const handleProviderClick = async (providerType: ProviderOption) => {
         willSetShowLoginTo: defaultAuthMode === "login",
     });
 
-    // For MetaMask, check and prepare the provider first
-    if (providerType === "metamask") {
+    // For Ethereum wallet, check and prepare the provider first
+    if (providerType === "ethereum") {
         if (provider && "checkAndPrepareProvider" in provider) {
             try {
                 const result = await (provider as any).checkAndPrepareProvider();
                 if (!result.success) {
-                    alert(`MetaMask Error: ${result.error}`);
+                    alert(`Ethereum Wallet Error: ${result.error}`);
                     return;
                 }
             } catch (error: any) {
-                alert(`MetaMask Error: ${error.message}`);
+                alert(`Ethereum Wallet Error: ${error.message}`);
                 return;
             }
         }
     }
 
     selectedProvider.value = providerType;
+    showLogin.value = defaultAuthMode === "login";
+    selectedEthereumProvider.value = null;
+};
+
+const handleEthereumProviderDetailClick = async (providerDetail: EIP6963ProviderDetail) => {
+    const provider = authProviderManager.getProvider("ethereum");
+    if (provider && "checkAndPrepareEthereumWallet" in provider) {
+        try {
+            const result = await (provider as any).checkAndPrepareEthereumWallet(providerDetail.info.uuid);
+            if (!result.success) {
+                alert(`${providerDetail.info.name} Error: ${result.error}`);
+                return;
+            }
+        } catch (error: any) {
+            alert(`${providerDetail.info.name} Error: ${error.message}`);
+            return;
+        }
+    }
+
+    selectedProvider.value = "ethereum";
+    selectedEthereumProvider.value = providerDetail.info.uuid;
     showLogin.value = defaultAuthMode === "login";
 };
 
@@ -121,6 +155,7 @@ const closeModal = () => {
         controlledOnClose();
     }
     selectedProvider.value = null;
+    selectedEthereumProvider.value = null;
     showLogin.value = defaultAuthMode === "login";
 };
 </script>
@@ -174,7 +209,7 @@ const closeModal = () => {
                     <h2 :class="`${classPrefix}-section-title`">Sign in</h2>
                     <div :class="`${classPrefix}-provider-list`">
                         <button
-                            v-for="providerType in providers ?? availableProviders"
+                            v-for="providerType in displayedProviders"
                             :key="providerType"
                             :class="[
                                 'provider-row',
@@ -239,7 +274,7 @@ const closeModal = () => {
                                         />
                                     </svg>
                                     <svg
-                                        v-else-if="providerType === 'metamask'"
+                                        v-else-if="providerType === 'ethereum'"
                                         xmlns="http://www.w3.org/2000/svg"
                                         width="200"
                                         height="200"
@@ -328,8 +363,8 @@ const closeModal = () => {
                                             ? "Password"
                                             : providerType === "google"
                                             ? "Google"
-                                            : providerType === "metamask"
-                                            ? "MetaMask"
+                                            : providerType === "ethereum"
+                                            ? "Ethereum Wallet"
                                             : providerType === "github"
                                             ? "GitHub"
                                             : "X"
@@ -345,6 +380,65 @@ const closeModal = () => {
                             >
                             <span v-else :class="[`row-arrow`, `${classPrefix}-row-arrow`]">›</span>
                         </button>
+                        <template v-if="ethereumProviders.length > 0">
+                            <button
+                                v-for="providerDetail in ethereumProviders"
+                                :key="providerDetail.info.uuid"
+                                class="provider-row"
+                                @click="handleEthereumProviderDetailClick(providerDetail)"
+                            >
+                                <span :class="['label', `${classPrefix}-provider-label`]">
+                                    <span :class="['provider-icon', `${classPrefix}-provider-icon`]">
+                                        <img
+                                            v-if="providerDetail.info.icon"
+                                            :src="providerDetail.info.icon"
+                                            :alt="providerDetail.info.name"
+                                            width="24"
+                                            height="24"
+                                        />
+                                        <svg
+                                            v-else
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            width="200"
+                                            height="200"
+                                            viewBox="0 0 256 240"
+                                        >
+                                            <path fill="#E17726" d="M250.066 0L140.219 81.279l20.427-47.9z" />
+                                            <path
+                                                fill="#E27625"
+                                                d="m6.191.096l89.181 33.289l19.396 48.528zM205.86 172.858l48.551.924l-16.968 57.642l-59.243-16.311zm-155.721 0l27.557 42.255l-59.143 16.312l-16.865-57.643z"
+                                            />
+                                            <path
+                                                fill="#E27725"
+                                                d="m99.519 144.456l-3.479 56.941l-36.406-105.454zm56.938 0l40.115-48.513l-36.408 105.454z"
+                                            />
+                                            <path
+                                                fill="#D5BFB2"
+                                                d="m63.636 81.392l35.706 63.584l3.264-31.291zm94.935 32.293l3.265 31.291l35.705-63.584z"
+                                            />
+                                            <path
+                                                fill="#233447"
+                                                d="m108.093 174.621l-.29 31.612l-32.55-8.98zm39.971 0l32.84 22.632l-32.55 8.98z"
+                                            />
+                                            <path
+                                                fill="#CC6228"
+                                                d="m147.064 144.456l-39.295.423l3.678 21.222l4.535 27.52h23.175l4.535-27.52z"
+                                            />
+                                            <path
+                                                fill="#E27525"
+                                                d="m63.6 81.392l36.06 27.924l-1.541-35.982zm128.921-.325l-34.519-8.073l1.376 36.318z"
+                                            />
+                                            <path
+                                                fill="#F5841F"
+                                                d="m101.899 109.316l1.878-32.838l-4.907-31.179h58.26l-4.908 31.179l1.878 32.838l-3.059 4.586l-23.175 16.854l-23.173-16.854z"
+                                            />
+                                        </svg>
+                                    </span>
+                                    <span>{{ providerDetail.info.name }}</span>
+                                </span>
+                                <span :class="[`row-arrow`, `${classPrefix}-row-arrow`]">›</span>
+                            </button>
+                        </template>
                     </div>
                 </div>
 
@@ -360,6 +454,7 @@ const closeModal = () => {
                             :close-modal="closeModal"
                             :force-session-key="forceSessionKey"
                             :set-lock-open="(val: boolean) => (lockOpen = val)"
+                            :ethereum-provider-id="selectedEthereumProvider ?? undefined"
                         />
 
                         <button :class="`${classPrefix}-switch-auth-button`" @click="showLogin = false">
@@ -377,6 +472,7 @@ const closeModal = () => {
                             :close-modal="closeModal"
                             :force-session-key="forceSessionKey"
                             :set-lock-open="(val: boolean) => (lockOpen = val)"
+                            :ethereum-provider-id="selectedEthereumProvider ?? undefined"
                         />
 
                         <button :class="`${classPrefix}-switch-auth-button`" @click="showLogin = true">

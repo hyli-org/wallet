@@ -4,7 +4,7 @@ import type { ProviderOption } from "hyli-wallet";
 import type { RegistrationStage, WalletEvent } from "hyli-wallet";
 import type { PasswordAuthCredentials } from "hyli-wallet";
 import type { GoogleAuthCredentials } from "hyli-wallet";
-import type { MetamaskAuthCredentials } from "hyli-wallet";
+import type { EthereumWalletAuthCredentials } from "hyli-wallet";
 import { getAuthErrorMessage } from "hyli-wallet";
 import { computed, ref, watch } from "vue";
 import { useWalletInternal } from "../lib";
@@ -39,6 +39,11 @@ interface AuthFormProps {
      * Use to prevent closing the modal while registering / logging in.
      */
     setLockOpen?: (lockOpen: boolean) => void;
+
+    /**
+     * For Ethereum wallets, specify which provider to use (EIP-6963 UUID)
+     */
+    ethereumProviderId?: string;
 }
 
 const ZK_FUN_FACTS = [
@@ -71,7 +76,15 @@ function getRandomSalt() {
     return Math.random().toString(36).substring(2, 20);
 }
 
-const { provider, mode, classPrefix = "hyli", closeModal, forceSessionKey, setLockOpen } = defineProps<AuthFormProps>();
+const {
+    provider,
+    mode,
+    classPrefix = "hyli",
+    closeModal,
+    forceSessionKey,
+    setLockOpen,
+    ethereumProviderId,
+} = defineProps<AuthFormProps>();
 
 const { login, registerAccount: registerWallet, onWalletEvent, onError } = useWalletInternal();
 
@@ -82,11 +95,11 @@ const isLocalhost =
 type FormCredentials =
     | (PasswordAuthCredentials & { inviteCode: string })
     | (GoogleAuthCredentials & { inviteCode: string })
-    | (MetamaskAuthCredentials & { inviteCode: string });
+    | (EthereumWalletAuthCredentials & { inviteCode: string });
 
 const providerType = computed(() => provider.type as ProviderOption);
 const isGoogle = computed(() => providerType.value === "google");
-const isMetamask = computed(() => providerType.value === "metamask");
+const isEthereum = computed(() => providerType.value === "ethereum");
 const isPassword = computed(() => providerType.value === "password");
 
 const createInitialCredentials = (): FormCredentials => {
@@ -99,11 +112,12 @@ const createInitialCredentials = (): FormCredentials => {
             type: "google",
         } as FormCredentials;
     }
-    if (isMetamask.value) {
+    if (isEthereum.value) {
         return {
             username: "bob",
             inviteCode: defaultInvite,
-            type: "metamask",
+            type: "ethereum",
+            providerId: ethereumProviderId,
         } as FormCredentials;
     }
     return {
@@ -133,8 +147,8 @@ const submitLabel = computed(() => {
     if (isSubmitting.value) {
         return "Processing...";
     }
-    if (isMetamask.value) {
-        return mode === "login" ? "Sign with MetaMask" : "Create with MetaMask";
+    if (isEthereum.value) {
+        return mode === "login" ? "Sign with Ethereum Wallet" : "Create with Ethereum Wallet";
     }
     return mode === "login" ? "Login" : "Create Account";
 });
@@ -302,10 +316,7 @@ const handleSubmit = async (e: Event) => {
     }
     isSubmitting.value = true;
     stage.value = "sending_blob";
-    const authAction = async (
-        provider: ProviderOption,
-        submittedCredentials: FormCredentials
-    ) => {
+    const authAction = async (provider: ProviderOption, submittedCredentials: FormCredentials) => {
         console.log("[Hyli][AuthForm] submit", {
             provider,
             mode,
@@ -434,11 +445,11 @@ const handleSubmit = async (e: Event) => {
             </template>
 
             <div
-                v-if="isMetamask"
+                v-if="isEthereum"
                 :class="`${classPrefix}-form-group`"
                 style="font-size: 13px; line-height: 1.4; color: #666"
             >
-                When you continue, MetaMask will request a signature to confirm your identity.
+                When you continue, your Ethereum wallet will request a signature to confirm your identity.
             </div>
 
             <div v-if="mode === 'register'" :class="`${classPrefix}-form-group`">

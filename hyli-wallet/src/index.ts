@@ -1,6 +1,6 @@
 export { HyliWallet } from "./components/HyliWallet";
 export { GoogleAuthProvider, type GoogleAuthCredentials } from "./providers/GoogleAuthProvider";
-export { MetamaskAuthProvider, type MetamaskAuthCredentials } from "./providers/MetamaskAuthProvider";
+export { EthereumWalletAuthProvider, type EthereumWalletAuthCredentials } from "./providers/EthereumWalletAuthProvider";
 export { PasswordAuthProvider, type PasswordAuthCredentials } from "./providers/PasswordAuthProvider";
 export type { AuthProvider } from "./providers/BaseAuthProvider";
 export {
@@ -27,5 +27,12 @@ export { sessionKeyService } from "./services/SessionKeyService";
 export type { BackendSessionKey, AccountInfo } from "./services/IndexerService";
 export { IndexerService } from "./services/IndexerService";
 export { NodeService } from "./services/NodeService";
+export {
+    initializeEthereumProviders,
+    getEthereumProviders,
+    subscribeToEthereumProviders,
+    findEthereumProviderByUuid,
+    findEthereumProviderByWalletId,
+} from "./providers/ethereumProviders";
 export { getAuthErrorMessage } from "./utils/errorMessages";
 export * as WalletOperations from "./services/WalletOperations";
