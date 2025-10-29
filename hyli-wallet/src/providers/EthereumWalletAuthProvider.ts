@@ -240,9 +240,8 @@ export class EthereumWalletAuthProvider implements AuthProvider<EthereumWalletAu
         indexerService: IndexerService,
         onError?: WalletErrorCallback
     ) {
-        const identity = `${username}@${walletContractName}`;
         try {
-            const accountInfo = await indexerService.getAccountInfo(identity);
+            const accountInfo = await indexerService.getAccountInfo(username);
             if (accountInfo) {
                 const error = `Account with username "${username}" already exists.`;
                 onError?.(new Error(error));
