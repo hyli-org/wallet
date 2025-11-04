@@ -4,15 +4,25 @@ FROM oven/bun:latest AS build
 # Définir le répertoire de travail
 WORKDIR /app
 
+# Copier tout le contexte nécessaire
+COPY hyli-wallet ./hyli-wallet
+COPY front ./front
+
+# Construire hyli-wallet d'abord
+WORKDIR /app/hyli-wallet
+RUN bun install && bun run build
+
+# Créer le répertoire node_modules pour le front et créer un lien vers hyli-wallet
+WORKDIR /app/front
+RUN mkdir -p node_modules && ln -sf /app/hyli-wallet node_modules/hyli-wallet
+
+# Installer les autres dépendances
+RUN bun install --no-cache --force
+
+# Le fichier .env.production est déjà copié avec le répertoire front
 # Copier les fichiers de l'application
-COPY front/package.json front/bun.lock ./
-
-# Installer les dépendances
-RUN bun install
-
-# Copier le reste des fichiers de l'application
-COPY front .
 COPY front/.env.production .env
+
 
 # Construire l'application
 RUN bun run build
@@ -24,8 +34,8 @@ FROM nginx:1.21.5-alpine AS production
 RUN apk add --no-cache gettext
 
 # Copier les fichiers de build depuis l'étape de build
-COPY --from=build /app/dist /usr/share/nginx/html
-COPY --from=build /app/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/front/dist /usr/share/nginx/html
+COPY --from=build /app/front/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copier le script de configuration
 COPY front/docker-entrypoint.sh /docker-entrypoint.sh

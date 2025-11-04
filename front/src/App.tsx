@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import "./App.css";
 import { WalletShowcase } from "./components/WalletShowcase";
@@ -5,7 +6,7 @@ import { useWalletBalance } from "./hooks/useWalletBalance";
 import { useWalletTransactions } from "./hooks/useWalletTransactions";
 import { useWebSocketConnection } from "./hooks/useWebSocketConnection";
 import { getPublicRoutes, getProtectedRoutes, ROUTES } from "./routes/routes";
-import { WalletProvider, useWallet } from "hyli-wallet";
+import { HyliWallet, ProviderOption, WalletProvider, useWallet } from "hyli-wallet";
 import { WebSocketProvider } from "./providers/WebSocketProvider";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { declareCustomElement } from "testnet-maintenance-widget";
@@ -13,8 +14,9 @@ import { ConfigService } from "./services/ConfigService";
 declareCustomElement();
 
 function AppContent() {
-    const { wallet, logout } = useWallet();
+    const { wallet, logout, getEthereumProvider, selectEthereumProvider } = useWallet();
     const navigate = useNavigate();
+    const modalProviders: ProviderOption[] = ["password", "google", "ethereum", "github"];
 
     // Use custom hooks
     const { fetchBalance } = useWalletBalance(wallet?.address);
@@ -34,6 +36,21 @@ function AppContent() {
         navigate(ROUTES.ROOT);
     };
 
+    const handleRequestEthereumProvider = () => {
+        selectEthereumProvider();
+    };
+
+    useEffect(() => {
+        if (!wallet?.ethereumProviderUuid) {
+            return;
+        }
+        const provider = getEthereumProvider();
+        if (provider) {
+            // eslint-disable-next-line no-console
+            console.log("Ethereum provider sélectionné", provider);
+        }
+    }, [wallet?.ethereumProviderUuid, getEthereumProvider]);
+
     // Generate routes based on authentication state
     const publicRoutes = getPublicRoutes();
     const protectedRoutes = getProtectedRoutes(wallet, transactions, handleLogout);
@@ -43,20 +60,28 @@ function AppContent() {
         <>
             {!wallet && <WalletShowcase providers={["password", "google", "ethereum", "github"]} />}
             {wallet && (
-                <Routes>
-                    {allRoutes.map((route) => (
-                        <Route key={route.path} path={route.path} element={route.element}>
-                            {route.children?.map((childRoute) => (
-                                <Route
-                                    key={childRoute.path}
-                                    path={childRoute.path}
-                                    element={childRoute.element}
-                                    index={childRoute.index}
-                                />
-                            ))}
-                        </Route>
-                    ))}
-                </Routes>
+                <>
+                    <div className="ethereum-provider-actions">
+                        <button onClick={handleRequestEthereumProvider}>Choose ETH Wallet</button>
+                    </div>
+                    <div style={{ display: "none" }}>
+                        <HyliWallet providers={modalProviders} />
+                    </div>
+                    <Routes>
+                        {allRoutes.map((route) => (
+                            <Route key={route.path} path={route.path} element={route.element}>
+                                {route.children?.map((childRoute) => (
+                                    <Route
+                                        key={childRoute.path}
+                                        path={childRoute.path}
+                                        element={childRoute.element}
+                                        index={childRoute.index}
+                                    />
+                                ))}
+                            </Route>
+                        ))}
+                    </Routes>
+                </>
             )}
         </>
     );

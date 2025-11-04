@@ -21,8 +21,13 @@ export {
     serializeIdentityAction,
     deserializeIdentityAction,
 } from "./types/wallet";
-export type { ProviderOption, WalletContextType, WalletProviderProps } from "./hooks/useWallet";
+export type {
+    ProviderOption,
+    WalletContextType,
+    WalletProviderProps,
+} from "./hooks/useWallet";
 export { WalletProvider, useWallet } from "./hooks/useWallet";
+export type { EthereumProviderRequest } from "./types/ethereum";
 export { sessionKeyService } from "./services/SessionKeyService";
 export type { BackendSessionKey, AccountInfo } from "./services/IndexerService";
 export { IndexerService } from "./services/IndexerService";

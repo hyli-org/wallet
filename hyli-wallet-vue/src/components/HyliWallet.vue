@@ -3,7 +3,7 @@ import { authProviderManager } from "hyli-wallet";
 import type { ProviderOption } from "hyli-wallet";
 import AuthForm from "./AuthForm.vue";
 
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useEthereumProviders, useWalletInternal } from "../lib";
 import type { EIP6963ProviderDetail } from "mipd";
 
@@ -42,7 +42,14 @@ const {
     defaultAuthMode = "login",
 } = defineProps<HyliWalletProps>();
 
-const { wallet, logout, forceSessionKey } = useWalletInternal();
+const {
+    wallet,
+    logout,
+    forceSessionKey,
+    providerSelectionRequest,
+    clearProviderSelectionRequest,
+    setEthereumProviderUuid,
+} = useWalletInternal();
 
 const internalIsOpen = ref(false);
 
@@ -52,6 +59,11 @@ const isOpen = computed(() => controlledIsOpen || internalIsOpen.value);
 const selectedProvider = ref<ProviderOption | null>(null);
 const showLogin = ref(defaultAuthMode === "login");
 const selectedEthereumProvider = ref<string | null>(null);
+const requestedProviderFilter = ref<ProviderOption | null>(null);
+const selectionOnly = computed(() => requestedProviderFilter.value === "ethereum");
+const sectionTitle = computed(() =>
+    selectionOnly.value ? "Select your Ethereum wallet" : "Sign in"
+);
 
 const isDarkMode = ref(false);
 
@@ -62,8 +74,11 @@ const lockOpen = ref(false);
 const availableProviders = computed(() => authProviderManager.getAvailableProviders() as ProviderOption[]);
 const ethereumProviders = useEthereumProviders();
 const displayedProviders = computed(() => {
-    const baseProviders = providers ?? availableProviders.value;
-    if (!baseProviders) {
+    const baseProviders = providers ?? availableProviders.value ?? [];
+    if (selectionOnly.value) {
+        if (ethereumProviders.value.length === 0) {
+            return baseProviders.filter((providerType) => providerType === "ethereum");
+        }
         return [];
     }
     if (ethereumProviders.value.length > 0) {
@@ -120,6 +135,7 @@ const handleProviderClick = async (providerType: ProviderOption) => {
     }
 
     selectedProvider.value = providerType;
+    requestedProviderFilter.value = null;
     showLogin.value = defaultAuthMode === "login";
     selectedEthereumProvider.value = null;
 };
@@ -139,7 +155,14 @@ const handleEthereumProviderDetailClick = async (providerDetail: EIP6963Provider
         }
     }
 
+    if (selectionOnly.value) {
+        setEthereumProviderUuid(providerDetail.info.uuid);
+        closeModal();
+        return;
+    }
+
     selectedProvider.value = "ethereum";
+    requestedProviderFilter.value = null;
     selectedEthereumProvider.value = providerDetail.info.uuid;
     showLogin.value = defaultAuthMode === "login";
 };
@@ -157,7 +180,40 @@ const closeModal = () => {
     selectedProvider.value = null;
     selectedEthereumProvider.value = null;
     showLogin.value = defaultAuthMode === "login";
+    requestedProviderFilter.value = null;
+    clearProviderSelectionRequest();
 };
+
+watch(
+    providerSelectionRequest,
+    (detail) => {
+        if (!detail) {
+            return;
+        }
+
+        if (!controlledIsOpen) {
+            internalIsOpen.value = true;
+        }
+
+        requestedProviderFilter.value = detail.requestedProvider ?? null;
+
+        if (detail.preselectProvider) {
+            const preselected = detail.preselectProvider as ProviderOption;
+            selectedProvider.value = preselected;
+            if (preselected === "ethereum") {
+                selectedEthereumProvider.value = detail.ethereumProviderUuid ?? null;
+            } else {
+                selectedEthereumProvider.value = null;
+            }
+        } else {
+            selectedProvider.value = null;
+            selectedEthereumProvider.value = detail.ethereumProviderUuid ?? null;
+        }
+
+        showLogin.value = defaultAuthMode === "login";
+        clearProviderSelectionRequest();
+    }
+);
 </script>
 
 <template>
@@ -206,7 +262,7 @@ const closeModal = () => {
 
                 <!-- Provider selection -->
                 <div v-if="selectedProvider === null" :class="`${classPrefix}-provider-selection`">
-                    <h2 :class="`${classPrefix}-section-title`">Sign in</h2>
+                    <h2 :class="`${classPrefix}-section-title`">{{ sectionTitle }}</h2>
                     <div :class="`${classPrefix}-provider-list`">
                         <button
                             v-for="providerType in displayedProviders"

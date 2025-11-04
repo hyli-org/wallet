@@ -18,6 +18,7 @@ import { IndexerService } from "hyli-wallet";
 import { sessionKeyService } from "hyli-wallet";
 import { computed, ref, watchEffect } from "vue";
 import type { EIP1193Provider } from "mipd";
+import type { EthereumProviderRequest } from "hyli-wallet";
 
 export type ProviderOption = "password" | "google" | "ethereum" | "github" | "x";
 
@@ -85,6 +86,36 @@ const walletConfig = ref<WalletProviderProps>({
 
 export const setWalletConfig = (config: WalletProviderProps) => {
     walletConfig.value = config;
+};
+
+type ProviderSelectionRequest = EthereumProviderRequest & { id: number };
+
+const providerSelectionRequest = ref<ProviderSelectionRequest | null>(null);
+let providerSelectionCounter = 0;
+
+const triggerProviderSelection = (detail: EthereumProviderRequest) => {
+    providerSelectionCounter += 1;
+    providerSelectionRequest.value = {
+        id: providerSelectionCounter,
+        ...detail,
+    };
+};
+
+const clearProviderSelectionRequest = () => {
+    providerSelectionRequest.value = null;
+};
+
+const setWalletEthereumProviderUuid = (uuid: string | null) => {
+    if (!wallet.value) {
+        return;
+    }
+    const updated: Wallet = { ...wallet.value };
+    if (uuid) {
+        updated.ethereumProviderUuid = uuid;
+    } else {
+        delete (updated as Partial<Wallet>).ethereumProviderUuid;
+    }
+    wallet.value = updated;
 };
 
 export const useWalletInternal = () => {
@@ -325,12 +356,29 @@ export const useWalletInternal = () => {
     };
 
     const getEthereumProvider = (): EIP1193Provider | null => {
-        if (!wallet.value?.ethereumProviderUuid) {
-            return null;
-        }
-        const currentProvider = findEthereumProviderByUuid(wallet.value.ethereumProviderUuid);
+        const currentUuid = wallet.value?.ethereumProviderUuid ?? null;
 
-        return currentProvider?.provider || null;
+        if (currentUuid) {
+            const currentProvider = findEthereumProviderByUuid(currentUuid);
+            if (currentProvider?.provider) {
+                return currentProvider.provider;
+            }
+        }
+
+        triggerProviderSelection({
+            reason: "missing-ethereum-provider",
+            requestedProvider: "ethereum",
+            ethereumProviderUuid: currentUuid,
+        });
+        return null;
+    };
+
+    const selectEthereumProvider = () => {
+        triggerProviderSelection({
+            reason: "select-ethereum-provider",
+            requestedProvider: "ethereum",
+            ethereumProviderUuid: wallet.value?.ethereumProviderUuid ?? null,
+        });
     };
 
     return {
@@ -344,7 +392,11 @@ export const useWalletInternal = () => {
         getOrReuseSessionKey,
         signMessageWithSessionKey,
         getEthereumProvider,
+        selectEthereumProvider,
         logout,
+        providerSelectionRequest,
+        clearProviderSelectionRequest,
+        setEthereumProviderUuid: setWalletEthereumProviderUuid,
         sessionKeyConfig: effectiveSessionKeyConfig,
         onWalletEvent,
         onError,
@@ -365,6 +417,7 @@ export const useWallet = () => {
         createIdentityBlobs: context.createIdentityBlobs,
         signMessageWithSessionKey: context.signMessageWithSessionKey,
         getEthereumProvider: context.getEthereumProvider,
+        selectEthereumProvider: context.selectEthereumProvider,
         logout: context.logout,
     };
 };
