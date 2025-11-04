@@ -1,5 +1,5 @@
 // useWallet hook and WalletProvider implementation
-import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 import {
     storeWallet,
     walletContractName,
@@ -16,10 +16,16 @@ import { ConfigService } from "../services/ConfigService";
 import { NodeService } from "../services/NodeService";
 import { IndexerService } from "../services/IndexerService";
 import { sessionKeyService } from "../services/SessionKeyService";
-import { findEthereumProviderByUuid, initializeEthereumProviders } from "../providers/ethereumProviders";
+import {
+    findEthereumProviderByUuid,
+    initializeEthereumProviders,
+} from "../providers/ethereumProviders";
 import { EIP1193Provider } from "mipd";
+import type { EthereumProviderRequest } from "../types/ethereum";
+import type { ProviderOption } from "../types/provider";
+export type { ProviderOption } from "../types/provider";
 
-export type ProviderOption = "password" | "google" | "ethereum" | "github" | "x";
+type ProviderSelectionRequest = EthereumProviderRequest & { id: number };
 
 export interface WalletContextType {
     wallet: Wallet | null;
@@ -56,6 +62,7 @@ export interface WalletContextType {
     createIdentityBlobs: () => [Blob, Blob];
     signMessageWithSessionKey: (message: string) => { hash: Uint8Array; signature: Uint8Array };
     getEthereumProvider: () => EIP1193Provider | null;
+    selectEthereumProvider: () => void;
     logout: () => void;
 }
 
@@ -69,6 +76,9 @@ interface WalletInternalType extends WalletContextType {
     onWalletEvent?: WalletEventCallback;
     onError?: WalletErrorCallback;
     forceSessionKey?: boolean;
+    providerSelectionRequest: ProviderSelectionRequest | null;
+    clearProviderSelectionRequest: () => void;
+    setEthereumProviderUuid: (uuid: string | null) => void;
 }
 const WalletInternalContext = createContext<WalletInternalType | undefined>(undefined);
 
@@ -122,6 +132,35 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
         const storedWallet = localStorage.getItem("wallet");
         return storedWallet ? JSON.parse(storedWallet) : null;
     });
+    const [providerSelectionRequest, setProviderSelectionRequest] = useState<ProviderSelectionRequest | null>(null);
+    const selectionRequestIdRef = useRef(0);
+
+    const triggerProviderSelection = useCallback((detail: EthereumProviderRequest) => {
+        selectionRequestIdRef.current += 1;
+        setProviderSelectionRequest({
+            id: selectionRequestIdRef.current,
+            ...detail,
+        });
+    }, [setProviderSelectionRequest]);
+
+    const clearProviderSelectionRequest = useCallback(() => {
+        setProviderSelectionRequest(null);
+    }, [setProviderSelectionRequest]);
+
+    const setWalletEthereumProviderUuid = useCallback((uuid: string | null) => {
+        setWallet((previous) => {
+            if (!previous) {
+                return previous;
+            }
+            const updated: Wallet = { ...previous };
+            if (uuid) {
+                updated.ethereumProviderUuid = uuid;
+            } else {
+                delete updated.ethereumProviderUuid;
+            }
+            return updated;
+        });
+    }, []);
 
     // Persist wallet when updated
     useEffect(() => {
@@ -438,16 +477,32 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
         },
         [wallet]
     );
-
     const getEthereumProvider = useCallback((): EIP1193Provider | null => {
-        if (!wallet?.ethereumProviderUuid) {
-            return null;
-        }
-        
-        const providerDetail = findEthereumProviderByUuid(wallet.ethereumProviderUuid);
+        const currentProviderUuid = wallet?.ethereumProviderUuid ?? null;
 
-        return providerDetail?.provider || null;
-    }, [wallet]);
+        if (currentProviderUuid) {
+            const providerDetail = findEthereumProviderByUuid(currentProviderUuid);
+            if (providerDetail?.provider) {
+                return providerDetail.provider;
+            }
+        }
+
+        triggerProviderSelection({
+            reason: "missing-ethereum-provider",
+            requestedProvider: "ethereum",
+            ethereumProviderUuid: currentProviderUuid,
+        });
+
+        return null;
+    }, [wallet, triggerProviderSelection]);
+
+    const selectEthereumProvider = useCallback(() => {
+        triggerProviderSelection({
+            reason: "select-ethereum-provider",
+            requestedProvider: "ethereum",
+            ethereumProviderUuid: wallet?.ethereumProviderUuid ?? null,
+        });
+    }, [wallet, triggerProviderSelection]);
 
     // Public context value (no sessionKeyConfig)
     const publicValue: WalletContextType = {
@@ -461,6 +516,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
         getOrReuseSessionKey,
         signMessageWithSessionKey,
         getEthereumProvider,
+        selectEthereumProvider,
         logout,
     };
     // Private/internal context value (includes sessionKeyConfig)
@@ -470,6 +526,9 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
         onWalletEvent,
         onError,
         forceSessionKey, // Pass forceSessionKey to internal context
+        providerSelectionRequest,
+        clearProviderSelectionRequest,
+        setEthereumProviderUuid: setWalletEthereumProviderUuid,
     };
 
     return (

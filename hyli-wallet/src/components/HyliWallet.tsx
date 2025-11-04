@@ -132,12 +132,18 @@ export const HyliWallet = ({
     const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
     const [selectedProvider, setSelectedProvider] = useState<ProviderOption | null>(null);
     const [selectedEthereumProvider, setSelectedEthereumProvider] = useState<string | null>(null);
+    const [requestedProviderFilter, setRequestedProviderFilter] = useState<ProviderOption | null>(null);
     const [showLogin, setShowLogin] = useState(defaultAuthMode === 'login');
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-    const { wallet, logout, login } = useWallet();
-    const { forceSessionKey, onWalletEvent, onError } = useWalletInternal();
+    const { wallet, logout } = useWallet();
+    const {
+        forceSessionKey,
+        providerSelectionRequest,
+        clearProviderSelectionRequest,
+        setEthereumProviderUuid,
+    } = useWalletInternal();
     const [isDarkMode, setIsDarkMode] = useState(false);
 
     // To prevent closing while registering or logging in
@@ -153,6 +159,36 @@ export const HyliWallet = ({
     useEffect(() => {
         initializeEthereumProviders();
     }, []);
+
+    useEffect(() => {
+        if (!providerSelectionRequest) {
+            return;
+        }
+
+        const detail = providerSelectionRequest;
+
+        if (controlledIsOpen === undefined) {
+            setInternalIsOpen(true);
+        }
+
+        setRequestedProviderFilter(detail.requestedProvider ?? null);
+
+        if (detail.preselectProvider) {
+            const preselected = detail.preselectProvider as ProviderOption;
+            setSelectedProvider(preselected);
+            if (preselected === "ethereum") {
+                setSelectedEthereumProvider(detail.ethereumProviderUuid ?? null);
+            } else {
+                setSelectedEthereumProvider(null);
+            }
+        } else {
+            setSelectedProvider(null);
+            setSelectedEthereumProvider(detail.ethereumProviderUuid ?? null);
+        }
+
+        setShowLogin(defaultAuthMode === 'login');
+        clearProviderSelectionRequest();
+    }, [providerSelectionRequest, controlledIsOpen, defaultAuthMode, clearProviderSelectionRequest]);
 
     useEffect(() => {
         const mq = window.matchMedia("(prefers-color-scheme: dark)");
@@ -242,6 +278,8 @@ export const HyliWallet = ({
         setSelectedProvider(null);
         setSelectedEthereumProvider(null);
         setShowLogin(defaultAuthMode === 'login');
+        setRequestedProviderFilter(null);
+        clearProviderSelectionRequest();
     };
 
     const renderProviderButton = (providerType: ProviderOption) => {
@@ -302,6 +340,8 @@ export const HyliWallet = ({
     const renderEthereumProviderButton = (providerDetail: any) => {
         const { info } = providerDetail;
         
+        const selectionOnly = requestedProviderFilter === "ethereum";
+
         return (
             <button
                 key={info.uuid}
@@ -320,6 +360,12 @@ export const HyliWallet = ({
                             alert(`${info.name} Error: ${error.message}`);
                             return;
                         }
+                    }
+                    
+                    if (selectionOnly) {
+                        setEthereumProviderUuid(info.uuid);
+                        closeModal();
+                        return;
                     }
                     
                     setSelectedProvider('ethereum');
@@ -374,15 +420,28 @@ export const HyliWallet = ({
 
             {selectedProvider === null && (
                 <div className={`${classPrefix}-provider-selection`}>
-                    <h2 className={`${classPrefix}-section-title`}>Sign in</h2>
+                    <h2 className={`${classPrefix}-section-title`}>
+                        {requestedProviderFilter === "ethereum" ? "Select your Ethereum wallet" : "Sign in"}
+                    </h2>
                     <div className={`${classPrefix}-provider-list`}>
                         {/* Render standard providers (excluding ethereum if we have detected wallets) */}
                         {(providers ?? availableProviders)
-                            .filter(p => !(p === 'ethereum' && ethereumProviders.length > 0))
+                            .filter((p) => {
+                                if (requestedProviderFilter === "ethereum") {
+                                    if (p === "ethereum") {
+                                        return ethereumProviders.length === 0;
+                                    }
+                                    return false;
+                                }
+                                if (p === "ethereum" && ethereumProviders.length > 0) {
+                                    return false;
+                                }
+                                return true;
+                            })
                             .map(renderProviderButton)}
                         
                         {/* Render detected Ethereum wallet providers */}
-                        {ethereumProviders.length > 0 && 
+                        {ethereumProviders.length > 0 &&
                             ethereumProviders.map(renderEthereumProviderButton)}
                     </div>
                 </div>
