@@ -7,39 +7,25 @@ import { indexerService } from "../services/IndexerService";
 import { BorshSchema, borshSerialize } from "borsher";
 import { Buffer } from "buffer";
 
-const as_structured = (schema: BorshSchema<any>) => {
-    return BorshSchema.Struct({
-        caller: BorshSchema.Option(BorshSchema.u64),
-        callees: BorshSchema.Option(BorshSchema.Vec(BorshSchema.u64)),
-        parameters: schema,
-    });
-};
-
-const deleteContractActionSchema = as_structured(
-    BorshSchema.Struct({
-        contract_name: BorshSchema.String,
-    }),
-);
+const deleteContractActionSchema = BorshSchema.Struct({
+    contract_name: BorshSchema.String,
+});
 
 function serializeDeleteContractAction(contractName: string): Uint8Array {
     return borshSerialize(deleteContractActionSchema, {
-        parameters: { contract_name: contractName },
-        caller: null,
-        callees: null,
+        contract_name: contractName,
     });
 }
 
-const upgradeContractTimeoutActionSchema = as_structured(
-    BorshSchema.Struct({
-        contract_name: BorshSchema.String,
-        timeout_window: BorshSchema.Enum({
-            NoTimeout: BorshSchema.Unit,
-            Timeout: BorshSchema.u64,
-        }),
+const updateContractTimeoutWindowActionSchema = BorshSchema.Struct({
+    contract_name: BorshSchema.String,
+    timeout_window: BorshSchema.Enum({
+        NoTimeout: BorshSchema.Unit,
+        Timeout: BorshSchema.u64,
     }),
-);
+});
 
-function serializeUpgradeContractTimeoutAction(
+function serializeUpdateContractTimeoutWindowAction(
     contractName: string,
     timeout_window: undefined | string | number,
 ): Uint8Array {
@@ -47,42 +33,25 @@ function serializeUpgradeContractTimeoutAction(
     if (!timeout_window || !+timeout_window) {
         timeoutWindow = { NoTimeout: {} };
     } else {
-        timeoutWindow = { Timeout: +timeout_window };
+        timeoutWindow = { Timeout: BigInt(+timeout_window) };
     }
-    return borshSerialize(upgradeContractTimeoutActionSchema, {
-        parameters: { contract_name: contractName, timeout_window: timeoutWindow },
-        caller: null,
-        callees: null,
+    return borshSerialize(updateContractTimeoutWindowActionSchema, {
+        contract_name: contractName,
+        timeout_window: timeoutWindow,
     });
 }
 
-const nukeTxActionSchema = as_structured(
-    BorshSchema.Struct({
-        tx_hashes: BorshSchema.Vec(BorshSchema.String),
-    }),
-);
-
-function serializeNukeTxAction(txHashes: string[]): Uint8Array {
-    return borshSerialize(nukeTxActionSchema, { parameters: { tx_hashes: txHashes }, caller: null, callees: null });
-}
-
-const updateContractProgramIdActionSchema = as_structured(
-    BorshSchema.Struct({
-        contract_name: BorshSchema.String,
-        program_id: BorshSchema.Vec(BorshSchema.u8),
-    }),
-);
+const updateContractProgramIdActionSchema = BorshSchema.Struct({
+    contract_name: BorshSchema.String,
+    program_id: BorshSchema.Vec(BorshSchema.u8),
+});
 
 function serializeUpdateContractProgramIdAction(contractName: string, programId: string): Uint8Array {
     const programIdBytes = Array.from(new Uint8Array(Buffer.from(programId, "hex")));
 
     return borshSerialize(updateContractProgramIdActionSchema, {
-        parameters: {
-            contract_name: contractName,
-            program_id: programIdBytes,
-        },
-        caller: null,
-        callees: null,
+        contract_name: contractName,
+        program_id: programIdBytes,
     });
 }
 
@@ -92,16 +61,44 @@ const INIT_TRANSFERS = [
     { to: "board_game", token: "oxygen", amount: BigInt(1_000_000_000) },
 ];
 
+type AdminActionType = "delete" | "init" | "update" | "update_timeout";
+
 type PendingAction = null | {
-    type: "delete" | "nuke" | "init" | "update" | "update_timeout";
+    type: AdminActionType;
     value: string;
     timeoutId: NodeJS.Timeout;
+};
+
+interface SectionCardProps {
+    title: string;
+    description?: string;
+    maxWidth?: number | string;
+    children: React.ReactNode;
+}
+
+const SectionCard: React.FC<SectionCardProps> = ({ title, description, maxWidth = "100%", children }) => (
+    <section className="card" style={{ margin: "1.5rem 0", maxWidth, width: "100%" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            <div>
+                <h3 className="card-title">{title}</h3>
+                {description && <p style={{ color: "#888", marginTop: "0.25rem" }}>{description}</p>}
+            </div>
+            {children}
+        </div>
+    </section>
+);
+
+const ACTION_LABELS: Record<AdminActionType, string> = {
+    init: "Init preconfigured transfers",
+    delete: "Delete contract",
+    update: "Update contract ProgramId",
+    update_timeout: "Update contract timeout",
 };
 
 const AdminPage: React.FC = () => {
     const { wallet } = useWallet();
     const [status, setStatus] = useState<string>("");
-    const [error, setError] = useState<unknown>(null);
+    const [error, setError] = useState<string | null>(null);
     const [contractName, setContractName] = useState<string>("");
     const [_txHashes, _setTxHashes] = useState<string>("");
     const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -113,6 +110,7 @@ const AdminPage: React.FC = () => {
     const [updateContractName, setUpdateContractName] = useState<string>("");
     const [newProgramId, setNewProgramId] = useState<string>("");
     const [newTimeout, setNewTimeout] = useState<string>("");
+    const [timeoutContractName, setTimeoutContractName] = useState<string>("");
 
     if (!wallet) return null;
 
@@ -128,10 +126,7 @@ const AdminPage: React.FC = () => {
     };
 
     // Generic admin action sender
-    const sendAdminAction = async (
-        actionType: "init" | "delete" | "nuke" | "update" | "update_timeout",
-        value?: string,
-    ) => {
+    const sendAdminAction = async (actionType: AdminActionType, value?: string) => {
         setError(null);
         setIsLoading(true);
         try {
@@ -156,35 +151,20 @@ const AdminPage: React.FC = () => {
                 const action = serializeDeleteContractAction(value);
                 setResult(`DeleteContractAction: ${value}`);
                 const actionBlob = { contract_name: "hyli", data: Array.from(action) };
-                blobs = [blob0, blob1, actionBlob];
-            } else if (actionType === "nuke" && value) {
-                const hashes = value
-                    .split(",")
-                    .map((h) => h.trim())
-                    .filter(Boolean);
-                const action = serializeNukeTxAction(hashes);
-                setResult(`NukeTxAction: ${hashes.join(", ")}`);
-                const actionBlob = { contract_name: "hyli", data: Array.from(action) };
-                blobs = [actionBlob];
+                const deleteContractBlob = { contract_name: value, data: [] };
+                blobs = [blob0, blob1, actionBlob, deleteContractBlob];
             } else if (actionType === "update") {
                 const action = serializeUpdateContractProgramIdAction(updateContractName, newProgramId);
                 setResult(`UpdateContractProgramIdAction: ${updateContractName} with new ProgramId: ${newProgramId}`);
                 const actionBlob = { contract_name: "hyli", data: Array.from(action) };
                 blobs = [blob0, actionBlob, blob1];
             } else if (actionType === "update_timeout") {
-                const action = serializeUpgradeContractTimeoutAction(updateContractName, newTimeout);
-                setResult(`UpgradeContractTimeoutAction: ${updateContractName} with new Timeout: ${newTimeout}`);
+                const action = serializeUpdateContractTimeoutWindowAction(timeoutContractName, newTimeout);
+                setResult(`UpdateContractTimeoutWindowAction: ${timeoutContractName} with new Timeout: ${newTimeout}`);
                 const actionBlob = { contract_name: "hyli", data: Array.from(action) };
                 blobs = [blob0, actionBlob, blob1];
             }
-            const actionTypeLabels: Record<typeof actionType, string> = {
-                init: "Init",
-                delete: "DeleteContract",
-                nuke: "NukeTx",
-                update: "UpdateContract",
-                update_timeout: "UpdateContractTimeout",
-            };
-            setStatus(`Sending ${actionTypeLabels[actionType]} transaction...`);
+            setStatus(`Sending ${ACTION_LABELS[actionType]} transaction...`);
             const blobTx: BlobTransaction = { identity, blobs };
             const tx_hash = await nodeService.client.sendBlobTx(blobTx);
             setStatus("Building proof transaction...");
@@ -197,14 +177,7 @@ const AdminPage: React.FC = () => {
             );
             setStatus("Sending proof transaction...");
             await nodeService.client.sendProofTx(proofTx);
-            const sentLabels: Record<typeof actionType, string> = {
-                init: "Init",
-                delete: "DeleteContract",
-                nuke: "NukeTx",
-                update: "UpdateContract",
-                update_timeout: "UpdateContractTimeout",
-            };
-            setStatus(`${sentLabels[actionType]} transaction sent!`);
+            setStatus(`${ACTION_LABELS[actionType]} transaction sent!`);
         } catch (e) {
             setError(e instanceof Error ? e.message : String(e));
             setStatus("");
@@ -267,25 +240,10 @@ const AdminPage: React.FC = () => {
             setPendingAction(null);
             await sendAdminAction("update_timeout");
         }, 5000);
-        setPendingAction({ type: "update_timeout", value: updateContractName, timeoutId });
-        setStatus(`UpdateContract will be sent in 5s. Click 'Undo' to cancel.`);
+        setPendingAction({ type: "update_timeout", value: timeoutContractName, timeoutId });
+        setStatus(`UpdateContract timeout will be sent in 5s. Click 'Undo' to cancel.`);
         setIsLoading(false);
     };
-    /*
-  const handleNukeTx = async () => {
-      setError(null);
-      setStatus("");
-      setIsLoading(true);
-      // Only allow one pending action at a time
-      clearPending();
-      const timeoutId = setTimeout(async () => {
-          setPendingAction(null);
-          await sendAdminAction("nuke", txHashes);
-      }, 5000);
-      setPendingAction({ type: "nuke", value: txHashes, timeoutId });
-      setStatus(`NukeTx will be sent in 5s. Click 'Undo' to cancel.`);
-      setIsLoading(false);
-  };*/
 
     React.useEffect(() => {
         if (!pendingAction) return;
@@ -303,10 +261,26 @@ const AdminPage: React.FC = () => {
         return () => clearInterval(interval);
     }, [pendingAction]);
 
+    const pendingCopy = pendingAction
+        ? `${ACTION_LABELS[pendingAction.type]}${pendingAction.value ? ` (${pendingAction.value})` : ""} in ${pendingSeconds} second${pendingSeconds !== 1 ? "s" : ""}`
+        : "";
+    const hasFeedback = Boolean(status || pendingAction || error);
+
     return (
-        <div style={{ padding: 32 }}>
-            <h1>Admin Panel</h1>
-            <p>Welcome, admin! Here you can perform special actions.</p>
+        <div
+            style={{
+                padding: 32,
+                maxWidth: 1040,
+                margin: "0 auto",
+                display: "flex",
+                flexDirection: "column",
+                gap: "1.5rem",
+            }}
+        >
+            <div>
+                <h1>Admin Panel</h1>
+                <p>Welcome, admin! Here you can perform special actions.</p>
+            </div>
 
             {!isHyliAdmin && (
                 <div
@@ -316,208 +290,267 @@ const AdminPage: React.FC = () => {
                         color: "#856404",
                         padding: "1rem",
                         borderRadius: "0.5rem",
-                        marginBottom: "2rem",
                     }}
                 >
                     ⚠️ Limited access: Only the "hyli" user can use this admin section.
                 </div>
             )}
-            <div className="card" style={{ margin: "2rem 0", maxWidth: 600 }}>
-                <h3 className="card-title">Init Payload</h3>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 16 }}>
-                    <thead>
-                        <tr style={{ borderBottom: "1px solid #eee" }}>
-                            <th style={{ textAlign: "left", padding: "8px" }}>Token</th>
-                            <th style={{ textAlign: "left", padding: "8px" }}>Amount</th>
-                            <th style={{ textAlign: "left", padding: "8px" }}>Recipient</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {INIT_TRANSFERS.map((t, i) => (
-                            <tr key={i} style={{ borderBottom: "1px solid #f5f5f5" }}>
-                                <td style={{ padding: "8px" }}>{t.token.toUpperCase()}</td>
-                                <td style={{ padding: "8px" }}>{t.amount.toString()}</td>
-                                <td style={{ padding: "8px" }}>{t.to}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-            <div style={{ flex: 1, maxWidth: 320, marginBottom: 32 }}>
-                <input
-                    className="input"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    style={{ width: "100%" }}
-                    disabled={!isHyliAdmin}
-                />
-                <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    style={{
-                        position: "absolute",
-                        right: 10,
-                        top: 10,
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        color: "#aaa",
-                    }}
-                    tabIndex={-1}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                    {showPassword ? "🙈" : "👁️"}
-                </button>
-            </div>
-            <div className="form-group" style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-                <button
-                    className="btn-primary"
-                    style={{ minWidth: 180 }}
-                    onClick={handleInit}
-                    disabled={isLoading || !password || !isHyliAdmin}
-                >
-                    Init (preconfigured transfers)
-                </button>
-            </div>
-            <div className="form-group" style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-                <input
-                    className="input"
-                    type="text"
-                    placeholder="Contract name to delete"
-                    value={contractName}
-                    onChange={(e) => setContractName(e.target.value)}
-                    style={{ maxWidth: 320 }}
-                    disabled={!isHyliAdmin}
-                />
-                <button
-                    className="btn-primary"
-                    style={{ minWidth: 180 }}
-                    onClick={handleDeleteContract}
-                    disabled={isLoading || !contractName || !password || !isHyliAdmin}
-                >
-                    Delete Contract
-                </button>
+
+            <div style={{ maxWidth: 420 }}>
+                <label htmlFor="admin-password" style={{ display: "block", marginBottom: 8, color: "#8a92a6" }}>
+                    Admin password
+                </label>
+                <div style={{ position: "relative" }}>
+                    <input
+                        id="admin-password"
+                        className="input"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Enter your password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        style={{ width: "100%", paddingRight: 48 }}
+                        disabled={!isHyliAdmin}
+                    />
+                    <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        style={{
+                            position: "absolute",
+                            right: 12,
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            color: "#aaa",
+                            fontSize: 18,
+                        }}
+                        tabIndex={-1}
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                        {showPassword ? "🙈" : "👁️"}
+                    </button>
+                </div>
+                <p style={{ fontSize: 13, color: "#6f7687", marginTop: 8 }}>
+                    Required for every admin action. We never store this password.
+                </p>
             </div>
 
-            <div className="card" style={{ margin: "2rem 0", maxWidth: 800 }}>
-                <h3 className="card-title">Update Contract</h3>
-                <p style={{ color: "#666", marginBottom: "1rem" }}>
-                    Update a contract by deleting it and then registering it with a new ProgramId. The verifier and
-                    commitment will be automatically retrieved from the existing contract.
-                </p>
-                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                    <div className="form-group" style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+            {hasFeedback && (
+                <div style={{ position: "sticky", top: 16, zIndex: 30 }}>
+                    <div
+                        className="card"
+                        style={{
+                            padding: "1.25rem 1.5rem",
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: "1rem",
+                            alignItems: "center",
+                        }}
+                    >
+                        {status && (
+                            <div style={{ color: "#9ab7ff", minWidth: 200 }}>
+                                <strong style={{ display: "block", fontSize: 13, letterSpacing: 0.4 }}>Last statut</strong>
+                                <span>{status}</span>
+                            </div>
+                        )}
+                        {pendingAction && (
+                            <div style={{ color: "#dfa445", minWidth: 220 }}>
+                                <strong style={{ display: "block", fontSize: 13, letterSpacing: 0.4 }}>
+                                    Pending Action
+                                </strong>
+                                <span>{pendingCopy}</span>
+                                <button
+                                    style={{
+                                        marginLeft: 12,
+                                        color: "#DFA445",
+                                        textDecoration: "underline",
+                                        background: "none",
+                                        border: "none",
+                                        cursor: "pointer",
+                                        padding: 0,
+                                    }}
+                                    onClick={clearPending}
+                                >
+                                    Annuler
+                                </button>
+                            </div>
+                        )}
+                        {error && (
+                            <div style={{ color: "#ff7b72", flex: "1 1 260px" }}>
+                                <strong style={{ display: "block", fontSize: 13, letterSpacing: 0.4 }}>Erreur</strong>
+                                <span>{String(error)}</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            <SectionCard
+                title="Contract maintenance"
+                description="Delete contracts, refresh their ProgramId, or tweak timeout windows from one place."
+            >
+                <div
+                    style={{
+                        display: "grid",
+                        gap: "1.5rem",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+                    }}
+                >
+                    <div
+                        style={{
+                            border: "1px solid #272a38",
+                            borderRadius: 12,
+                            padding: "1.25rem",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "0.75rem",
+                        }}
+                    >
+                        <div>
+                            <h4 style={{ margin: 0 }}>Delete a contract</h4>
+                        </div>
                         <input
                             className="input"
                             type="text"
-                            placeholder="Contract name to update"
-                            value={updateContractName}
-                            onChange={(e) => setUpdateContractName(e.target.value)}
-                            style={{ flex: 1, maxWidth: 320 }}
+                            placeholder="Contract name"
+                            value={contractName}
+                            onChange={(e) => setContractName(e.target.value)}
                             disabled={!isHyliAdmin}
                         />
+                        <button
+                            className="btn-primary"
+                            onClick={handleDeleteContract}
+                            disabled={isLoading || !contractName || !password || !isHyliAdmin}
+                        >
+                            Delete contract
+                        </button>
                     </div>
-                    <div className="form-group" style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+
+                    <div
+                        style={{
+                            border: "1px solid #272a38",
+                            borderRadius: 12,
+                            padding: "1.25rem",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "0.75rem",
+                        }}
+                    >
+                        <div>
+                            <h4 style={{ margin: 0 }}>Update ProgramId</h4>
+                        </div>
+                        <input
+                            className="input"
+                            type="text"
+                            placeholder="Contract name"
+                            value={updateContractName}
+                            onChange={(e) => setUpdateContractName(e.target.value)}
+                            disabled={!isHyliAdmin}
+                        />
                         <input
                             className="input"
                             type="text"
                             placeholder="New ProgramId (hex)"
                             value={newProgramId}
                             onChange={(e) => setNewProgramId(e.target.value)}
-                            style={{ flex: 1, maxWidth: 600 }}
                             disabled={!isHyliAdmin}
                         />
-                    </div>
-                    <div className="form-group" style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
                         <button
                             className="btn-primary"
-                            style={{ minWidth: 180 }}
                             onClick={handleUpdateContract}
-                            disabled={isLoading || !updateContractName || !newProgramId || !password || !isHyliAdmin}
+                            disabled={
+                                isLoading || !updateContractName || !newProgramId || !password || !isHyliAdmin
+                            }
                         >
-                            Update Contract
+                            Update ProgramId
                         </button>
                     </div>
-                </div>
-            </div>
 
-            <div className="card" style={{ margin: "2rem 0", maxWidth: 800 }}>
-                <h3 className="card-title">Update Contract Timeout</h3>
-                <p style={{ color: "#666", marginBottom: "1rem" }}>
-                    Update a contract timeout. 0 will mean "no timeout".
-                </p>
-                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                    <div className="form-group" style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+                    <div
+                        style={{
+                            border: "1px solid #272a38",
+                            borderRadius: 12,
+                            padding: "1.25rem",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "0.75rem",
+                        }}
+                    >
+                        <div>
+                            <h4 style={{ margin: 0 }}>Update timeout</h4>
+                        </div>
                         <input
                             className="input"
                             type="text"
-                            placeholder="Contract name to update"
-                            value={updateContractName}
-                            onChange={(e) => setUpdateContractName(e.target.value)}
-                            style={{ flex: 1, maxWidth: 320 }}
+                            placeholder="Contract name"
+                            value={timeoutContractName}
+                            onChange={(e) => setTimeoutContractName(e.target.value)}
                             disabled={!isHyliAdmin}
                         />
-                    </div>
-                    <div className="form-group" style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
                         <input
                             className="input"
                             type="text"
-                            placeholder="New Timeout (0 for 'no timeout')"
+                            placeholder="Timeout (seconds, 0 = none)"
                             value={newTimeout}
                             onChange={(e) => setNewTimeout(e.target.value)}
-                            style={{ flex: 1, maxWidth: 400 }}
                             disabled={!isHyliAdmin}
                         />
-                    </div>
-                    <div className="form-group" style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
                         <button
                             className="btn-primary"
-                            style={{ minWidth: 180 }}
                             onClick={handleUpdateContractTimeout}
-                            disabled={isLoading || !updateContractName || !newTimeout || !password || !isHyliAdmin}
+                            disabled={
+                                isLoading || !timeoutContractName || !newTimeout || !password || !isHyliAdmin
+                            }
                         >
-                            Update Contract Timeout
+                            Update timeout
                         </button>
                     </div>
                 </div>
-            </div>
+            </SectionCard>
 
-            {/*
-            <div className="form-group" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                <input
-                    className="input"
-                    type="text"
-                    placeholder="Comma-separated TX hashes to nuke"
-                    value={txHashes}
-                    onChange={(e) => setTxHashes(e.target.value)}
-                    style={{ maxWidth: 320 }}
-                />
-                <button className="btn-primary" style={{ minWidth: 180 }} onClick={handleNukeTx} disabled={isLoading || !txHashes || !password}>
-                    Nuke TX
-                </button>
-            </div>
-            */}
-            {status && <div>Status: {status}</div>}
-            {pendingAction && (
-                <div style={{ margin: "1rem 0", color: "#DFA445", fontWeight: 500 }}>
-                    Action will be sent in {pendingSeconds} second{pendingSeconds !== 1 ? "s" : ""}.{" "}
-                    <button
-                        style={{
-                            color: "#DFA445",
-                            textDecoration: "underline",
-                            background: "none",
-                            border: "none",
-                            cursor: "pointer",
-                        }}
-                        onClick={clearPending}
-                    >
-                        Undo
-                    </button>
+            <SectionCard
+                title="Init preconfigured transfers"
+                description="Bootstrap faucet and game contracts with the default balances."
+            >
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "2rem" }}>
+                    <div style={{ flex: "2 1 360px" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 16 }}>
+                            <thead>
+                                <tr style={{ borderBottom: "1px solid #2c2f3b", color: "#8a92a6" }}>
+                                    <th style={{ textAlign: "left", padding: "8px" }}>Token</th>
+                                    <th style={{ textAlign: "left", padding: "8px" }}>Amount</th>
+                                    <th style={{ textAlign: "left", padding: "8px" }}>Recipient</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {INIT_TRANSFERS.map((t, i) => (
+                                    <tr key={i} style={{ borderBottom: "1px solid #1f212b" }}>
+                                        <td style={{ padding: "8px" }}>{t.token.toUpperCase()}</td>
+                                        <td style={{ padding: "8px" }}>{t.amount.toString()}</td>
+                                        <td style={{ padding: "8px" }}>{t.to}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div style={{ flex: "1 1 240px", display: "flex", flexDirection: "column", gap: "1rem" }}>
+                        <p style={{ color: "#8a92a6", fontSize: 14 }}>
+                            Use once per deployment to seed the recipients above. Action is delayed by 5 seconds to let you
+                            cancel if needed.
+                        </p>
+                        <button
+                            className="btn-primary"
+                            style={{ minWidth: 220 }}
+                            onClick={handleInit}
+                            disabled={isLoading || !password || !isHyliAdmin}
+                        >
+                            Init transfers
+                        </button>
+                    </div>
                 </div>
-            )}
-            {error ? <div style={{ color: "red" }}>Error: {String(error)}</div> : null}
+            </SectionCard>
+
         </div>
     );
 };
