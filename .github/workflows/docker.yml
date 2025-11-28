@@ -37,7 +37,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ${{ env.AR_URL }}/${{ env.IMAGE_NAME }}-${{ matrix.suffix }}
+            ${{ env.AR_REPO_LOCATION }}/${{ env.AR_URL }}/${{ env.IMAGE_NAME }}-${{ matrix.suffix }}
             ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}-${{ matrix.suffix }}
           tags: |
             type=sha
