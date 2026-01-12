@@ -642,7 +642,7 @@ mod tests {
     #[test]
     fn test_blob_data_decode() {
         let time = 1672531199000u128; // Example timestamp in milliseconds
-        let ascii_time_0padded_at_the_end = format!("{time:0>16}");
+        let ascii_time_0padded_at_the_end = format!("{time:0>13}");
 
         println!("ascii_time_0padded_at_the_end: {ascii_time_0padded_at_the_end}");
         let hash32bytes = [1u8; 32]; // Example 32-byte hash
