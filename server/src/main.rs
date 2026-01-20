@@ -10,7 +10,7 @@ use hyli_modules::{
     bus::{metrics::BusMetrics, SharedMessageBus},
     modules::{
         contract_state_indexer::{ContractStateIndexer, ContractStateIndexerCtx},
-        da_listener::{DAListener, DAListenerConf},
+        da_listener::{DAListenerConf, SignedDAListener},
         prover::{AutoProver, AutoProverCtx},
         rest::{RestApi, RestApiRunContext},
         websocket::WebSocketModule,
@@ -178,7 +178,7 @@ async fn actual_main() -> Result<()> {
 
     // This module connects to the da_address and receives all the blocks
     handler
-        .build_module::<DAListener>(DAListenerConf {
+        .build_module::<SignedDAListener>(DAListenerConf {
             start_block: None,
             data_directory: config.data_directory.clone(),
             da_read_from: config.da_read_from.clone(),
@@ -188,52 +188,61 @@ async fn actual_main() -> Result<()> {
 
     if args.auto_provers {
         handler
-            .build_module::<AutoProver<SmtTokenProvableState>>(Arc::new(AutoProverCtx {
-                data_directory: config.data_directory.clone(),
-                prover: Arc::new(Risc0Prover::new(
-                    hyli_smt_token::client::tx_executor_handler::metadata::SMT_TOKEN_ELF,
-                    hyli_smt_token::client::tx_executor_handler::metadata::PROGRAM_ID,
-                )),
-                contract_name: "oranj".into(),
-                node: node_client.clone(),
-                default_state: Default::default(),
-                buffer_blocks: config.smt_buffer_blocks,
-                max_txs_per_proof: config.smt_max_txs_per_proof,
-                tx_working_window_size: config.smt_tx_working_window_size,
-                api: None,
-            }))
+            .build_module::<AutoProver<SmtTokenProvableState, Risc0Prover>>(Arc::new(
+                AutoProverCtx {
+                    data_directory: config.data_directory.clone(),
+                    prover: Arc::new(Risc0Prover::new(
+                        hyli_smt_token::client::tx_executor_handler::metadata::SMT_TOKEN_ELF
+                            .to_vec(),
+                        hyli_smt_token::client::tx_executor_handler::metadata::PROGRAM_ID,
+                    )),
+                    contract_name: "oranj".into(),
+                    node: node_client.clone(),
+                    default_state: Default::default(),
+                    buffer_blocks: config.smt_buffer_blocks,
+                    max_txs_per_proof: config.smt_max_txs_per_proof,
+                    tx_working_window_size: config.smt_tx_working_window_size,
+                    api: None,
+                },
+            ))
             .await?;
         handler
-            .build_module::<AutoProver<SmtTokenProvableState>>(Arc::new(AutoProverCtx {
-                data_directory: config.data_directory.clone(),
-                prover: Arc::new(Risc0Prover::new(
-                    hyli_smt_token::client::tx_executor_handler::metadata::SMT_TOKEN_ELF,
-                    hyli_smt_token::client::tx_executor_handler::metadata::PROGRAM_ID,
-                )),
-                contract_name: "vitamin".into(),
-                node: node_client.clone(),
-                default_state: Default::default(),
-                buffer_blocks: config.smt_buffer_blocks,
-                max_txs_per_proof: config.smt_max_txs_per_proof,
-                tx_working_window_size: config.smt_tx_working_window_size,
-                api: None,
-            }))
+            .build_module::<AutoProver<SmtTokenProvableState, Risc0Prover>>(Arc::new(
+                AutoProverCtx {
+                    data_directory: config.data_directory.clone(),
+                    prover: Arc::new(Risc0Prover::new(
+                        hyli_smt_token::client::tx_executor_handler::metadata::SMT_TOKEN_ELF
+                            .to_vec(),
+                        hyli_smt_token::client::tx_executor_handler::metadata::PROGRAM_ID,
+                    )),
+                    contract_name: "vitamin".into(),
+                    node: node_client.clone(),
+                    default_state: Default::default(),
+                    buffer_blocks: config.smt_buffer_blocks,
+                    max_txs_per_proof: config.smt_max_txs_per_proof,
+                    tx_working_window_size: config.smt_tx_working_window_size,
+                    api: None,
+                },
+            ))
             .await?;
         handler
-            .build_module::<AutoProver<SmtTokenProvableState>>(Arc::new(AutoProverCtx {
-                data_directory: config.data_directory.clone(),
-                prover: Arc::new(Risc0Prover::new(
-                    hyli_smt_token::client::tx_executor_handler::metadata::SMT_TOKEN_ELF,
-                    hyli_smt_token::client::tx_executor_handler::metadata::PROGRAM_ID,
-                )),
-                contract_name: "oxygen".into(),
-                node: node_client.clone(),
-                default_state: Default::default(),
-                buffer_blocks: config.smt_buffer_blocks,
-                max_txs_per_proof: config.smt_max_txs_per_proof,
-                tx_working_window_size: config.smt_tx_working_window_size,
-                api: None,
-            }))
+            .build_module::<AutoProver<SmtTokenProvableState, Risc0Prover>>(Arc::new(
+                AutoProverCtx {
+                    data_directory: config.data_directory.clone(),
+                    prover: Arc::new(Risc0Prover::new(
+                        hyli_smt_token::client::tx_executor_handler::metadata::SMT_TOKEN_ELF
+                            .to_vec(),
+                        hyli_smt_token::client::tx_executor_handler::metadata::PROGRAM_ID,
+                    )),
+                    contract_name: "oxygen".into(),
+                    node: node_client.clone(),
+                    default_state: Default::default(),
+                    buffer_blocks: config.smt_buffer_blocks,
+                    max_txs_per_proof: config.smt_max_txs_per_proof,
+                    tx_working_window_size: config.smt_tx_working_window_size,
+                    api: None,
+                },
+            ))
             .await?;
     }
 

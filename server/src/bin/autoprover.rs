@@ -3,12 +3,12 @@ use std::sync::{Arc, Mutex};
 use anyhow::{Context, Result};
 use axum::Router;
 use clap::Parser;
-use client_sdk::rest_client::NodeApiHttpClient;
+use client_sdk::{helpers::risc0::Risc0Prover, rest_client::NodeApiHttpClient};
 use hyli_modules::{
     bus::{metrics::BusMetrics, SharedMessageBus},
     modules::{
         admin::{AdminApi, AdminApiRunContext},
-        da_listener::{DAListener, DAListenerConf},
+        da_listener::{DAListenerConf, SignedDAListener},
         prover::{AutoProver, AutoProverCtx},
         rest::{RestApi, RestApiRunContext},
         BuildApiContextInner, ModulesHandler,
@@ -64,7 +64,7 @@ async fn main() -> Result<()> {
 
     // This module connects to the da_address and receives all the blocks
     handler
-        .build_module::<DAListener>(DAListenerConf {
+        .build_module::<SignedDAListener>(DAListenerConf {
             start_block: None,
             data_directory: config.data_directory.clone(),
             da_read_from: config.da_read_from.clone(),
@@ -76,10 +76,10 @@ async fn main() -> Result<()> {
     let wallet_cn: ContractName = "wallet".into();
     let (_, wallet) = new_wallet(&wallet_cn);
     handler
-        .build_module::<AutoProver<Wallet>>(Arc::new(AutoProverCtx {
+        .build_module::<AutoProver<Wallet, Risc0Prover>>(Arc::new(AutoProverCtx {
             data_directory: config.data_directory.clone(),
             prover: Arc::new(client_sdk::helpers::risc0::Risc0Prover::new(
-                contracts::WALLET_ELF,
+                contracts::WALLET_ELF.to_vec(),
                 contracts::WALLET_ID,
             )),
             contract_name: wallet_cn,
