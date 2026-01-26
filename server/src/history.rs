@@ -35,7 +35,7 @@ use crate::app::Wrap;
 
 #[derive(Debug, Clone, Default, Serialize, ToSchema, BorshDeserialize, BorshSerialize)]
 pub struct TransactionDetails {
-    id: String,
+    id: TxHash,
     r#type: String,
     status: String,
     amount: u128,
@@ -68,7 +68,7 @@ impl TokenHistory {
         timestamp: u128,
     ) -> HistoryEvent {
         let transaction = TransactionDetails {
-            id: tx_hash.0,
+            id: tx_hash,
             r#type: action.to_string(),
             amount,
             address,
@@ -143,7 +143,7 @@ impl ContractHandler<Wrap<Vec<HistoryEvent>>> for TokenHistory {
         let mut events = vec![];
         let tx_hash = tx.hashed();
         self.history.iter_mut().for_each(|(account, history)| {
-            for t in history.iter_mut().filter(|t| t.id == tx_hash.0) {
+            for t in history.iter_mut().filter(|t| t.id == tx_hash) {
                 t.status = "Success".to_string();
                 events.push(HistoryEvent {
                     account: account.clone(),
@@ -165,8 +165,9 @@ impl ContractHandler<Wrap<Vec<HistoryEvent>>> for TokenHistory {
         _tx_context: Arc<sdk::TxContext>,
     ) -> anyhow::Result<Option<Wrap<Vec<HistoryEvent>>>> {
         let mut events = vec![];
+        let tx_hash = tx.hashed();
         self.history.values_mut().for_each(|history| {
-            for t in history.iter_mut().filter(|t| t.id == tx.hashed().0) {
+            for t in history.iter_mut().filter(|t| t.id == tx_hash) {
                 t.status = "Failed".to_string();
                 events.push(HistoryEvent {
                     account: tx.identity.clone(),
@@ -188,8 +189,9 @@ impl ContractHandler<Wrap<Vec<HistoryEvent>>> for TokenHistory {
         _tx_context: Arc<sdk::TxContext>,
     ) -> anyhow::Result<Option<Wrap<Vec<HistoryEvent>>>> {
         let mut events = vec![];
+        let tx_hash = tx.hashed();
         self.history.values_mut().for_each(|history| {
-            for t in history.iter_mut().filter(|t| t.id == tx.hashed().0) {
+            for t in history.iter_mut().filter(|t| t.id == tx_hash) {
                 t.status = "Timed Out".to_string();
                 events.push(HistoryEvent {
                     account: tx.identity.clone(),

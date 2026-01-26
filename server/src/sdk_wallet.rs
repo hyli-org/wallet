@@ -17,7 +17,7 @@ use hyli_modules::modules::ModulesHandler;
 use sdk::ContractName;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tracing::{error, info};
+use tracing::info;
 use wallet::client::indexer::WalletEvent;
 use wallet::client::tx_executor_handler::Wallet;
 

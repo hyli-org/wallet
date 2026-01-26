@@ -8,6 +8,7 @@ use hyli_modules::{
     bus::{metrics::BusMetrics, SharedMessageBus},
     modules::{
         admin::{AdminApi, AdminApiRunContext},
+        block_processor::NodeStateBlockProcessor,
         da_listener::{DAListenerConf, SignedDAListener},
         prover::{AutoProver, AutoProverCtx},
         rest::{RestApi, RestApiRunContext},
@@ -56,7 +57,7 @@ async fn main() -> Result<()> {
         .build();
     opentelemetry::global::set_meter_provider(provider.clone());
 
-    let mut handler = ModulesHandler::new(&bus).await;
+    let mut handler = ModulesHandler::new(&bus, config.data_directory.clone()).await;
     let api_ctx = Arc::new(BuildApiContextInner {
         router: Mutex::new(Some(Router::new())),
         openapi: Default::default(),
@@ -64,11 +65,12 @@ async fn main() -> Result<()> {
 
     // This module connects to the da_address and receives all the blocks
     handler
-        .build_module::<SignedDAListener>(DAListenerConf {
+        .build_module::<SignedDAListener<NodeStateBlockProcessor>>(DAListenerConf {
             start_block: None,
             data_directory: config.data_directory.clone(),
             da_read_from: config.da_read_from.clone(),
             timeout_client_secs: 10,
+            processor_config: (),
         })
         .await?;
 

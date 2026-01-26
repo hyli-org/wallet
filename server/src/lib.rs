@@ -3,11 +3,7 @@ use std::env;
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
 use wallet::client::tx_executor_handler::{Wallet, WalletConstructor};
 
-mod app;
 pub mod conf;
-mod history;
-mod init;
-pub mod sdk_wallet;
 
 pub fn new_wallet(contract_name: &sdk::ContractName) -> (WalletConstructor, Wallet) {
     let secp = Secp256k1::new();

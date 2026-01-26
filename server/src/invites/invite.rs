@@ -1,5 +1,4 @@
 use anyhow::Result;
-use axum::http::StatusCode;
 use axum::{extract::State, routing::post, Json, Router};
 use chrono::NaiveDateTime;
 use client_sdk::contract_indexer::AppError;
