@@ -61,6 +61,7 @@ async fn main() -> Result<()> {
             start_block: None,
             data_directory: config.data_directory.clone(),
             da_read_from: config.da_read_from.clone(),
+            da_fallback_addresses: vec![],
             timeout_client_secs: 10,
             processor_config: (),
         })
