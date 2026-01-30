@@ -16,7 +16,6 @@ use hyli_modules::{
     },
     utils::logger::setup_tracing,
 };
-use prometheus::Registry;
 use sdk::{api::NodeInfo, info, ContractName};
 use server::{conf::Conf, new_wallet};
 use wallet::client::tx_executor_handler::Wallet;
@@ -46,16 +45,8 @@ async fn main() -> Result<()> {
     let bus = SharedMessageBus::new(BusMetrics::global());
     std::fs::create_dir_all(&config.data_directory).context("creating data directory")?;
 
-    let registry = Registry::new();
-    let provider = opentelemetry_sdk::metrics::SdkMeterProvider::builder()
-        .with_reader(
-            opentelemetry_prometheus::exporter()
-                .with_registry(registry.clone())
-                .build()
-                .context("starting prometheus exporter")?,
-        )
-        .build();
-    opentelemetry::global::set_meter_provider(provider.clone());
+    let registry = hyli_module::telemetry::init_prometheus_registry_meter_provider()
+        .context("starting prometheus exporter")?;
 
     let mut handler = ModulesHandler::new(&bus, config.data_directory.clone()).await;
     let api_ctx = Arc::new(BuildApiContextInner {

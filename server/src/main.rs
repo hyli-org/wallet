@@ -20,7 +20,6 @@ use hyli_modules::{
     utils::logger::setup_tracing,
 };
 use hyli_smt_token::client::tx_executor_handler::SmtTokenProvableState;
-use prometheus::Registry;
 use sdk::{api::NodeInfo, info, ContractName};
 use server::new_wallet;
 use std::sync::{Arc, Mutex};
@@ -108,18 +107,8 @@ async fn actual_main() -> Result<()> {
 
     std::fs::create_dir_all(&config.data_directory).context("creating data directory")?;
 
-    let registry = Registry::new();
-    // Init global metrics meter we expose as an endpoint
-    let provider = opentelemetry_sdk::metrics::SdkMeterProvider::builder()
-        .with_reader(
-            opentelemetry_prometheus::exporter()
-                .with_registry(registry.clone())
-                .build()
-                .context("starting prometheus exporter")?,
-        )
-        .build();
-
-    opentelemetry::global::set_meter_provider(provider.clone());
+    let registry = hyli_module::telemetry::init_prometheus_registry_meter_provider()
+        .context("starting prometheus exporter")?;
 
     let mut handler = ModulesHandler::new(&bus, config.data_directory.clone()).await;
 
