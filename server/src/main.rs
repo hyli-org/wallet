@@ -104,7 +104,7 @@ async fn actual_main() -> Result<()> {
 
     let wallet_cn: ContractName = args.wallet_cn.clone().into();
 
-    let bus = SharedMessageBus::new(BusMetrics::global(config.id.clone()));
+    let bus = SharedMessageBus::new(BusMetrics::global());
 
     std::fs::create_dir_all(&config.data_directory).context("creating data directory")?;
 

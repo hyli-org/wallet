@@ -43,7 +43,7 @@ async fn main() -> Result<()> {
     let node_client =
         Arc::new(NodeApiHttpClient::new(config.node_url.clone()).context("build node client")?);
 
-    let bus = SharedMessageBus::new(BusMetrics::global(config.id.clone()));
+    let bus = SharedMessageBus::new(BusMetrics::global());
     std::fs::create_dir_all(&config.data_directory).context("creating data directory")?;
 
     let registry = Registry::new();
