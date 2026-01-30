@@ -39,7 +39,7 @@ async fn main() -> Result<()> {
     let config = Arc::new(config);
     info!("Starting autoprover with config: {:?}", &config);
 
-    let registry = hyli_module::telemetry::init_prometheus_registry_meter_provider()
+    let registry = hyli_modules::telemetry::init_prometheus_registry_meter_provider()
         .context("starting prometheus exporter")?;
 
     let node_client =

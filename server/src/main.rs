@@ -107,7 +107,7 @@ async fn actual_main() -> Result<()> {
 
     std::fs::create_dir_all(&config.data_directory).context("creating data directory")?;
 
-    let registry = hyli_module::telemetry::init_prometheus_registry_meter_provider()
+    let registry = hyli_modules::telemetry::init_prometheus_registry_meter_provider()
         .context("starting prometheus exporter")?;
 
     let mut handler = ModulesHandler::new(&bus, config.data_directory.clone()).await;
