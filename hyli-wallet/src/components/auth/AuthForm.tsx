@@ -8,6 +8,10 @@ import "./AuthForm.css";
 import type { GoogleAuthCredentials } from "../../providers/GoogleAuthProvider";
 import type { EthereumWalletAuthCredentials } from "../../providers/EthereumWalletAuthProvider";
 import type { PasswordAuthCredentials } from "../../providers/PasswordAuthProvider";
+import type { HyliAppAuthCredentials } from "../../providers/HyliAppAuthProvider";
+import { HyliAppAuthProvider } from "../../providers/HyliAppAuthProvider";
+import { QRCodeDisplay, QRStatus } from "./QRCodeDisplay";
+import type { QRSigningRequest } from "../../services/QRSigningService";
 
 type AuthStage =
     | "idle" // Initial state, no authentication in progress
@@ -79,7 +83,8 @@ function getRandomSalt() {
 type FormCredentials =
     | (PasswordAuthCredentials & { inviteCode: string })
     | (GoogleAuthCredentials & { inviteCode: string })
-    | (EthereumWalletAuthCredentials & { inviteCode: string });
+    | (EthereumWalletAuthCredentials & { inviteCode: string })
+    | (HyliAppAuthCredentials & { inviteCode: string });
 
 export const AuthForm: React.FC<AuthFormProps> = ({
     provider,
@@ -98,6 +103,12 @@ export const AuthForm: React.FC<AuthFormProps> = ({
     const isGoogle = providerType === "google";
     const isEthereum = providerType === "ethereum";
     const isPassword = providerType === "password";
+    const isHyliApp = providerType === "hyliapp";
+
+    // QR signing state for HyliApp
+    const [qrSigningRequest, setQrSigningRequest] = useState<QRSigningRequest | null>(null);
+    const [qrData, setQrData] = useState<string>("");
+    const [qrStatus, setQrStatus] = useState<QRStatus>("waiting");
 
     const createInitialCredentials = (): FormCredentials => {
         const defaultInvite = isLocalhost ? "vip" : "";
@@ -115,6 +126,13 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                 inviteCode: defaultInvite,
                 type: "ethereum",
                 providerId: ethereumProviderId,
+            } as FormCredentials;
+        }
+        if (isHyliApp) {
+            return {
+                username: "bob",
+                inviteCode: defaultInvite,
+                type: "hyliapp",
             } as FormCredentials;
         }
         return {
@@ -144,6 +162,9 @@ export const AuthForm: React.FC<AuthFormProps> = ({
         }
         if (isEthereum) {
             return mode === "login" ? "Sign with Ethereum Wallet" : "Create with Ethereum Wallet";
+        }
+        if (isHyliApp) {
+            return mode === "login" ? "Sign with Hyli App" : "Create with Hyli App";
         }
         return mode === "login" ? "Login" : "Create Account";
     };
@@ -175,6 +196,39 @@ export const AuthForm: React.FC<AuthFormProps> = ({
             if (timer) clearInterval(timer);
         };
     }, [isSubmitting]);
+
+    // Set up QR callbacks for HyliApp provider
+    useEffect(() => {
+        if (isHyliApp && provider instanceof HyliAppAuthProvider) {
+            const hyliAppProvider = provider as HyliAppAuthProvider;
+            hyliAppProvider.setQRCallbacks(
+                (request, data) => {
+                    console.log("[HyliApp] QR Code content:", data);
+                    setQrSigningRequest(request);
+                    setQrData(data);
+                    setQrStatus("waiting");
+                },
+                (status, errorMsg) => {
+                    setQrStatus(status);
+                    if (status === "error" || status === "timeout") {
+                        setError(errorMsg || "QR signing failed");
+                    }
+                }
+            );
+
+            return () => {
+                hyliAppProvider.clearQRCallbacks();
+            };
+        }
+    }, [isHyliApp, provider]);
+
+    const handleQRCancel = () => {
+        setQrSigningRequest(null);
+        setQrData("");
+        setQrStatus("waiting");
+        setIsSubmitting(false);
+        setStage("idle");
+    };
 
     const deriveStatusMessage = (stage: AuthStage): string => {
         switch (stage) {
@@ -301,6 +355,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
         }
         setIsSubmitting(true);
         setStage("sending_blob");
+
         const authAction = async (provider: ProviderOption, submittedCredentials: FormCredentials) => {
             console.log("[Hyli][AuthForm] submit", {
                 provider,
@@ -348,8 +403,9 @@ export const AuthForm: React.FC<AuthFormProps> = ({
 
     return (
         <div className={`${classPrefix}-auth-form-container`} style={{ position: "relative" }}>
-            {/* Loading Modal-Within-Modal */}
-            {["sending_blob", "generating_proof", "sending_proof", "proof_sent"].includes(stage) && (
+            {/* Loading Modal-Within-Modal - hide during HyliApp QR signing */}
+            {["sending_blob", "generating_proof", "sending_proof", "proof_sent"].includes(stage) &&
+             !(isHyliApp && qrSigningRequest) && (
                 <div className={`${classPrefix}-loading-modal-overlay`}>
                     <div style={{ marginBottom: 24 }}>
                         <div
@@ -388,6 +444,64 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                     <div style={{ fontSize: 48, color: "#4BB543", marginBottom: 16 }}>✓</div>
                     <div style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>Login successful!</div>
                     <div style={{ color: "#666", marginBottom: 16 }}>You are now logged in. Redirecting...</div>
+                </div>
+            ) : isHyliApp ? (
+                // HyliApp flow: Show form first, then QR code on submit
+                <div className={`${classPrefix}-auth-form`}>
+                    {/* QR Code Display - shown when submitting and waiting for signature */}
+                    {qrSigningRequest && isSubmitting ? (
+                        <QRCodeDisplay
+                            signingRequest={qrSigningRequest}
+                            qrData={qrData}
+                            onCancel={handleQRCancel}
+                            status={qrStatus}
+                            classPrefix={classPrefix}
+                        />
+                    ) : (
+                        <form onSubmit={handleSubmit}>
+                            <div className={`${classPrefix}-form-group`}>
+                                <label htmlFor="username" className={`${classPrefix}-form-label`}>
+                                    Username
+                                </label>
+                                <input
+                                    id="username"
+                                    name="username"
+                                    type="text"
+                                    value={credentials.username}
+                                    onChange={handleInputChange}
+                                    placeholder={mode === "login" ? "Enter your username" : "Choose a username"}
+                                    disabled={isSubmitting}
+                                    className={`${classPrefix}-form-input`}
+                                />
+                            </div>
+
+                            {mode === "register" && (
+                                <div className={`${classPrefix}-form-group`}>
+                                    <label htmlFor="inviteCode" className={`${classPrefix}-form-label`}>
+                                        Invite Code
+                                    </label>
+                                    <input
+                                        id="inviteCode"
+                                        name="inviteCode"
+                                        type="text"
+                                        value={(credentials as any).inviteCode}
+                                        onChange={handleInputChange}
+                                        placeholder="Enter your invite code"
+                                        disabled={isSubmitting}
+                                        className={`${classPrefix}-form-input`}
+                                    />
+                                </div>
+                            )}
+
+                            {error && <div className={`${classPrefix}-error-message`}>{error}</div>}
+
+                            <button type="submit" className={`${classPrefix}-auth-submit-button`} disabled={isSubmitting}>
+                                {mode === "login"
+                                    ? isSubmitting ? "Logging in..." : "Login"
+                                    : isSubmitting ? "Creating Account..." : "Create Account"}
+                            </button>
+                        </form>
+                    )}
                 </div>
             ) : (
                 <form onSubmit={handleSubmit} className={`${classPrefix}-auth-form`}>

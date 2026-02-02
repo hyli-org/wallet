@@ -1,0 +1,131 @@
+.hyli-qr-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 20px;
+    width: 100%;
+}
+
+.hyli-qr-code-container {
+    background: white;
+    padding: 16px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.hyli-qr-info {
+    text-align: center;
+}
+
+.hyli-qr-description {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+    margin: 0 0 8px 0;
+}
+
+.hyli-qr-instructions {
+    font-size: 14px;
+    color: #666;
+    margin: 0 0 8px 0;
+}
+
+.hyli-qr-timer {
+    font-size: 14px;
+    color: #0077ff;
+    font-weight: 500;
+    margin: 0;
+}
+
+.hyli-qr-cancel-button {
+    padding: 12px 24px;
+    background: transparent;
+    color: #666;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.hyli-qr-cancel-button:hover {
+    background: #f5f5f5;
+    border-color: #ccc;
+}
+
+.hyli-qr-success,
+.hyli-qr-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 40px 20px;
+}
+
+.hyli-qr-success-icon {
+    color: #22c55e;
+}
+
+.hyli-qr-success-text {
+    font-size: 18px;
+    font-weight: 600;
+    color: #22c55e;
+    margin: 0;
+}
+
+.hyli-qr-error-icon {
+    color: #dc3545;
+}
+
+.hyli-qr-error-text {
+    font-size: 16px;
+    color: #dc3545;
+    margin: 0;
+    text-align: center;
+}
+
+/* Dark mode */
+.dark .hyli-qr-code-container {
+    background: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.dark .hyli-qr-description {
+    color: #f3f3f3;
+}
+
+.dark .hyli-qr-instructions {
+    color: #aaa;
+}
+
+.dark .hyli-qr-timer {
+    color: #ff594b;
+}
+
+.dark .hyli-qr-cancel-button {
+    color: #aaa;
+    border-color: #444;
+}
+
+.dark .hyli-qr-cancel-button:hover {
+    background: #2a2a2a;
+    border-color: #555;
+}
+
+.dark .hyli-qr-success-icon {
+    color: #22c55e;
+}
+
+.dark .hyli-qr-success-text {
+    color: #22c55e;
+}
+
+.dark .hyli-qr-error-icon {
+    color: #ff8a80;
+}
+
+.dark .hyli-qr-error-text {
+    color: #ff8a80;
+}

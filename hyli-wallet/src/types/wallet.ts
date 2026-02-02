@@ -32,7 +32,8 @@ export type Secp256k1Blob = {
 export type AuthMethod =
     | { Password: { hash: String } }
     | { Jwt: { hash: number[] } }
-    | { Ethereum: { address: String } };
+    | { Ethereum: { address: String } }
+    | { HyliApp: { address: string } };
 
 export type JsonWebToken = {
     token: string;
@@ -233,6 +234,10 @@ const schema = BorshSchema.Enum({
                 hash: BorshSchema.Array(BorshSchema.u8, 32),
             }),
             Ethereum: BorshSchema.Struct({
+                address: BorshSchema.String,
+            }),
+            Uninitialized: BorshSchema.Unit,
+            HyliApp: BorshSchema.Struct({
                 address: BorshSchema.String,
             }),
         }),

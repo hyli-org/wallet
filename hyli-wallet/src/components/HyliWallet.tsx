@@ -254,6 +254,7 @@ export const HyliWallet = ({
             ethereum: { label: "Ethereum Wallet", icon: ProviderIcons.ethereum },
             github: { label: "GitHub", icon: ProviderIcons.github },
             x: { label: "X", icon: ProviderIcons.x },
+            hyliapp: { label: "Hyli App", icon: ProviderIcons.password }, // Use password icon temporarily
         };
 
         const { label, icon } = config[providerType];

@@ -26,6 +26,7 @@ export interface WalletProviderProps {
         nodeBaseUrl: string;
         walletServerBaseUrl: string;
         applicationWsUrl: string;
+        indexerBaseUrl: string;
         providers: AuthProviderManagerConfig;
     };
     sessionKeyConfig?: {
@@ -73,6 +74,7 @@ const walletConfig = ref<WalletProviderProps>({
         nodeBaseUrl: "http://localhost:4321",
         walletServerBaseUrl: "http://localhost:4000",
         applicationWsUrl: "ws://localhost:8081",
+        indexerBaseUrl: "http://localhost:4321",
         providers: {
             password: { enabled: true },
         },
@@ -121,7 +123,7 @@ export const useWalletInternal = () => {
     watchEffect(() => {
         ConfigService.initialize(config.value);
         NodeService.initialize(config.value.nodeBaseUrl);
-        IndexerService.initialize(config.value.walletServerBaseUrl);
+        IndexerService.initialize(config.value.indexerBaseUrl);
         authProviderManager.registerDefaultProviders(config.value.providers);
         initializeEthereumProviders();
     });

@@ -19,7 +19,7 @@ import { sessionKeyService } from "../services/SessionKeyService";
 import { findEthereumProviderByUuid, initializeEthereumProviders } from "../providers/ethereumProviders";
 import { EIP1193Provider } from "mipd";
 
-export type ProviderOption = "password" | "google" | "ethereum" | "github" | "x";
+export type ProviderOption = "password" | "google" | "ethereum" | "github" | "x" | "hyliapp";
 
 export interface WalletContextType {
     wallet: Wallet | null;
@@ -77,6 +77,7 @@ export interface WalletProviderProps {
         nodeBaseUrl: string;
         walletServerBaseUrl: string;
         applicationWsUrl: string;
+        indexerBaseUrl: string;
     };
     sessionKeyConfig?: {
         duration: number; // ms
@@ -158,7 +159,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
         const initConfig = async () => {
             ConfigService.initialize(config);
             NodeService.initialize(config.nodeBaseUrl);
-            IndexerService.initialize(config.walletServerBaseUrl);
+            IndexerService.initialize(config.indexerBaseUrl);
             initializeEthereumProviders();
             checkWalletExists();
         };
