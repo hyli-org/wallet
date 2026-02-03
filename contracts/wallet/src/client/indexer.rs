@@ -120,7 +120,6 @@ impl ContractHandler<WalletEvent> for Wallet {
         let (router, api) = OpenApiRouter::default()
             .routes(routes!(get_state))
             .routes(routes!(get_account_info))
-            .routes(routes!(get_account_by_address))
             .split_for_parts();
 
         (router.with_state(store), api)
@@ -214,69 +213,3 @@ pub async fn get_account_info(
     }))
 }
 
-#[utoipa::path(
-    get,
-    path = "/account_by_address/{address}",
-    tag = "Contract",
-    responses(
-        (status = OK, description = "Get account information by address", body = ApiAccountInfo),
-        (status = NOT_FOUND, description = "Account not found for this address")
-    ),
-    params(
-        ("address" = String, Path, description = "The address to search for (hex encoded, without 0x prefix)")
-    )
-)]
-pub async fn get_account_by_address(
-    Path(address): Path<String>,
-    State(state): State<ContractHandlerStore<Wallet>>,
-) -> Result<impl IntoResponse, AppError> {
-    let store = state.read().await;
-    let wallet_state = store.state.clone().ok_or(AppError(
-        StatusCode::NOT_FOUND,
-        anyhow!("Contract '{}' not found", store.contract_name),
-    ))?;
-
-    // Normalize address for comparison (lowercase, without 0x prefix)
-    let search_address = address.trim_start_matches("0x").to_lowercase();
-
-    // Iterate through all accounts to find one with matching address
-    for account_info in wallet_state.iter_accounts() {
-        let address_match = match &account_info.auth_method {
-            AuthMethod::Ethereum { address: eth_addr } => {
-                eth_addr.trim_start_matches("0x").to_lowercase() == search_address
-            }
-            AuthMethod::HyliApp { address: secp_addr } => {
-                secp_addr.trim_start_matches("0x").to_lowercase() == search_address
-            }
-            _ => false,
-        };
-
-        if address_match {
-            let salt = wallet_state
-                .get_salt(&account_info.identity)
-                .unwrap_or_default();
-
-            let session_keys = account_info
-                .session_keys
-                .iter()
-                .map(|sk| ApiSessionKey {
-                    key: sk.public_key.clone(),
-                    expiration_date: sk.expiration_date.0,
-                })
-                .collect();
-
-            return Ok(Json(ApiAccountInfo {
-                account: account_info.identity.clone(),
-                auth_method: account_info.auth_method.clone(),
-                session_keys,
-                nonce: account_info.nonce,
-                salt,
-            }));
-        }
-    }
-
-    Err(AppError(
-        StatusCode::NOT_FOUND,
-        anyhow!("No account found for address '{address}'"),
-    ))
-}
