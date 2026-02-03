@@ -2,7 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.tsx";
-import { authProviderManager, GoogleAuthProvider, HyliAppAuthProvider, NodeService, IndexerService } from "hyli-wallet";
+import { authProviderManager, GoogleAuthProvider, NodeService, IndexerService } from "hyli-wallet";
 import { ConfigService } from "./services/ConfigService.ts";
 
 // Initialize SDK services and register Google provider if configured
@@ -11,20 +11,11 @@ import { ConfigService } from "./services/ConfigService.ts";
         const GOOGLE_CLIENT_ID = ConfigService.getGoogleClientId();
         const NODE_URL = ConfigService.getNodeBaseUrl();
         const INDEXER_URL = ConfigService.getWalletServerBaseUrl();
-        const WS_URL = ConfigService.getApplicationWsUrl();
-        console.log("[Hyli] Config:", { GOOGLE_CLIENT_ID, NODE_URL, INDEXER_URL, WS_URL });
         if (NODE_URL) NodeService.initialize(NODE_URL);
         if (INDEXER_URL) IndexerService.initialize(INDEXER_URL);
 
-        // Register HyliApp provider for QR-based authentication
-        if (WS_URL) {
-            authProviderManager.registerProvider(new HyliAppAuthProvider({ wsUrl: WS_URL }));
-            console.log("[Hyli] HyliApp provider registered with WS URL:", WS_URL);
-        }
-
         if (GOOGLE_CLIENT_ID) {
             authProviderManager.registerProvider(new GoogleAuthProvider(GOOGLE_CLIENT_ID));
-            console.log("[Hyli] Google provider registered");
 
             // Load Google Identity Services and expose a helper to request an ID token
             const loadGsi = () =>

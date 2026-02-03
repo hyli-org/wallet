@@ -49,6 +49,9 @@ pub enum WsInMessage {
         signature: String,    // 64 bytes hex
         #[serde(rename = "publicKey")]
         public_key: String,   // 33 bytes hex (compressed secp256k1)
+        /// Optional username from the mobile app's wallet
+        #[serde(default)]
+        username: Option<String>,
     },
 }
 
@@ -68,6 +71,9 @@ pub enum WsOutMessage {
         signature: String,
         #[serde(rename = "publicKey")]
         public_key: String,
+        /// Optional username from the mobile app's wallet
+        #[serde(skip_serializing_if = "Option::is_none")]
+        username: Option<String>,
     },
     /// Error occurred
     SigningError {
@@ -110,10 +116,6 @@ impl SigningModuleInner {
         origin: String,
         response_tx: mpsc::Sender<WsOutMessage>,
     ) {
-        tracing::info!("=== REGISTERING REQUEST ===");
-        tracing::info!("Request ID: {}", request_id);
-        tracing::info!("Message: {}", message);
-
         let mut requests = self.pending_requests.write().await;
         requests.insert(
             request_id.clone(),
@@ -126,9 +128,6 @@ impl SigningModuleInner {
                 created_at: std::time::Instant::now(),
             },
         );
-
-        tracing::info!("Request registered. Total pending: {}", requests.len());
-        tracing::info!("=== END REGISTERING REQUEST ===");
     }
 
     /// Cancel a pending signing request
@@ -143,34 +142,24 @@ impl SigningModuleInner {
         request_id: &str,
         signature: String,
         public_key: String,
+        username: Option<String>,
     ) -> Result<(), String> {
         let mut requests = self.pending_requests.write().await;
 
-        tracing::info!("Looking for pending request: {}", request_id);
-        tracing::info!("Pending requests count: {}", requests.len());
-
         if let Some(pending) = requests.remove(request_id) {
-            tracing::info!("Found pending request, forwarding to web wallet...");
-
             let response = WsOutMessage::SigningResponse {
                 request_id: request_id.to_string(),
                 signature,
                 public_key,
+                username: username.clone(),
             };
 
             // Send response to web wallet
             match pending.response_tx.send(response).await {
-                Ok(()) => {
-                    tracing::info!("Successfully sent response to web wallet");
-                    Ok(())
-                }
-                Err(e) => {
-                    tracing::error!("Failed to send response to web wallet: {:?}", e);
-                    Err("Failed to send response to web wallet".to_string())
-                }
+                Ok(()) => Ok(()),
+                Err(_) => Err("Failed to send response to web wallet".to_string()),
             }
         } else {
-            tracing::warn!("Request {} not found in pending requests", request_id);
             Err(format!("Request {} not found or expired", request_id))
         }
     }
@@ -249,9 +238,10 @@ async fn handle_ws(ws: WebSocket, state: Arc<SigningModuleInner>) {
                             request_id,
                             signature,
                             public_key,
+                            username,
                         } => {
                             if let Err(e) = state
-                                .submit_signature(&request_id, signature, public_key)
+                                .submit_signature(&request_id, signature, public_key, username)
                                 .await
                             {
                                 let _ = tx
@@ -290,6 +280,9 @@ pub struct SubmitSignatureRequest {
     signature: String,
     #[serde(rename = "publicKey")]
     public_key: String,
+    /// Optional username from the mobile app's wallet
+    #[serde(default)]
+    username: Option<String>,
 }
 
 /// HTTP response for submitting a signature
@@ -305,15 +298,8 @@ async fn submit_signature_handler(
     State(state): State<Arc<SigningModuleInner>>,
     Json(payload): Json<SubmitSignatureRequest>,
 ) -> impl IntoResponse {
-    // Debug logging
-    tracing::info!("=== CALLBACK DEBUG ===");
-    tracing::info!("Received requestId: {}", payload.request_id);
-    tracing::info!("Received signature: {} ({} chars)", payload.signature, payload.signature.len());
-    tracing::info!("Received publicKey: {} ({} chars)", payload.public_key, payload.public_key.len());
-    tracing::info!("=== END CALLBACK DEBUG ===");
-
     match state
-        .submit_signature(&payload.request_id, payload.signature, payload.public_key)
+        .submit_signature(&payload.request_id, payload.signature, payload.public_key, payload.username)
         .await
     {
         Ok(()) => (
@@ -378,8 +364,6 @@ impl Module for SigningModule {
                 guard.replace(router.merge(api));
             }
         }
-
-        tracing::info!("Signing module initialized at /signing");
 
         Ok(Self {
             bus: SigningModuleBusClient::new_from_bus(bus.new_handle()).await,

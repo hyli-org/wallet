@@ -66,22 +66,7 @@ impl Default for Wallet {
 impl TxExecutorHandler for Wallet {
     type Contract = Self;
     fn build_commitment_metadata(&self, blob: &Blob) -> anyhow::Result<Vec<u8>> {
-        // Debug: log the blob data
-        let preview: Vec<u8> = blob.data.0.iter().take(64).cloned().collect();
-        eprintln!(
-            "build_commitment_metadata: blob contract={:?} len={} first_64={:02x?}",
-            blob.contract_name.0,
-            blob.data.0.len(),
-            preview
-        );
-
         let wallet_action: Result<WalletAction, _> = WalletAction::from_blob_data(&blob.data);
-
-        // Debug: log parsing result
-        match &wallet_action {
-            Ok(action) => eprintln!("Parsed WalletAction: {:?}", action),
-            Err(e) => eprintln!("Failed to parse WalletAction: {:?}", e),
-        }
 
         let zk_view = match wallet_action {
             Ok(wallet_action) => match wallet_action {
@@ -99,13 +84,7 @@ impl TxExecutorHandler for Wallet {
                 | WalletAction::AddSessionKey { account, .. }
                 | WalletAction::RemoveSessionKey { account, .. } => {
                     let mut account_info = self.smt.0.get(&AccountInfo::compute_key(&account))?;
-                    eprintln!(
-                        "SMT account_info before: identity={:?} auth_method={:?}",
-                        account_info.identity,
-                        account_info.auth_method
-                    );
                     account_info.identity = account.clone();
-                    eprintln!("Setting identity to: {:?}", account);
                     WalletZkView {
                         commitment: self.get_state_commitment(),
                         invite_code_public_key: self.invite_code_public_key,
@@ -132,12 +111,6 @@ impl TxExecutorHandler for Wallet {
         };
 
         let serialized = borsh::to_vec(&zk_view).context("Failed to serialize WalletZkView for commitment metadata")?;
-
-        // Debug: verify round-trip
-        match borsh::from_slice::<WalletZkView>(&serialized) {
-            Ok(rt) => eprintln!("Round-trip OK, partial_data len={}", rt.partial_data.len()),
-            Err(e) => eprintln!("Round-trip FAILED: {:?}", e),
-        }
 
         Ok(serialized)
     }
