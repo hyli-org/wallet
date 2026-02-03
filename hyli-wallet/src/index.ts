@@ -2,7 +2,7 @@ export { HyliWallet } from "./components/HyliWallet";
 export { GoogleAuthProvider, type GoogleAuthCredentials } from "./providers/GoogleAuthProvider";
 export { EthereumWalletAuthProvider, type EthereumWalletAuthCredentials } from "./providers/EthereumWalletAuthProvider";
 export { PasswordAuthProvider, type PasswordAuthCredentials } from "./providers/PasswordAuthProvider";
-export { HyliAppAuthProvider, type HyliAppAuthCredentials, type QRConnectionResult } from "./providers/HyliAppAuthProvider";
+export { HyliAppAuthProvider, type HyliAppAuthCredentials } from "./providers/HyliAppAuthProvider";
 export type { AuthProvider } from "./providers/BaseAuthProvider";
 export {
     authProviderManager,
@@ -37,5 +37,4 @@ export {
 } from "./providers/ethereumProviders";
 export { getAuthErrorMessage } from "./utils/errorMessages";
 export * as WalletOperations from "./services/WalletOperations";
-export { qrSigningService, QRSigningService, type QRSigningRequest, type QRSigningResponse } from "./services/QRSigningService";
 export { verifyEd25519Signature, ed25519PublicKeyToHex, hexToEd25519PublicKey, hexToEd25519Signature } from "./utils/ed25519";

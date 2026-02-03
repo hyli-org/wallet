@@ -159,7 +159,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
         const initConfig = async () => {
             ConfigService.initialize(config);
             NodeService.initialize(config.nodeBaseUrl);
-            IndexerService.initialize(config.indexerBaseUrl);
+            IndexerService.initialize(config.walletServerBaseUrl);
             initializeEthereumProviders();
             checkWalletExists();
         };
@@ -470,7 +470,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
         sessionKeyConfig: effectiveSessionKeyConfig,
         onWalletEvent,
         onError,
-        forceSessionKey, // Pass forceSessionKey to internal context
+        forceSessionKey,
     };
 
     return (
