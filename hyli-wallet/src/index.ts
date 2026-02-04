@@ -36,4 +36,3 @@ export {
 } from "./providers/ethereumProviders";
 export { getAuthErrorMessage } from "./utils/errorMessages";
 export * as WalletOperations from "./services/WalletOperations";
-export { verifyEd25519Signature, ed25519PublicKeyToHex, hexToEd25519PublicKey, hexToEd25519Signature } from "./utils/ed25519";
