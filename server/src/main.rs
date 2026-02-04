@@ -33,7 +33,6 @@ mod conf;
 mod history;
 mod init;
 mod sdk_wallet;
-mod signing;
 mod invites {
     pub mod invite;
 }
@@ -254,13 +253,6 @@ async fn actual_main() -> Result<()> {
             })
             .await?;
     }
-
-    // Signing module for QR code signing flow with mobile apps
-    handler
-        .build_module::<signing::SigningModule>(signing::SigningModuleCtx {
-            api_ctx: api_ctx.clone(),
-        })
-        .await?;
 
     handler
         .build_module::<AdminApi>(AdminApiRunContext::new(
