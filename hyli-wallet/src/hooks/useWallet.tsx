@@ -19,7 +19,7 @@ import { sessionKeyService } from "../services/SessionKeyService";
 import { findEthereumProviderByUuid, initializeEthereumProviders } from "../providers/ethereumProviders";
 import { EIP1193Provider } from "mipd";
 
-export type ProviderOption = "password" | "google" | "ethereum" | "github" | "x" | "hyliapp";
+export type ProviderOption = "password" | "google" | "ethereum" | "github" | "x";
 
 export interface WalletContextType {
     wallet: Wallet | null;

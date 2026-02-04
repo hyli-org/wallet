@@ -8,7 +8,6 @@ import "./AuthForm.css";
 import type { GoogleAuthCredentials } from "../../providers/GoogleAuthProvider";
 import type { EthereumWalletAuthCredentials } from "../../providers/EthereumWalletAuthProvider";
 import type { PasswordAuthCredentials } from "../../providers/PasswordAuthProvider";
-import type { HyliAppAuthCredentials } from "../../providers/HyliAppAuthProvider";
 
 type AuthStage =
     | "idle" // Initial state, no authentication in progress
@@ -80,8 +79,7 @@ function getRandomSalt() {
 type FormCredentials =
     | (PasswordAuthCredentials & { inviteCode: string })
     | (GoogleAuthCredentials & { inviteCode: string })
-    | (EthereumWalletAuthCredentials & { inviteCode: string })
-    | (HyliAppAuthCredentials & { inviteCode: string });
+    | (EthereumWalletAuthCredentials & { inviteCode: string });
 
 export const AuthForm: React.FC<AuthFormProps> = ({
     provider,
@@ -100,7 +98,6 @@ export const AuthForm: React.FC<AuthFormProps> = ({
     const isGoogle = providerType === "google";
     const isEthereum = providerType === "ethereum";
     const isPassword = providerType === "password";
-    const isHyliApp = providerType === "hyliapp";
 
     const createInitialCredentials = (): FormCredentials => {
         const defaultInvite = isLocalhost ? "vip" : "";
@@ -118,13 +115,6 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                 inviteCode: defaultInvite,
                 type: "ethereum",
                 providerId: ethereumProviderId,
-            } as FormCredentials;
-        }
-        if (isHyliApp) {
-            return {
-                username: "bob",
-                inviteCode: defaultInvite,
-                type: "hyliapp",
             } as FormCredentials;
         }
         return {
@@ -154,9 +144,6 @@ export const AuthForm: React.FC<AuthFormProps> = ({
         }
         if (isEthereum) {
             return mode === "login" ? "Sign with Ethereum Wallet" : "Create with Ethereum Wallet";
-        }
-        if (isHyliApp) {
-            return mode === "login" ? "Sign with Hyli App" : "Create with Hyli App";
         }
         return mode === "login" ? "Login" : "Create Account";
     };

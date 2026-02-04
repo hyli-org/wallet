@@ -48,29 +48,7 @@ impl sdk::TransactionalZkContract for WalletZkView {
 
 impl sdk::ZkContract for WalletZkView {
     fn execute(&mut self, calldata: &sdk::Calldata) -> RunResult {
-        // Debug: find wallet blob and try to parse with better error
-        let wallet_blob = calldata
-            .blobs
-            .iter()
-            .find(|(_, b)| b.contract_name.0 == "wallet")
-            .map(|(_, b)| &b.data);
-
-        let (action, ctx) = match sdk::utils::parse_raw_calldata::<WalletAction>(calldata) {
-            Ok(result) => result,
-            Err(e) => {
-                let debug_info = if let Some(blob) = wallet_blob {
-                    let preview: Vec<u8> = blob.0.iter().take(64).cloned().collect();
-                    format!(
-                        "wallet blob len={} first_64_bytes={:02x?}",
-                        blob.0.len(),
-                        preview
-                    )
-                } else {
-                    "no wallet blob found".to_string()
-                };
-                return Err(format!("Failed to parse WalletAction: {e}. Debug: {debug_info}"));
-            }
-        };
+        let (action, ctx) = sdk::utils::parse_raw_calldata::<WalletAction>(calldata)?;
 
         if let WalletAction::UpdateInviteCodePublicKey {
             invite_code_public_key,
