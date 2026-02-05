@@ -2,6 +2,7 @@ export interface WalletConfig {
     walletServerBaseUrl: string;
     applicationWsUrl: string;
     nodeBaseUrl: string;
+    indexerBaseUrl: string;
 }
 
 export class ConfigService {
