@@ -225,16 +225,12 @@ impl AuthMethod {
             return Err("Invalid check_jwt blob size".to_string());
         };
 
-        // Parse ASCII digits directly without UTF-8 validation
-        let mut nonce: u128 = 0;
-        for &byte in nonce_bytes {
-            if !byte.is_ascii_digit() {
-                return Err(format!(
-                    "Invalid nonce byte: {byte:#x}, expected ASCII digit"
-                ));
-            }
-            nonce = nonce * 10 + (byte - b'0') as u128;
-        }
+        let nonce_str =
+            std::str::from_utf8(nonce_bytes).map_err(|e| format!("Invalid nonce bytes: {e}"))?;
+
+        let nonce: u128 = nonce_str
+            .parse()
+            .map_err(|e| format!("Invalid nonce '{nonce_str}': {e}"))?;
 
         Ok((mail_hash, nonce))
     }
