@@ -110,7 +110,8 @@ impl TxExecutorHandler for Wallet {
             }
         };
 
-        let serialized = borsh::to_vec(&zk_view).context("Failed to serialize WalletZkView for commitment metadata")?;
+        let serialized = borsh::to_vec(&zk_view)
+            .context("Failed to serialize WalletZkView for commitment metadata")?;
 
         Ok(serialized)
     }

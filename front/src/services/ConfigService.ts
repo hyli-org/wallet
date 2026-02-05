@@ -41,7 +41,7 @@ export class ConfigService {
                     : import.meta.env.VITE_WALLET_WS_URL || "ws://localhost:3000",
                 indexerBaseUrl: isValidUrl(runtimeConfig?.INDEXER_BASE_URL)
                     ? runtimeConfig.INDEXER_BASE_URL
-                    : import.meta.env.VITE_INDEXER_BASE_URL || "http://localhost:8080",
+                    : import.meta.env.VITE_INDEXER_BASE_URL || "http://localhost:4321",
                 txExplorerUrl: stripTrailingSlash(
                     (isValidUrl(runtimeConfig?.TX_EXPLORER_URL)
                         ? runtimeConfig.TX_EXPLORER_URL

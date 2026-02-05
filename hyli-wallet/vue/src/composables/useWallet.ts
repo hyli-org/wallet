@@ -123,7 +123,7 @@ export const useWalletInternal = () => {
     watchEffect(() => {
         ConfigService.initialize(config.value);
         NodeService.initialize(config.value.nodeBaseUrl);
-        IndexerService.initialize(config.value.indexerBaseUrl);
+        IndexerService.initialize(config.value.walletServerBaseUrl);
         authProviderManager.registerDefaultProviders(config.value.providers);
         initializeEthereumProviders();
     });

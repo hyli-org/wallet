@@ -229,7 +229,9 @@ impl AuthMethod {
         let mut nonce: u128 = 0;
         for &byte in nonce_bytes {
             if !byte.is_ascii_digit() {
-                return Err(format!("Invalid nonce byte: {byte:#x}, expected ASCII digit"));
+                return Err(format!(
+                    "Invalid nonce byte: {byte:#x}, expected ASCII digit"
+                ));
             }
             nonce = nonce * 10 + (byte - b'0') as u128;
         }
