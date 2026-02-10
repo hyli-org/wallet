@@ -41,7 +41,7 @@ function AppContent() {
 
     return (
         <>
-            {!wallet && <WalletShowcase providers={["password", "google", "ethereum", "github", "hyliapp"]} />}
+            {!wallet && <WalletShowcase providers={["password", "google", "ethereum", "github"]} />}
             {wallet && (
                 <Routes>
                     {allRoutes.map((route) => (
@@ -71,7 +71,6 @@ export default function App() {
                         nodeBaseUrl: ConfigService.getNodeBaseUrl(),
                         walletServerBaseUrl: ConfigService.getWalletServerBaseUrl(),
                         applicationWsUrl: ConfigService.getApplicationWsUrl(),
-                        indexerBaseUrl: ConfigService.getIndexerBaseUrl(),
                     }}
                     sessionKeyConfig={{
                         duration: 60 * 60 * 1000, // 1 hour
