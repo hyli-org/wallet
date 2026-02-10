@@ -205,7 +205,10 @@ pub enum AuthMethod {
     // Special "0" value to indicate uninitialized wallet - second for retrocomp
     #[default]
     Uninitialized,
-    // Other authentication methods can be added here
+    // HyliApp authentication (for HyliApp and similar)
+    HyliApp {
+        address: String, // Hex-encoded address derived from secp256k1 public key
+    },
 }
 
 impl AuthMethod {
@@ -214,16 +217,14 @@ impl AuthMethod {
             return Err("Invalid check_jwt blob size".to_string());
         };
 
-        // Skip one byte and take the next 16 bytes of rest that represent the nonce
+        // Skip one byte and take the next 13 bytes of rest that represent the nonce
         let Some((_, rest)) = rest.split_first() else {
             return Err("Invalid check_jwt blob size".to_string());
         };
-        // TODO: should be 16 bytes padded
         let Some((nonce_bytes, _)): Option<(&[u8; 13], &[u8])> = rest.split_first_chunk() else {
             return Err("Invalid check_jwt blob size".to_string());
         };
 
-        // Reconstruct the timestamp from the nonce bytes (ascii encoded from left to right)
         let nonce_str =
             std::str::from_utf8(nonce_bytes).map_err(|e| format!("Invalid nonce bytes: {e}"))?;
 
@@ -316,6 +317,44 @@ impl AuthMethod {
                         "Invalid authentication, expected {hash}, got {checked_hash}"
                     ));
                 }
+                Ok("Authentication successful".to_string())
+            }
+
+            AuthMethod::HyliApp { address } => {
+                let blob = calldata
+                    .blobs
+                    .get(&BlobIndex(1)) // FIXME: hardcoded index for now
+                    .ok_or("Invalid blob index for secp256k1")?;
+                let secp256k1blob: Secp256k1Blob = borsh::from_slice(&blob.data.0)
+                    .map_err(|e| format!("Failed to decode Secp256k1Blob: {e}"))?;
+
+                let identity = &calldata.identity;
+
+                // For HyliApp (HyliApp), the message format is: "{identity}:{nonce}:hyliapp"
+                let expected_message = format!("{identity}:{wallet_blob_nonce}:hyliapp");
+
+                let digest: [u8; 32] = Sha256::digest(expected_message.as_bytes()).into();
+                if secp256k1blob.data != digest {
+                    return Err(format!(
+                        "Invalid signature data, expected {} got {}, expected_message was: {expected_message}, nonce is {wallet_blob_nonce}",
+                        hex::encode(digest),
+                        hex::encode(secp256k1blob.data)
+                    ));
+                }
+
+                let public_key = utils::parse_public_key(&secp256k1blob.public_key)?;
+
+                // Derive address from public key using SHA256 and take first 20 bytes
+                let pubkey_hash = Sha256::digest(&public_key.serialize());
+                let derived_address_hex = hex::encode(&pubkey_hash[..20]);
+                let expected_address = address.trim_start_matches("0x").to_lowercase();
+
+                if derived_address_hex != expected_address {
+                    return Err(format!(
+                        "Invalid address: expected {address}, derived {derived_address_hex}",
+                    ));
+                }
+
                 Ok("Authentication successful".to_string())
             }
         }
@@ -642,18 +681,17 @@ mod tests {
     #[test]
     fn test_blob_data_decode() {
         let time = 1672531199000u128; // Example timestamp in milliseconds
-        let ascii_time_0padded_at_the_end = format!("{time:0>13}");
+        let ascii_time_0padded = format!("{time:0>13}");
 
-        println!("ascii_time_0padded_at_the_end: {ascii_time_0padded_at_the_end}");
         let hash32bytes = [1u8; 32]; // Example 32-byte hash
 
-        // separate the 32 bytes of hash and 16 bytes of timestamp with : character
+        // 32 bytes hash + ":" separator + 13 bytes ASCII timestamp
         let blob_data = sdk::BlobData(
             [
                 hash32bytes.as_slice(),
                 b":",
-                ascii_time_0padded_at_the_end.as_bytes(),
-                // add some extra junk bytes to ensure we only read the first 48 bytes
+                ascii_time_0padded.as_bytes(),
+                // add some extra junk bytes to ensure we only read the first 46 bytes
                 b"ejb",
             ]
             .concat(),

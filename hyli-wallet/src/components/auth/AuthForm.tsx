@@ -301,6 +301,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
         }
         setIsSubmitting(true);
         setStage("sending_blob");
+
         const authAction = async (provider: ProviderOption, submittedCredentials: FormCredentials) => {
             console.log("[Hyli][AuthForm] submit", {
                 provider,

@@ -11,12 +11,11 @@ import { ConfigService } from "./services/ConfigService.ts";
         const GOOGLE_CLIENT_ID = ConfigService.getGoogleClientId();
         const NODE_URL = ConfigService.getNodeBaseUrl();
         const INDEXER_URL = ConfigService.getWalletServerBaseUrl();
-        console.log("[Hyli] Config:", { GOOGLE_CLIENT_ID, NODE_URL, INDEXER_URL });
         if (NODE_URL) NodeService.initialize(NODE_URL);
         if (INDEXER_URL) IndexerService.initialize(INDEXER_URL);
+
         if (GOOGLE_CLIENT_ID) {
             authProviderManager.registerProvider(new GoogleAuthProvider(GOOGLE_CLIENT_ID));
-            console.log("[Hyli] Google provider registered");
 
             // Load Google Identity Services and expose a helper to request an ID token
             const loadGsi = () =>

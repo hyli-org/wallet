@@ -1,5 +1,6 @@
 import { Blob, IndexerApiHttpClient } from "hyli";
 import { AuthMethod, walletContractName } from "../types/wallet";
+import { ConfigService } from "./ConfigService";
 
 export interface BackendSessionKey {
     key: string;
@@ -10,6 +11,7 @@ export interface BackendSessionKey {
 
 export interface AccountInfo {
     account: string;
+    username: string;
     auth_method: AuthMethod;
     session_keys: BackendSessionKey[];
     nonce: number;
@@ -38,16 +40,18 @@ export class IndexerService {
         return IndexerService.instance;
     }
 
-    async getAccountInfo(address: string): Promise<AccountInfo> {
+    async getAccountInfo(username: string): Promise<AccountInfo> {
         const response = await this.client.get<AccountInfo>(
-            `v1/indexer/contract/${walletContractName}/account/${address}`,
-            `Fetching "${address}" account`
+            `v1/indexer/contract/${walletContractName}/account/${username}`,
+            `Fetching "${username}" account`
         );
-        return response;
+        return { ...response, username };
     }
 
     async claimInviteCode(code: string, wallet: string): Promise<Blob> {
-        const response = await fetch(`${this.url}/api/consume_invite`, {
+        // Use wallet server URL for invite code endpoint (not indexer)
+        const walletServerUrl = ConfigService.getConfig().walletServerBaseUrl;
+        const response = await fetch(`${walletServerUrl}/api/consume_invite`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

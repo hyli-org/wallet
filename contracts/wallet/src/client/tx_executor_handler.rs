@@ -67,6 +67,7 @@ impl TxExecutorHandler for Wallet {
     type Contract = Self;
     fn build_commitment_metadata(&self, blob: &Blob) -> anyhow::Result<Vec<u8>> {
         let wallet_action: Result<WalletAction, _> = WalletAction::from_blob_data(&blob.data);
+
         let zk_view = match wallet_action {
             Ok(wallet_action) => match wallet_action {
                 WalletAction::UpdateInviteCodePublicKey { .. } => WalletZkView {
@@ -108,7 +109,11 @@ impl TxExecutorHandler for Wallet {
                 }
             }
         };
-        borsh::to_vec(&zk_view).context("Failed to serialize WalletZkView for commitment metadata")
+
+        let serialized = borsh::to_vec(&zk_view)
+            .context("Failed to serialize WalletZkView for commitment metadata")?;
+
+        Ok(serialized)
     }
 
     fn merge_commitment_metadata(
@@ -217,6 +222,11 @@ impl Wallet {
             .get(account)
             .cloned()
             .ok_or_else(|| anyhow::anyhow!("Salt for account {account} not found"))
+    }
+
+    /// Returns an iterator over all accounts in the wallet
+    pub fn iter_accounts(&self) -> impl Iterator<Item = &AccountInfo> {
+        self.smt.0.store().leaves_map().values()
     }
 
     fn handle_action(

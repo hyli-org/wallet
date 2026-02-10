@@ -77,6 +77,7 @@ export interface WalletProviderProps {
         nodeBaseUrl: string;
         walletServerBaseUrl: string;
         applicationWsUrl: string;
+        indexerBaseUrl: string;
     };
     sessionKeyConfig?: {
         duration: number; // ms
@@ -469,7 +470,7 @@ export const WalletProvider: React.FC<React.PropsWithChildren<WalletProviderProp
         sessionKeyConfig: effectiveSessionKeyConfig,
         onWalletEvent,
         onError,
-        forceSessionKey, // Pass forceSessionKey to internal context
+        forceSessionKey,
     };
 
     return (
