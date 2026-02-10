@@ -19,7 +19,7 @@
         "elliptic": "^6.6.1",
         "hyli": "^0.3.0",
         "hyli-noir": "^0.3.0",
-        "hyli-wallet": "file:../hyli-wallet",
+        "hyli-wallet": "^0.5.20-rc1",
         "react": "^19.2.0",
         "react-dom": "^19.2.0",
         "react-router-dom": "^7.9.5",
