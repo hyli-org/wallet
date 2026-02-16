@@ -23,9 +23,10 @@ use client_sdk::contract_indexer::{
     },
     utoipa::{openapi::OpenApi, ToSchema},
     utoipa_axum::{router::OpenApiRouter, routes},
-    AppError, ContractHandler, ContractHandlerStore,
+    ContractHandler, ContractHandlerStore,
 };
 use client_sdk::transaction_builder::TxExecutorHandler;
+use client_sdk::AppError;
 use sdk::utils::parse_calldata;
 use sdk::Identity;
 use sdk::TxHash;

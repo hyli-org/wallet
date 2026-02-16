@@ -19,7 +19,7 @@ hex = { version = "0.4.3" }
 
 sdk = { workspace = true, features = ["tracing", "smt"] }
 client-sdk = { workspace = true, default-features = false, features = [
-  "indexer",
+  "csi",
   "rest",
 ], optional = true }
 hyli-modules = { workspace = true, optional = true }

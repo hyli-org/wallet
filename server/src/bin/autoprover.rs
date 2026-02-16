@@ -5,7 +5,7 @@ use axum::Router;
 use clap::Parser;
 use client_sdk::{helpers::risc0::Risc0Prover, rest_client::NodeApiHttpClient};
 use hyli_modules::{
-    bus::{metrics::BusMetrics, SharedMessageBus},
+    bus::SharedMessageBus,
     modules::{
         admin::{AdminApi, AdminApiRunContext},
         block_processor::NodeStateBlockProcessor,
@@ -38,18 +38,15 @@ async fn main() -> Result<()> {
     .context("setting up tracing")?;
     let config = Arc::new(config);
 
-    let registry = hyli_modules::telemetry::init_prometheus_registry_meter_provider()
-        .context("starting prometheus exporter")?;
-
     info!("Starting autoprover with config: {:?}", &config);
 
     let node_client =
         Arc::new(NodeApiHttpClient::new(config.node_url.clone()).context("build node client")?);
 
-    let bus = SharedMessageBus::new(BusMetrics::global());
+    let bus = SharedMessageBus::new();
     std::fs::create_dir_all(&config.data_directory).context("creating data directory")?;
 
-    let mut handler = ModulesHandler::new(&bus, config.data_directory.clone()).await;
+    let mut handler = ModulesHandler::new(&bus, config.data_directory.clone())?;
     let api_ctx = Arc::new(BuildApiContextInner {
         router: Mutex::new(Some(Router::new())),
         openapi: Default::default(),
@@ -112,7 +109,6 @@ async fn main() -> Result<()> {
         .build_module::<RestApi>(RestApiRunContext {
             port: config.rest_server_port,
             max_body_size: config.rest_server_max_body_size,
-            registry,
             router,
             openapi,
             info: NodeInfo {

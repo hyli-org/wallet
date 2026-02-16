@@ -1,7 +1,7 @@
 use anyhow::Result;
 use axum::{extract::State, routing::post, Json, Router};
 use chrono::NaiveDateTime;
-use client_sdk::contract_indexer::AppError;
+use client_sdk::AppError;
 use hyli_modules::log_error;
 use hyli_modules::modules::BuildApiContextInner;
 use hyli_modules::{

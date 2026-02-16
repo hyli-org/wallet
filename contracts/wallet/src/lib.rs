@@ -345,7 +345,7 @@ impl AuthMethod {
                 let public_key = utils::parse_public_key(&secp256k1blob.public_key)?;
 
                 // Derive address from public key using SHA256 and take first 20 bytes
-                let pubkey_hash = Sha256::digest(&public_key.serialize());
+                let pubkey_hash = &public_key.serialize();
                 let derived_address_hex = hex::encode(&pubkey_hash[..20]);
                 let expected_address = address.trim_start_matches("0x").to_lowercase();
 

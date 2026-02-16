@@ -11,9 +11,10 @@ use client_sdk::{
         },
         utoipa::{openapi::OpenApi, ToSchema},
         utoipa_axum::{router::OpenApiRouter, routes},
-        AppError, ContractHandler, ContractHandlerStore,
+        ContractHandler, ContractHandlerStore,
     },
     transaction_builder::TxExecutorHandler,
+    AppError,
 };
 use hyli_modules::bus::BusMessage;
 use sdk::{tracing, Hashed};

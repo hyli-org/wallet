@@ -7,7 +7,7 @@ use conf::Conf;
 use history::{HistoryEvent, TokenHistory};
 use hyli_modules::modules::admin::{AdminApi, AdminApiRunContext};
 use hyli_modules::{
-    bus::{metrics::BusMetrics, SharedMessageBus},
+    bus::SharedMessageBus,
     modules::{
         block_processor::NodeStateBlockProcessor,
         contract_state_indexer::{ContractStateIndexer, ContractStateIndexerCtx},
@@ -96,9 +96,6 @@ async fn actual_main() -> Result<()> {
         std::fs::remove_dir_all(&config.data_directory).context("cleaning data directory")?;
     }
 
-    let registry = hyli_modules::telemetry::init_prometheus_registry_meter_provider()
-        .context("starting prometheus exporter")?;
-
     info!("Starting app with config: {:?}", &config);
 
     let node_client =
@@ -106,11 +103,11 @@ async fn actual_main() -> Result<()> {
 
     let wallet_cn: ContractName = args.wallet_cn.clone().into();
 
-    let bus = SharedMessageBus::new(BusMetrics::global());
+    let bus = SharedMessageBus::new();
 
     std::fs::create_dir_all(&config.data_directory).context("creating data directory")?;
 
-    let mut handler = ModulesHandler::new(&bus, config.data_directory.clone()).await;
+    let mut handler = ModulesHandler::new(&bus, config.data_directory.clone())?;
 
     let api_ctx = Arc::new(BuildApiContextInner {
         router: Mutex::new(Some(Router::new())),
@@ -282,7 +279,6 @@ async fn actual_main() -> Result<()> {
         .build_module::<RestApi>(RestApiRunContext {
             port: args.server_port.unwrap_or(config.rest_server_port),
             max_body_size: config.rest_server_max_body_size,
-            registry,
             router,
             openapi,
             info: NodeInfo {
