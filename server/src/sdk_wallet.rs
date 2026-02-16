@@ -2,16 +2,13 @@ use crate::app::WalletModule;
 use crate::app::WalletModuleCtx;
 use crate::init::init_node;
 use crate::init::ContractInit;
-use crate::new_wallet;
-use client_sdk::helpers::risc0::Risc0Prover;
 use client_sdk::transaction_builder::TxExecutorHandler;
+use server::new_wallet;
 
 use client_sdk::rest_client::NodeApiClient;
 use hyli_modules::modules::contract_state_indexer::{
     ContractStateIndexer, ContractStateIndexerCtx,
 };
-use hyli_modules::modules::prover::AutoProver;
-use hyli_modules::modules::prover::AutoProverCtx;
 use hyli_modules::modules::BuildApiContextInner;
 use hyli_modules::modules::ModulesHandler;
 use sdk::ContractName;
@@ -25,10 +22,6 @@ pub(crate) struct SdkWalletConfig {
     pub wallet_cn: ContractName,
     pub data_directory: PathBuf,
     pub noinit: bool,
-    pub auto_prove: bool,
-    pub wallet_buffer_blocks: u32,
-    pub wallet_max_txs_per_proof: usize,
-    pub wallet_tx_working_window_size: usize,
 }
 
 pub(crate) async fn setup_wallet_modules(
@@ -58,41 +51,18 @@ pub(crate) async fn setup_wallet_modules(
 
     let app_ctx = Arc::new(WalletModuleCtx {
         api: api_ctx.clone(),
-        node_client,
         wallet_cn: config.wallet_cn.clone(),
     });
 
-    handler
-        .build_module::<WalletModule>(app_ctx.clone())
-        .await?;
+    handler.build_module::<WalletModule>(app_ctx).await?;
 
     handler
         .build_module::<ContractStateIndexer<Wallet, WalletEvent>>(ContractStateIndexerCtx {
             contract_name: config.wallet_cn.clone(),
             data_directory: config.data_directory.clone(),
-            api: api_ctx.clone(),
+            api: api_ctx,
         })
         .await?;
-
-    if config.auto_prove {
-        // Wallet auto prover
-        handler
-            .build_module::<AutoProver<Wallet, Risc0Prover>>(Arc::new(AutoProverCtx {
-                data_directory: config.data_directory.clone(),
-                prover: Arc::new(Risc0Prover::new(
-                    contracts::WALLET_ELF.to_vec(),
-                    contracts::WALLET_ID,
-                )),
-                contract_name: config.wallet_cn.clone(),
-                node: app_ctx.node_client.clone(),
-                default_state: wallet.clone(),
-                buffer_blocks: config.wallet_buffer_blocks,
-                max_txs_per_proof: config.wallet_max_txs_per_proof,
-                tx_working_window_size: config.wallet_tx_working_window_size,
-                api: Some(api_ctx.clone()),
-            }))
-            .await?;
-    }
 
     Ok(())
 }

@@ -10,15 +10,22 @@ admin_server_port = 4001
 admin_server_max_body_size = 10_485_760 # 10 MB
 node_url = "http://localhost:4321"
 
-wallet_buffer_blocks = 0
+wallet_auto_prover = false
 wallet_max_txs_per_proof = 100
 wallet_tx_working_window_size = 500
-smt_buffer_blocks = 0
+
+smt_auto_provers = false
 smt_max_txs_per_proof = 30
 smt_tx_working_window_size = 150
 
+auto_prover_listener_poll_interval_secs = 60
+auto_prover_idle_flush_interval_secs = 2
+auto_prover_tx_buffer_size = 5
+
 # Invites
 db_url = "postgres://postgres:postgres@localhost:5432/postgres"
+
+indexer_database_url = "postgresql://postgres:postgres@localhost:5432/hyli_indexer"
 
 [websocket]
 port = 8081

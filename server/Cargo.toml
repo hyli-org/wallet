@@ -7,7 +7,7 @@ sdk = { workspace = true, features = ["tracing"] }
 client-sdk = { workspace = true, features = ["risc0", "rest", "csi"] }
 wallet = { workspace = true, features = ["client"] }
 hyli-smt-token = { workspace = true, features = ["client"] }
-hyli-modules = { workspace = true, features = ["indexer"] }
+hyli-modules = { workspace = true, features = ["db", "indexer"] }
 hyli-turmoil-shims = { workspace = true }
 # Remove features if you want reproducible builds with docker
 contracts = { workspace = true, features = ["all"] }

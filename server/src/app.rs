@@ -8,7 +8,6 @@ use axum::{
     routing::get,
     Router,
 };
-use client_sdk::rest_client::NodeApiClient;
 use hyli_modules::{
     bus::{BusClientSender, BusMessage, SharedMessageBus},
     module_bus_client, module_handle_messages,
@@ -31,7 +30,6 @@ pub struct WalletModule {
 
 pub struct WalletModuleCtx {
     pub api: Arc<BuildApiContextInner>,
-    pub node_client: Arc<dyn NodeApiClient + Send + Sync>,
     pub wallet_cn: ContractName,
 }
 

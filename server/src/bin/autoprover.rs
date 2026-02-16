@@ -1,4 +1,8 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::HashSet,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use anyhow::{Context, Result};
 use axum::Router;
@@ -8,8 +12,7 @@ use hyli_modules::{
     bus::SharedMessageBus,
     modules::{
         admin::{AdminApi, AdminApiRunContext},
-        block_processor::NodeStateBlockProcessor,
-        da_listener::{DAListenerConf, SignedDAListener},
+        contract_listener::{ContractListener, ContractListenerConf},
         prover::{AutoProver, AutoProverCtx},
         rest::{RestApi, RestApiRunContext},
         BuildApiContextInner, ModulesHandler,
@@ -52,21 +55,19 @@ async fn main() -> Result<()> {
         openapi: Default::default(),
     });
 
-    // This module connects to the da_address and receives all the blocks
-    handler
-        .build_module::<SignedDAListener<NodeStateBlockProcessor>>(DAListenerConf {
-            start_block: None,
-            data_directory: config.data_directory.clone(),
-            da_read_from: config.da_read_from.clone(),
-            da_fallback_addresses: vec![],
-            timeout_client_secs: 10,
-            processor_config: (),
-        })
-        .await?;
-
     // Ajout de l'autoprover du wallet
     let wallet_cn: ContractName = "wallet".into();
     let (_, wallet) = new_wallet(&wallet_cn);
+
+    handler
+        .build_module::<ContractListener>(ContractListenerConf {
+            database_url: config.indexer_database_url.clone(),
+            data_directory: config.data_directory.clone(),
+            contracts: HashSet::from([wallet_cn.clone()]),
+            poll_interval: Duration::from_secs(1),
+            replay_settled_from_start: true,
+        })
+        .await?;
     handler
         .build_module::<AutoProver<Wallet, Risc0Prover>>(Arc::new(AutoProverCtx {
             data_directory: config.data_directory.clone(),
@@ -78,9 +79,10 @@ async fn main() -> Result<()> {
             node: node_client.clone(),
             default_state: wallet,
             api: Some(api_ctx.clone()),
-            buffer_blocks: config.wallet_buffer_blocks,
             max_txs_per_proof: config.wallet_max_txs_per_proof,
             tx_working_window_size: config.wallet_tx_working_window_size,
+            idle_flush_interval: Duration::from_secs(60),
+            tx_buffer_size: 5,
         }))
         .await?;
 
