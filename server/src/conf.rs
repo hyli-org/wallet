@@ -14,6 +14,8 @@ pub struct Conf {
     pub da_read_from: String,
     pub node_url: String,
 
+    pub indexer_database_url: String,
+
     pub db_url: String,
 
     pub rest_server_port: u16,
@@ -22,13 +24,17 @@ pub struct Conf {
     pub admin_server_port: u16,
     pub admin_server_max_body_size: usize,
 
-    pub smt_buffer_blocks: u32,
+    pub wallet_auto_prover: bool,
+    pub wallet_max_txs_per_proof: usize,
+    pub wallet_tx_working_window_size: usize,
+
+    pub smt_auto_provers: bool,
     pub smt_max_txs_per_proof: usize,
     pub smt_tx_working_window_size: usize,
 
-    pub wallet_buffer_blocks: u32,
-    pub wallet_max_txs_per_proof: usize,
-    pub wallet_tx_working_window_size: usize,
+    pub auto_prover_listener_poll_interval_secs: u64,
+    pub auto_prover_idle_flush_interval_secs: u64,
+    pub auto_prover_tx_buffer_size: usize,
 
     /// Websocket configuration
     pub websocket: WebSocketConfig,

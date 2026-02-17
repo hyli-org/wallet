@@ -319,7 +319,7 @@ pub async fn get_history(
         .history
         .get(&account)
         .cloned()
-        .map(|history| HistoryResponse {
+        .map(|history: VecDeque<TransactionDetails>| HistoryResponse {
             account: account.0.clone(),
             history: history.into_iter().collect(),
         })

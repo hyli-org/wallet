@@ -2,33 +2,29 @@ use anyhow::{Context, Result};
 use app::{AppOutWsEvent, AppWsInMessage};
 use axum::Router;
 use clap::Parser;
-use client_sdk::{helpers::risc0::Risc0Prover, rest_client::NodeApiHttpClient};
+use client_sdk::rest_client::NodeApiHttpClient;
 use conf::Conf;
 use history::{HistoryEvent, TokenHistory};
 use hyli_modules::modules::admin::{AdminApi, AdminApiRunContext};
 use hyli_modules::{
     bus::SharedMessageBus,
     modules::{
-        block_processor::NodeStateBlockProcessor,
         contract_state_indexer::{ContractStateIndexer, ContractStateIndexerCtx},
-        da_listener::{DAListenerConf, SignedDAListener},
-        prover::{AutoProver, AutoProverCtx},
         rest::{RestApi, RestApiRunContext},
         websocket::WebSocketModule,
         BuildApiContextInner, ModulesHandler,
     },
     utils::logger::setup_tracing,
 };
-use hyli_smt_token::client::tx_executor_handler::SmtTokenProvableState;
 use sdk::{api::NodeInfo, info, ContractName};
-use server::new_wallet;
 use std::sync::{Arc, Mutex};
 
+use crate::app::Wrap;
+use crate::autoprovers::AutoProversConfig;
 use crate::sdk_wallet::SdkWalletConfig;
 
-use crate::app::Wrap;
-
 mod app;
+mod autoprovers;
 mod conf;
 mod history;
 mod init;
@@ -119,10 +115,6 @@ async fn actual_main() -> Result<()> {
             wallet_cn: wallet_cn.clone(),
             noinit: args.noinit,
             data_directory: config.data_directory.clone(),
-            auto_prove: args.wallet_auto_prover,
-            wallet_buffer_blocks: config.wallet_buffer_blocks,
-            wallet_max_txs_per_proof: config.wallet_max_txs_per_proof,
-            wallet_tx_working_window_size: config.wallet_tx_working_window_size,
         },
         &mut handler,
         api_ctx.clone(),
@@ -130,6 +122,28 @@ async fn actual_main() -> Result<()> {
     )
     .await
     .context("initializing wallet modules")?;
+
+    autoprovers::setup_autoprovers_modules(
+        &AutoProversConfig {
+            wallet_cn: wallet_cn.clone(),
+            wallet_auto_prove: config.wallet_auto_prover || args.wallet_auto_prover,
+            smt_auto_prove: config.smt_auto_provers || args.auto_provers,
+            data_directory: config.data_directory.clone(),
+            indexer_database_url: config.indexer_database_url.clone(),
+            smt_max_txs_per_proof: config.smt_max_txs_per_proof,
+            smt_tx_working_window_size: config.smt_tx_working_window_size,
+            wallet_max_txs_per_proof: config.wallet_max_txs_per_proof,
+            wallet_tx_working_window_size: config.wallet_tx_working_window_size,
+            listener_poll_interval_secs: config.auto_prover_listener_poll_interval_secs,
+            idle_flush_interval_secs: config.auto_prover_idle_flush_interval_secs,
+            tx_buffer_size: config.auto_prover_tx_buffer_size,
+        },
+        &mut handler,
+        api_ctx.clone(),
+        node_client.clone(),
+    )
+    .await
+    .context("initializing autoprover modules")?;
 
     handler
         .build_module::<ContractStateIndexer<TokenHistory, Wrap<Vec<HistoryEvent>>>>(
@@ -162,78 +176,6 @@ async fn actual_main() -> Result<()> {
     handler
         .build_module::<WebSocketModule<AppWsInMessage, AppOutWsEvent>>(config.websocket.clone())
         .await?;
-
-    // This module connects to the da_address and receives all the blocks
-    handler
-        .build_module::<SignedDAListener<NodeStateBlockProcessor>>(DAListenerConf {
-            start_block: None,
-            data_directory: config.data_directory.clone(),
-            da_read_from: config.da_read_from.clone(),
-            da_fallback_addresses: vec![],
-            timeout_client_secs: 10,
-            processor_config: (),
-        })
-        .await?;
-
-    if args.auto_provers {
-        handler
-            .build_module::<AutoProver<SmtTokenProvableState, Risc0Prover>>(Arc::new(
-                AutoProverCtx {
-                    data_directory: config.data_directory.clone(),
-                    prover: Arc::new(Risc0Prover::new(
-                        hyli_smt_token::client::tx_executor_handler::metadata::SMT_TOKEN_ELF
-                            .to_vec(),
-                        hyli_smt_token::client::tx_executor_handler::metadata::PROGRAM_ID,
-                    )),
-                    contract_name: "oranj".into(),
-                    node: node_client.clone(),
-                    default_state: Default::default(),
-                    buffer_blocks: config.smt_buffer_blocks,
-                    max_txs_per_proof: config.smt_max_txs_per_proof,
-                    tx_working_window_size: config.smt_tx_working_window_size,
-                    api: None,
-                },
-            ))
-            .await?;
-        handler
-            .build_module::<AutoProver<SmtTokenProvableState, Risc0Prover>>(Arc::new(
-                AutoProverCtx {
-                    data_directory: config.data_directory.clone(),
-                    prover: Arc::new(Risc0Prover::new(
-                        hyli_smt_token::client::tx_executor_handler::metadata::SMT_TOKEN_ELF
-                            .to_vec(),
-                        hyli_smt_token::client::tx_executor_handler::metadata::PROGRAM_ID,
-                    )),
-                    contract_name: "vitamin".into(),
-                    node: node_client.clone(),
-                    default_state: Default::default(),
-                    buffer_blocks: config.smt_buffer_blocks,
-                    max_txs_per_proof: config.smt_max_txs_per_proof,
-                    tx_working_window_size: config.smt_tx_working_window_size,
-                    api: None,
-                },
-            ))
-            .await?;
-        handler
-            .build_module::<AutoProver<SmtTokenProvableState, Risc0Prover>>(Arc::new(
-                AutoProverCtx {
-                    data_directory: config.data_directory.clone(),
-                    prover: Arc::new(Risc0Prover::new(
-                        hyli_smt_token::client::tx_executor_handler::metadata::SMT_TOKEN_ELF
-                            .to_vec(),
-                        hyli_smt_token::client::tx_executor_handler::metadata::PROGRAM_ID,
-                    )),
-                    contract_name: "oxygen".into(),
-                    node: node_client.clone(),
-                    default_state: Default::default(),
-                    buffer_blocks: config.smt_buffer_blocks,
-                    max_txs_per_proof: config.smt_max_txs_per_proof,
-                    tx_working_window_size: config.smt_tx_working_window_size,
-                    api: None,
-                },
-            ))
-            .await?;
-    }
 
     if args.mock_invites {
         handler
