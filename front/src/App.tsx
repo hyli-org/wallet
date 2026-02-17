@@ -71,6 +71,7 @@ export default function App() {
                         nodeBaseUrl: ConfigService.getNodeBaseUrl(),
                         walletServerBaseUrl: ConfigService.getWalletServerBaseUrl(),
                         applicationWsUrl: ConfigService.getApplicationWsUrl(),
+                        indexerBaseUrl: ConfigService.getIndexerBaseUrl(),
                     }}
                     sessionKeyConfig={{
                         duration: 60 * 60 * 1000, // 1 hour
