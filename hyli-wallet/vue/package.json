@@ -1,6 +1,6 @@
 {
     "name": "hyli-wallet-vue",
-    "version": "0.1.21",
+    "version": "0.1.22",
     "type": "module",
     "main": "./dist/hyli-wallet.cjs.js",
     "module": "./dist/hyli-wallet.es.js",
@@ -26,7 +26,7 @@
         "vue": "^3.5.28"
     },
     "dependencies": {
-        "hyli-wallet": "^0.5.21"
+        "hyli-wallet": "^0.5.22"
     },
     "devDependencies": {
         "@vitejs/plugin-vue": "^6.0.4",

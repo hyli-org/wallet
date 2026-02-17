@@ -5,19 +5,19 @@
     "": {
       "name": "hyli-wallet-vue",
       "dependencies": {
-        "hyli-wallet": "^0.5.19",
+        "hyli-wallet": "^0.5.22",
       },
       "devDependencies": {
-        "@vitejs/plugin-vue": "^6.0.1",
+        "@vitejs/plugin-vue": "^6.0.4",
         "@vue/tsconfig": "^0.8.1",
         "typescript": "^5.9.3",
         "unplugin-dts": "^1.0.0-beta.6",
         "vite": "npm:rolldown-vite@7.1.12",
-        "vite-bundle-analyzer": "^1.2.3",
-        "vue-tsc": "^3.1.2",
+        "vite-bundle-analyzer": "^1.3.6",
+        "vue-tsc": "^3.2.4",
       },
       "peerDependencies": {
-        "vue": "^3.5.22",
+        "vue": "^3.5.28",
       },
     },
   },
@@ -221,7 +221,7 @@
 
     "hyli-noir": ["hyli-noir@0.4.1", "", { "dependencies": { "hyli": "^0.4.1", "noir-jwt": "^0.4.5" }, "peerDependencies": { "@aztec/bb.js": "2.0.3", "@noir-lang/noir_js": "1.0.0-beta.18", "@noir-lang/noir_wasm": "1.0.0-beta.18" } }, "sha512-DLE24AzKFRzbzpe6ZeM5XRyvOA5Mhi4+0air2gqN1rJbalGfavhX4B+rJDrSoQYSmxOznjSQ9NbXsDHTY87jZA=="],
 
-    "hyli-wallet": ["hyli-wallet@0.5.21", "", { "dependencies": { "@noble/hashes": "^2.0.1", "@types/crypto-js": "^4.2.2", "@types/elliptic": "^6.4.18", "@types/react-router-dom": "^5.3.3", "elliptic": "^6.6.1", "hyli": "^0.4.1", "js-sha3": "^0.9.3", "mipd": "^0.0.7" }, "peerDependencies": { "hyli-noir": "^0.4.1", "react": "^19.2.4", "react-dom": "^19.2.4", "react-router-dom": "^7.13.0" } }, "sha512-hlD8IDLi4zSODcjviZNE9kZsVV6zduFru+YDY/UH8iC4+D6db/WuOp3/G/kV7tP8wrT1V2TAajrwDWefC4xXKw=="],
+    "hyli-wallet": ["hyli-wallet@0.5.22", "", { "dependencies": { "@noble/hashes": "^2.0.1", "@types/crypto-js": "^4.2.2", "@types/elliptic": "^6.4.18", "@types/react-router-dom": "^5.3.3", "elliptic": "^6.6.1", "hyli": "^0.4.1", "js-sha3": "^0.9.3", "mipd": "^0.0.7" }, "peerDependencies": { "hyli-noir": "^0.4.1", "react": "^19.2.4", "react-dom": "^19.2.4", "react-router-dom": "^7.13.0" } }, "sha512-8ScjMk4NpGy3i04KaWq9rhc+GxXddZDPPeR953Gh9Pb3uhGEQpQsXKaoHtDe6IhbT7a7atnJeZztNhNRmy+i/A=="],
 
     "idb-keyval": ["idb-keyval@6.2.2", "", {}, "sha512-yjD9nARJ/jb1g+CvD0tlhUHOrJ9Sy0P8T9MF3YaLlHnSRpwPfpTX0XIvpmw3gAJUmEu3FiICLBDPXVwyEvrleg=="],
 

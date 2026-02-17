@@ -81,7 +81,8 @@ export async function hashBlobTransaction(tx: {
     let input = new Uint8Array(identityBytes.length);
     input.set(identityBytes, 0);
     for (const blob of tx.blobs) {
-        const blobHashBytes = new TextEncoder().encode(await hashBlob(blob)); // raw bytes
+        // hashes the raw 32-byte blob digest, not its hex string bytes.
+        const blobHashBytes = hexToBytes(await hashBlob(blob));
         // Concatenate input and blobHashBytes
         const newInput = new Uint8Array(input.length + blobHashBytes.length);
         newInput.set(input, 0);
