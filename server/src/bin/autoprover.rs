@@ -47,9 +47,8 @@ async fn main() -> Result<()> {
         Arc::new(NodeApiHttpClient::new(config.node_url.clone()).context("build node client")?);
 
     let bus = SharedMessageBus::new();
-    std::fs::create_dir_all(&config.data_directory).context("creating data directory")?;
-
     let mut handler = ModulesHandler::new(&bus, config.data_directory.clone())?;
+
     let api_ctx = Arc::new(BuildApiContextInner {
         router: Mutex::new(Some(Router::new())),
         openapi: Default::default(),
