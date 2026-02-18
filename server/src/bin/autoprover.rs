@@ -64,7 +64,7 @@ async fn main() -> Result<()> {
             database_url: config.indexer_database_url.clone(),
             data_directory: config.data_directory.clone(),
             contracts: HashSet::from([wallet_cn.clone()]),
-            poll_interval: Duration::from_secs(1),
+            poll_interval: Duration::from_secs(config.auto_prover_listener_poll_interval_secs),
             replay_settled_from_start: true,
         })
         .await?;
@@ -81,8 +81,8 @@ async fn main() -> Result<()> {
             api: Some(api_ctx.clone()),
             max_txs_per_proof: config.wallet_max_txs_per_proof,
             tx_working_window_size: config.wallet_tx_working_window_size,
-            idle_flush_interval: Duration::from_secs(60),
-            tx_buffer_size: 5,
+            idle_flush_interval: Duration::from_secs(config.auto_prover_idle_flush_interval_secs),
+            tx_buffer_size: config.auto_prover_tx_buffer_size,
         }))
         .await?;
 
