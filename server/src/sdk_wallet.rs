@@ -6,14 +6,17 @@ use client_sdk::transaction_builder::TxExecutorHandler;
 use server::new_wallet;
 
 use client_sdk::rest_client::NodeApiClient;
+use hyli_modules::modules::contract_listener::{ContractListener, ContractListenerConf};
 use hyli_modules::modules::contract_state_indexer::{
     ContractStateIndexer, ContractStateIndexerCtx,
 };
 use hyli_modules::modules::BuildApiContextInner;
 use hyli_modules::modules::ModulesHandler;
 use sdk::ContractName;
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 use tracing::info;
 use wallet::client::indexer::WalletEvent;
 use wallet::client::tx_executor_handler::Wallet;
@@ -22,6 +25,9 @@ pub(crate) struct SdkWalletConfig {
     pub wallet_cn: ContractName,
     pub data_directory: PathBuf,
     pub noinit: bool,
+    pub indexer_database_url: String,
+    pub listener_poll_interval_secs: u64,
+    pub additional_listener_contracts: HashSet<ContractName>,
 }
 
 pub(crate) async fn setup_wallet_modules(
@@ -48,6 +54,19 @@ pub(crate) async fn setup_wallet_modules(
             }
         }
     }
+
+    let mut listener_contracts = HashSet::from([config.wallet_cn.clone()]);
+    listener_contracts.extend(config.additional_listener_contracts.iter().cloned());
+
+    handler
+        .build_module::<ContractListener>(ContractListenerConf {
+            database_url: config.indexer_database_url.clone(),
+            data_directory: config.data_directory.clone(),
+            contracts: listener_contracts,
+            poll_interval: Duration::from_secs(config.listener_poll_interval_secs),
+            replay_settled_from_start: true,
+        })
+        .await?;
 
     let app_ctx = Arc::new(WalletModuleCtx {
         api: api_ctx.clone(),

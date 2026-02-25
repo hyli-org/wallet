@@ -20,7 +20,7 @@ use hyli_modules::{
     utils::logger::setup_tracing,
 };
 use sdk::{api::NodeInfo, info, ContractName};
-use server::{conf::Conf, new_wallet};
+use server::conf::Conf;
 use wallet::client::tx_executor_handler::Wallet;
 
 #[derive(Parser, Debug)]
@@ -56,7 +56,6 @@ async fn main() -> Result<()> {
 
     // Ajout de l'autoprover du wallet
     let wallet_cn: ContractName = "wallet".into();
-    let (_, wallet) = new_wallet(&wallet_cn);
 
     handler
         .build_module::<ContractListener>(ContractListenerConf {
@@ -76,7 +75,6 @@ async fn main() -> Result<()> {
             )),
             contract_name: wallet_cn,
             node: node_client.clone(),
-            default_state: wallet,
             api: Some(api_ctx.clone()),
             max_txs_per_proof: config.wallet_max_txs_per_proof,
             tx_working_window_size: config.wallet_tx_working_window_size,

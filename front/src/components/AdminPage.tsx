@@ -21,7 +21,10 @@ const updateContractTimeoutWindowActionSchema = BorshSchema.Struct({
     contract_name: BorshSchema.String,
     timeout_window: BorshSchema.Enum({
         NoTimeout: BorshSchema.Unit,
-        Timeout: BorshSchema.u64,
+        Timeout: BorshSchema.Struct({
+            hard_timeout: BorshSchema.u64,
+            soft_timeout: BorshSchema.u64,
+        }),
     }),
 });
 
@@ -33,7 +36,13 @@ function serializeUpdateContractTimeoutWindowAction(
     if (!timeout_window || !+timeout_window) {
         timeoutWindow = { NoTimeout: {} };
     } else {
-        timeoutWindow = { Timeout: BigInt(+timeout_window) };
+        const timeout = BigInt(+timeout_window);
+        timeoutWindow = {
+            Timeout: {
+                hard_timeout: timeout,
+                soft_timeout: timeout,
+            },
+        };
     }
     return borshSerialize(updateContractTimeoutWindowActionSchema, {
         contract_name: contractName,
@@ -157,12 +166,12 @@ const AdminPage: React.FC = () => {
                 const action = serializeUpdateContractProgramIdAction(updateContractName, newProgramId);
                 setResult(`UpdateContractProgramIdAction: ${updateContractName} with new ProgramId: ${newProgramId}`);
                 const actionBlob = { contract_name: "hyli", data: Array.from(action) };
-                blobs = [blob0, actionBlob, blob1];
+                blobs = [blob0, blob1, actionBlob];
             } else if (actionType === "update_timeout") {
                 const action = serializeUpdateContractTimeoutWindowAction(timeoutContractName, newTimeout);
                 setResult(`UpdateContractTimeoutWindowAction: ${timeoutContractName} with new Timeout: ${newTimeout}`);
                 const actionBlob = { contract_name: "hyli", data: Array.from(action) };
-                blobs = [blob0, actionBlob, blob1];
+                blobs = [blob0, blob1, actionBlob];
             }
             setStatus(`Sending ${ACTION_LABELS[actionType]} transaction...`);
             const blobTx: BlobTransaction = { identity, blobs };

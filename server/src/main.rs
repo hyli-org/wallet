@@ -17,6 +17,7 @@ use hyli_modules::{
     utils::logger::setup_tracing,
 };
 use sdk::{api::NodeInfo, info, ContractName};
+use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 use crate::app::Wrap;
@@ -98,6 +99,7 @@ async fn actual_main() -> Result<()> {
         Arc::new(NodeApiHttpClient::new(config.node_url.clone()).context("build node client")?);
 
     let wallet_cn: ContractName = args.wallet_cn.clone().into();
+    let smt_auto_prove = config.smt_auto_provers || args.auto_provers;
 
     let bus = SharedMessageBus::new();
 
@@ -115,6 +117,17 @@ async fn actual_main() -> Result<()> {
             wallet_cn: wallet_cn.clone(),
             noinit: args.noinit,
             data_directory: config.data_directory.clone(),
+            indexer_database_url: config.indexer_database_url.clone(),
+            listener_poll_interval_secs: config.auto_prover_listener_poll_interval_secs,
+            additional_listener_contracts: if smt_auto_prove {
+                HashSet::from([
+                    ContractName::from("oranj"),
+                    ContractName::from("vitamin"),
+                    ContractName::from("oxygen"),
+                ])
+            } else {
+                HashSet::new()
+            },
         },
         &mut handler,
         api_ctx.clone(),
@@ -127,14 +140,12 @@ async fn actual_main() -> Result<()> {
         &AutoProversConfig {
             wallet_cn: wallet_cn.clone(),
             wallet_auto_prove: config.wallet_auto_prover || args.wallet_auto_prover,
-            smt_auto_prove: config.smt_auto_provers || args.auto_provers,
+            smt_auto_prove,
             data_directory: config.data_directory.clone(),
-            indexer_database_url: config.indexer_database_url.clone(),
             smt_max_txs_per_proof: config.smt_max_txs_per_proof,
             smt_tx_working_window_size: config.smt_tx_working_window_size,
             wallet_max_txs_per_proof: config.wallet_max_txs_per_proof,
             wallet_tx_working_window_size: config.wallet_tx_working_window_size,
-            listener_poll_interval_secs: config.auto_prover_listener_poll_interval_secs,
             idle_flush_interval_secs: config.auto_prover_idle_flush_interval_secs,
             tx_buffer_size: config.auto_prover_tx_buffer_size,
         },
