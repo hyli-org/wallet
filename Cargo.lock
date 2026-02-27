@@ -4,9 +4,9 @@ version = 4
 
 [[package]]
 name = "addchain"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b2e69442aa5628ea6951fa33e24efe8313f4321a91bd729fc2f75bdfc858570"
+checksum = "2e33f6a175ec6a9e0aca777567f9ff7c3deefc255660df887e7fa3585e9801d8"
 dependencies = [
  "num-bigint 0.3.3",
  "num-integer",
@@ -1614,9 +1614,9 @@ dependencies = [
 
 [[package]]
 name = "c-kzg"
-version = "2.1.5"
+version = "2.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e00bf4b112b07b505472dbefd19e37e53307e2bfed5a79e0cc161d58ccd0e687"
+checksum = "1a0f582957c24870b7bfd12bf562c40b4734b533cafbaf8ded31d6d85f462c01"
 dependencies = [
  "blst",
  "cc",
@@ -3115,7 +3115,7 @@ checksum = "df3b46402a9d5adb4c86a0cf463f42e19994e3ee891101b1841f30a545cb49a9"
 [[package]]
 name = "hyli-bonsai-runner"
 version = "0.14.0"
-source = "git+https://github.com/hyli-org/hyli.git?branch=main#63b507604ae6357214f56f468b48ebead8f9215c"
+source = "git+https://github.com/hyli-org/hyli.git?branch=main#f37aa02ddf2b89ab66eb2845fdd1e2b48457426f"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3134,7 +3134,7 @@ dependencies = [
 [[package]]
 name = "hyli-bus"
 version = "0.14.0"
-source = "git+https://github.com/hyli-org/hyli.git?branch=main#63b507604ae6357214f56f468b48ebead8f9215c"
+source = "git+https://github.com/hyli-org/hyli.git?branch=main#f37aa02ddf2b89ab66eb2845fdd1e2b48457426f"
 dependencies = [
  "anyhow",
  "anymap",
@@ -3155,7 +3155,7 @@ dependencies = [
 [[package]]
 name = "hyli-client-sdk"
 version = "0.14.0"
-source = "git+https://github.com/hyli-org/hyli.git?branch=main#63b507604ae6357214f56f468b48ebead8f9215c"
+source = "git+https://github.com/hyli-org/hyli.git?branch=main#f37aa02ddf2b89ab66eb2845fdd1e2b48457426f"
 dependencies = [
  "anyhow",
  "axum",
@@ -3178,7 +3178,7 @@ dependencies = [
 [[package]]
 name = "hyli-contract-sdk"
 version = "0.14.0"
-source = "git+https://github.com/hyli-org/hyli.git?branch=main#63b507604ae6357214f56f468b48ebead8f9215c"
+source = "git+https://github.com/hyli-org/hyli.git?branch=main#f37aa02ddf2b89ab66eb2845fdd1e2b48457426f"
 dependencies = [
  "borsh",
  "hyli-model",
@@ -3192,7 +3192,7 @@ dependencies = [
 [[package]]
 name = "hyli-crypto"
 version = "0.14.0"
-source = "git+https://github.com/hyli-org/hyli.git?branch=main#63b507604ae6357214f56f468b48ebead8f9215c"
+source = "git+https://github.com/hyli-org/hyli.git?branch=main#f37aa02ddf2b89ab66eb2845fdd1e2b48457426f"
 dependencies = [
  "anyhow",
  "blst",
@@ -3205,7 +3205,7 @@ dependencies = [
 [[package]]
 name = "hyli-model"
 version = "0.14.0"
-source = "git+https://github.com/hyli-org/hyli.git?branch=main#63b507604ae6357214f56f468b48ebead8f9215c"
+source = "git+https://github.com/hyli-org/hyli.git?branch=main#f37aa02ddf2b89ab66eb2845fdd1e2b48457426f"
 dependencies = [
  "anyhow",
  "base64",
@@ -3231,7 +3231,7 @@ dependencies = [
 [[package]]
 name = "hyli-modules"
 version = "0.14.0"
-source = "git+https://github.com/hyli-org/hyli.git?branch=main#63b507604ae6357214f56f468b48ebead8f9215c"
+source = "git+https://github.com/hyli-org/hyli.git?branch=main#f37aa02ddf2b89ab66eb2845fdd1e2b48457426f"
 dependencies = [
  "anyhow",
  "assertables",
@@ -3268,7 +3268,7 @@ dependencies = [
 [[package]]
 name = "hyli-net"
 version = "0.14.0"
-source = "git+https://github.com/hyli-org/hyli.git?branch=main#63b507604ae6357214f56f468b48ebead8f9215c"
+source = "git+https://github.com/hyli-org/hyli.git?branch=main#f37aa02ddf2b89ab66eb2845fdd1e2b48457426f"
 dependencies = [
  "anyhow",
  "axum",
@@ -3298,7 +3298,7 @@ dependencies = [
 [[package]]
 name = "hyli-net-macros"
 version = "0.14.0"
-source = "git+https://github.com/hyli-org/hyli.git?branch=main#63b507604ae6357214f56f468b48ebead8f9215c"
+source = "git+https://github.com/hyli-org/hyli.git?branch=main#f37aa02ddf2b89ab66eb2845fdd1e2b48457426f"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -3309,7 +3309,7 @@ dependencies = [
 [[package]]
 name = "hyli-net-traits"
 version = "0.14.0"
-source = "git+https://github.com/hyli-org/hyli.git?branch=main#63b507604ae6357214f56f468b48ebead8f9215c"
+source = "git+https://github.com/hyli-org/hyli.git?branch=main#f37aa02ddf2b89ab66eb2845fdd1e2b48457426f"
 dependencies = [
  "hyli-net-macros",
 ]
@@ -3332,7 +3332,7 @@ dependencies = [
 [[package]]
 name = "hyli-smt-token"
 version = "0.14.0"
-source = "git+https://github.com/hyli-org/hyli.git?branch=main#63b507604ae6357214f56f468b48ebead8f9215c"
+source = "git+https://github.com/hyli-org/hyli.git?branch=main#f37aa02ddf2b89ab66eb2845fdd1e2b48457426f"
 dependencies = [
  "anyhow",
  "borsh",
@@ -3346,7 +3346,7 @@ dependencies = [
 [[package]]
 name = "hyli-turmoil-shims"
 version = "0.14.0"
-source = "git+https://github.com/hyli-org/hyli.git?branch=main#63b507604ae6357214f56f468b48ebead8f9215c"
+source = "git+https://github.com/hyli-org/hyli.git?branch=main#f37aa02ddf2b89ab66eb2845fdd1e2b48457426f"
 dependencies = [
  "borsh",
  "opentelemetry",
@@ -8262,18 +8262,18 @@ dependencies = [
 
 [[package]]
 name = "zerocopy"
-version = "0.8.39"
+version = "0.8.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db6d35d663eadb6c932438e763b262fe1a70987f9ae936e60158176d710cae4a"
+checksum = "a789c6e490b576db9f7e6b6d661bcc9799f7c0ac8352f56ea20193b2681532e5"
 dependencies = [
  "zerocopy-derive",
 ]
 
 [[package]]
 name = "zerocopy-derive"
-version = "0.8.39"
+version = "0.8.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4122cd3169e94605190e77839c9a40d40ed048d305bfdc146e7df40ab0f3e517"
+checksum = "f65c489a7071a749c849713807783f70672b28094011623e200cb86dcb835953"
 dependencies = [
  "proc-macro2",
  "quote",
