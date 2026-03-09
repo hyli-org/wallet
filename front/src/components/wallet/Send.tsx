@@ -1,11 +1,10 @@
 import { useState } from "react";
-import { verifyIdentity, Wallet } from "hyli-wallet";
+import { verifyIdentity, Wallet, WalletOperations } from "hyli-wallet";
 import { blob_builder, BlobTransaction } from "hyli";
 import { check_secret } from "hyli-noir";
 import { nodeService } from "../../services/NodeService";
 import { Transaction, webSocketService } from "../../services/WebSocketService";
 import { ErrorMessage } from "../ErrorMessage";
-import { indexerService } from "../../services/IndexerService";
 import { ConfigService } from "../../services/ConfigService";
 
 interface SendProps {
@@ -24,6 +23,8 @@ export const Send = ({ wallet, onSend }: SendProps) => {
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [showPassword, setShowPassword] = useState<boolean>(false);
 
+    const useSessionKey = !!(wallet.sessionKey && wallet.sessionKey.expiration > Date.now());
+
     const handleSend = async () => {
         setError(null);
 
@@ -38,8 +39,7 @@ export const Send = ({ wallet, onSend }: SendProps) => {
             return;
         }
 
-        // Remove mandatory @wallet validation - proceed with transaction
-        if (!password) {
+        if (!useSessionKey && !password) {
             setError(new Error("Please enter your password"));
             return;
         }
@@ -48,34 +48,45 @@ export const Send = ({ wallet, onSend }: SendProps) => {
         setStatus("Validating input...");
         setIsLoading(true);
 
-        const accountInfo = await indexerService.getAccountInfo(wallet.username);
-        const salted_password = `${password}:${accountInfo.salt}`;
+        let identity: string;
+        let blobTx: BlobTransaction;
+        let salted_password: string | null = null;
 
-        const blob1 = verifyIdentity(wallet.username, Date.now());
-        const identity = `${wallet.username}@${blob1.contract_name}`;
-        const blob0 = await check_secret.build_blob(identity, salted_password);
+        if (useSessionKey) {
+            // Session key path: works with any auth method (ethereum, google, password)
+            identity = wallet.address;
+            const [blob0, blob1] = WalletOperations.createIdentityBlobs(wallet);
+            const blob2 = blob_builder.smt_token.transfer(identity, address, contract, BigInt(parsedAmount), null);
+            blobTx = { identity, blobs: [blob0, blob1, blob2] };
+        } else {
+            // Password fallback path
+            const salted = `${password}:${wallet.salt}`;
+            salted_password = salted;
 
-        const blob2 = blob_builder.smt_token.transfer(identity, address, contract, BigInt(parsedAmount), null);
-
-        const blobTx: BlobTransaction = {
-            identity,
-            blobs: [blob0, blob1, blob2],
-        };
+            const blob1 = verifyIdentity(wallet.username, Date.now());
+            identity = `${wallet.username}@${blob1.contract_name}`;
+            const blob0 = await check_secret.build_blob(identity, salted);
+            const blob2 = blob_builder.smt_token.transfer(identity, address, contract, BigInt(parsedAmount), null);
+            blobTx = { identity, blobs: [blob0, blob1, blob2] };
+        }
 
         try {
             setStatus("Verifying identity...");
             const tx_hash = await nodeService.client.sendBlobTx(blobTx);
             setTransactionHash(tx_hash);
-            setStatus("Building proof transaction (this may take a few moments)...");
-            const proofTx = await check_secret.build_proof_transaction(
-                identity,
-                salted_password,
-                tx_hash,
-                0,
-                blobTx.blobs.length,
-            );
-            setStatus("Sending proof transaction...");
-            await nodeService.client.sendProofTx(proofTx);
+
+            if (!useSessionKey && salted_password) {
+                setStatus("Building proof transaction (this may take a few moments)...");
+                const proofTx = await check_secret.build_proof_transaction(
+                    identity,
+                    salted_password,
+                    tx_hash,
+                    0,
+                    blobTx.blobs.length,
+                );
+                setStatus("Sending proof transaction...");
+                await nodeService.client.sendProofTx(proofTx);
+            }
             setStatus("Waiting for transaction confirmation...");
 
             try {
@@ -218,60 +229,76 @@ export const Send = ({ wallet, onSend }: SendProps) => {
                     )}
                 </div>
 
-                <div className="form-group">
-                    <label className="form-label">Password</label>
-                    <div className="password-wrapper" style={{ position: "relative" }}>
-                        <input
-                            className="input"
-                            type={showPassword ? "text" : "password"}
-                            placeholder="Enter your password"
-                            onChange={(e) => setPassword(e.target.value)}
-                            style={{ paddingRight: "3rem" }}
-                        />
-                        <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            style={{
-                                position: "absolute",
-                                right: "0.75rem",
-                                top: "50%",
-                                transform: "translateY(-50%)",
-                                background: "transparent",
-                                border: "none",
-                                color: "var(--text-secondary)",
-                                cursor: "pointer",
-                                padding: "0.5rem",
-                                fontSize: "1rem",
-                                lineHeight: "1",
-                                transition: "color 0.2s ease",
-                            }}
-                            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--hyli-orange)")}
-                            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
-                            title={showPassword ? "Hide password" : "Show password"}
-                        >
-                            <svg
-                                width="20"
-                                height="20"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                            >
-                                {showPassword ? (
-                                    <>
-                                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-                                        <line x1="1" y1="1" x2="23" y2="23" />
-                                    </>
-                                ) : (
-                                    <>
-                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                                        <circle cx="12" cy="12" r="3" />
-                                    </>
-                                )}
-                            </svg>
-                        </button>
+                {useSessionKey ? (
+                    <div
+                        className="form-group"
+                        style={{
+                            background: "rgba(34, 197, 94, 0.08)",
+                            border: "1px solid rgba(34, 197, 94, 0.25)",
+                            borderRadius: "12px",
+                            padding: "0.75rem 1rem",
+                            fontSize: "var(--text-sm)",
+                            color: "rgba(34, 197, 94, 0.9)",
+                        }}
+                    >
+                        Session key active — no password required
                     </div>
-                </div>
+                ) : (
+                    <div className="form-group">
+                        <label className="form-label">Password</label>
+                        <div className="password-wrapper" style={{ position: "relative" }}>
+                            <input
+                                className="input"
+                                type={showPassword ? "text" : "password"}
+                                placeholder="Enter your password"
+                                onChange={(e) => setPassword(e.target.value)}
+                                style={{ paddingRight: "3rem" }}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                style={{
+                                    position: "absolute",
+                                    right: "0.75rem",
+                                    top: "50%",
+                                    transform: "translateY(-50%)",
+                                    background: "transparent",
+                                    border: "none",
+                                    color: "var(--text-secondary)",
+                                    cursor: "pointer",
+                                    padding: "0.5rem",
+                                    fontSize: "1rem",
+                                    lineHeight: "1",
+                                    transition: "color 0.2s ease",
+                                }}
+                                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--hyli-orange)")}
+                                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+                                title={showPassword ? "Hide password" : "Show password"}
+                            >
+                                <svg
+                                    width="20"
+                                    height="20"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                >
+                                    {showPassword ? (
+                                        <>
+                                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                                            <line x1="1" y1="1" x2="23" y2="23" />
+                                        </>
+                                    ) : (
+                                        <>
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                            <circle cx="12" cy="12" r="3" />
+                                        </>
+                                    )}
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 {error !== null && <ErrorMessage error={error} />}
 

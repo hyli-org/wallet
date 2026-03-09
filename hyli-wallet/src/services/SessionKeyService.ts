@@ -1,5 +1,5 @@
 import EC from "elliptic";
-import { sha3_256 } from "js-sha3";
+import { sha256 } from "@noble/hashes/sha2.js";
 import { Secp256k1Blob, SessionKey } from "../types/wallet";
 import { encodeToHex, hexToBytes } from "../utils/hash";
 
@@ -34,7 +34,7 @@ export class SessionKeyService {
     }
 
     signMessage(message: string, privateKey: string): [Uint8Array, Uint8Array] {
-        const hashBytes = new Uint8Array(sha3_256.arrayBuffer(message));
+        const hashBytes = sha256(new TextEncoder().encode(message));
 
         if (hashBytes.length !== 32) {
             throw new Error("Hash length is not 32 bytes");
