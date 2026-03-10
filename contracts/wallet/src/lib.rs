@@ -15,7 +15,7 @@ use sha2::{digest::Digest, Sha256};
 use sha3::Keccak256;
 use sparse_merkle_tree::{traits::Value, H256};
 
-#[cfg(feature = "client")]
+#[cfg(any(feature = "client", test))]
 pub mod client;
 pub mod smt;
 pub mod utils;
@@ -857,7 +857,7 @@ mod tests {
             invite_code: "test_invite_code".to_string(),
         }
         .as_blob(sdk::ContractName("wallet".to_string()));
-        let register_call = &Calldata {
+        let register_call = Calldata {
             blobs: IndexedBlobs::from(vec![
                 register_blob.clone(),
                 Blob {
@@ -871,46 +871,41 @@ mod tests {
 
         let mut wallet = Wallet::new(&ContractName::new("test"), &None).unwrap();
         let v = wallet
-            .build_commitment_metadata(&register_blob)
+            .build_commitment_metadata(&register_call)
             .expect("Failed to build commitment metadata");
         let mut zk_view: WalletZkView =
             borsh::from_slice(&v).expect("Failed to deserialize zk view");
         assert_eq!(zk_view.partial_data.len(), 1);
         zk_view
-            .execute(&register_call.clone())
+            .execute(&register_call)
             .expect("Failed to execute zk view");
         wallet
-            .handle(register_call)
+            .handle(&register_call)
             .expect("Failed to handle register call");
 
-        let v = wallet
-            .build_commitment_metadata(
-                &WalletAction::VerifyIdentity {
+        let verify_call = Calldata {
+            blobs: IndexedBlobs::from(vec![
+                WalletAction::VerifyIdentity {
                     account: "test_account".to_string(),
                     nonce: 2,
                 }
                 .as_blob(sdk::ContractName("wallet".to_string())),
-            )
+                Blob {
+                    contract_name: sdk::ContractName("check_secret".to_string()),
+                    data: sdk::BlobData(password_hash.clone()),
+                },
+            ]),
+            index: BlobIndex(0),
+            ..Default::default()
+        };
+        let v = wallet
+            .build_commitment_metadata(&verify_call)
             .expect("Failed to build commitment metadata");
         let mut zk_view: WalletZkView =
             borsh::from_slice(&v).expect("Failed to deserialize zk view");
         assert_eq!(zk_view.partial_data.len(), 1);
         zk_view
-            .execute(&Calldata {
-                blobs: IndexedBlobs::from(vec![
-                    WalletAction::VerifyIdentity {
-                        account: "test_account".to_string(),
-                        nonce: 2,
-                    }
-                    .as_blob(sdk::ContractName("wallet".to_string())),
-                    Blob {
-                        contract_name: sdk::ContractName("check_secret".to_string()),
-                        data: sdk::BlobData(password_hash.clone()),
-                    },
-                ]),
-                index: BlobIndex(0),
-                ..Default::default()
-            })
+            .execute(&verify_call)
             .expect("Failed to execute zk view");
     }
 
@@ -951,13 +946,13 @@ mod tests {
 
         let mut wallet = Wallet::new(&ContractName::new("test"), &None).unwrap();
         let iv = wallet
-            .build_commitment_metadata(&register_blob)
+            .build_commitment_metadata(&register_call)
             .expect("Failed to build commitment metadata");
         wallet
             .handle(&register_call)
             .expect("Failed to handle register call");
         let nv = wallet
-            .build_commitment_metadata(&identity_blob)
+            .build_commitment_metadata(&verify_call)
             .expect("Failed to build commitment metadata");
 
         let cv = wallet
@@ -1004,12 +999,12 @@ mod tests {
                 data: sdk::BlobData(password_hash.clone()),
             },
         ]);
-        let pubkey_call = &Calldata {
+        let pubkey_call = Calldata {
             blobs: blobs.clone(),
             index: BlobIndex(0),
             ..Default::default()
         };
-        let register_call = &Calldata {
+        let register_call = Calldata {
             blobs: blobs.clone(),
             index: BlobIndex(1),
             ..Default::default()
@@ -1017,11 +1012,11 @@ mod tests {
 
         let mut wallet = Wallet::new(&ContractName::new("test"), &None).unwrap();
         {
-            let v = wallet.build_commitment_metadata(&pubkey_blob).unwrap();
+            let v = wallet.build_commitment_metadata(&pubkey_call).unwrap();
             let mut zk_view: WalletZkView = borsh::from_slice(&v).unwrap();
 
-            zk_view.execute(&pubkey_call.clone()).unwrap();
-            wallet.handle(pubkey_call).unwrap();
+            zk_view.execute(&pubkey_call).unwrap();
+            wallet.handle(&pubkey_call).unwrap();
             assert_eq!(
                 zk_view.invite_code_public_key, [4; 33],
                 "Public key should be updated"
@@ -1029,11 +1024,11 @@ mod tests {
             assert_eq!(zk_view.commitment, wallet.get_state_commitment());
         }
         {
-            let v = wallet.build_commitment_metadata(&register_blob).unwrap();
+            let v = wallet.build_commitment_metadata(&register_call).unwrap();
             let mut zk_view: WalletZkView = borsh::from_slice(&v).unwrap();
 
-            zk_view.execute(&register_call.clone()).unwrap();
-            wallet.handle(register_call).unwrap();
+            zk_view.execute(&register_call).unwrap();
+            wallet.handle(&register_call).unwrap();
             wallet
                 .get(&"test_account".to_string())
                 .expect("Account should be registered");
@@ -1056,7 +1051,7 @@ mod tests {
             invite_code: "test_invite_code".to_string(),
         }
         .as_blob(sdk::ContractName("wallet".to_string()));
-        let register_call = &Calldata {
+        let register_call = Calldata {
             blobs: IndexedBlobs::from(vec![
                 register_blob.clone(),
                 Blob {
@@ -1070,7 +1065,7 @@ mod tests {
 
         let mut wallet = Wallet::new(&ContractName::new("test"), &None).unwrap();
         let v = wallet
-            .build_commitment_metadata(&register_blob)
+            .build_commitment_metadata(&register_call)
             .expect("Failed to build commitment metadata");
 
         let mut zk_view: WalletZkView =
@@ -1078,10 +1073,10 @@ mod tests {
         zk_view.commitment = StateCommitment(vec![4; 32]); // Force a bad commitment
         assert_eq!(zk_view.partial_data.len(), 1);
         zk_view
-            .execute(&register_call.clone())
+            .execute(&register_call)
             .expect("Failed to execute zk view");
         wallet
-            .handle(register_call)
+            .handle(&register_call)
             .expect("Failed to handle register call");
     }
 

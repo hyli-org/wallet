@@ -5,8 +5,8 @@ use anyhow::Context;
 use borsh::{BorshDeserialize, BorshSerialize};
 use client_sdk::transaction_builder::TxExecutorHandler;
 use sdk::{
-    caller::ExecutionContext, merkle_utils::BorshableMerkleProof, utils::as_hyli_output, Blob,
-    Calldata, Contract, ContractName, HyliOutput, StateCommitment,
+    caller::ExecutionContext, merkle_utils::BorshableMerkleProof, utils::as_hyli_output, Calldata,
+    Contract, ContractName, HyliOutput, StateCommitment,
 };
 use serde::Serialize;
 
@@ -65,7 +65,11 @@ impl Default for Wallet {
  */
 impl TxExecutorHandler for Wallet {
     type Contract = Self;
-    fn build_commitment_metadata(&self, blob: &Blob) -> anyhow::Result<Vec<u8>> {
+    fn build_commitment_metadata(&self, calldata: &Calldata) -> anyhow::Result<Vec<u8>> {
+        let blob = calldata
+            .get_blob()
+            .map_err(|e| anyhow::anyhow!(e))
+            .context("Failed to get blob for commitment metadata")?;
         let wallet_action: Result<WalletAction, _> = WalletAction::from_blob_data(&blob.data);
 
         let zk_view = match wallet_action {
@@ -354,15 +358,7 @@ mod tests {
             data: BlobData(vec![43, 12, 56]),
         };
 
-        let commitment = wallet
-            .build_commitment_metadata(&blob)
-            .expect("Failed to build commitment metadata");
-
-        let mut zk = borsh::from_slice::<WalletZkView>(&commitment)
-            .expect("Failed to deserialize WalletZkView");
-
-        // Attempt to handle the invalid calldata
-        let result = zk.execute(&Calldata {
+        let calldata = Calldata {
             tx_hash: TxHash::default(),
             identity: Identity::default(),
             blobs: IndexedBlobs::from(vec![blob]),
@@ -370,7 +366,17 @@ mod tests {
             index: BlobIndex(0),
             tx_ctx: None,
             private_input: vec![],
-        });
+        };
+
+        let commitment = wallet
+            .build_commitment_metadata(&calldata)
+            .expect("Failed to build commitment metadata");
+
+        let mut zk = borsh::from_slice::<WalletZkView>(&commitment)
+            .expect("Failed to deserialize WalletZkView");
+
+        // Attempt to handle the invalid calldata
+        let result = zk.execute(&calldata);
 
         // Check that it returns an error
         assert!(result.is_err());

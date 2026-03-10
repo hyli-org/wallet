@@ -109,8 +109,8 @@ impl TxExecutorHandler for TokenHistory {
         self.token.handle(calldata)
     }
 
-    fn build_commitment_metadata(&self, blob: &sdk::Blob) -> anyhow::Result<Vec<u8>> {
-        self.token.build_commitment_metadata(blob)
+    fn build_commitment_metadata(&self, calldata: &sdk::Calldata) -> anyhow::Result<Vec<u8>> {
+        self.token.build_commitment_metadata(calldata)
     }
 
     fn get_state_commitment(&self) -> StateCommitment {
@@ -159,7 +159,7 @@ impl ContractHandler<Wrap<Vec<HistoryEvent>>> for TokenHistory {
         }
     }
 
-    fn handle_transaction_failed(
+    fn on_transaction_failed(
         &mut self,
         tx: &sdk::BlobTransaction,
         _index: sdk::BlobIndex,
@@ -183,7 +183,7 @@ impl ContractHandler<Wrap<Vec<HistoryEvent>>> for TokenHistory {
         }
     }
 
-    fn handle_transaction_timeout(
+    fn on_transaction_timeout(
         &mut self,
         tx: &sdk::BlobTransaction,
         _index: sdk::BlobIndex,
@@ -207,7 +207,7 @@ impl ContractHandler<Wrap<Vec<HistoryEvent>>> for TokenHistory {
         }
     }
 
-    fn handle_transaction_sequenced(
+    fn on_transaction_sequenced(
         &mut self,
         tx: &sdk::BlobTransaction,
         index: sdk::BlobIndex,

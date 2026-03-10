@@ -93,7 +93,7 @@ impl ContractHandler<WalletEvent> for Wallet {
         self.handle_transaction(tx, index, tx_context)
     }
 
-    fn handle_transaction_failed(
+    fn on_transaction_failed(
         &mut self,
         tx: &sdk::BlobTransaction,
         _index: sdk::BlobIndex,
@@ -105,7 +105,7 @@ impl ContractHandler<WalletEvent> for Wallet {
         }))
     }
 
-    fn handle_transaction_timeout(
+    fn on_transaction_timeout(
         &mut self,
         tx: &sdk::BlobTransaction,
         _index: sdk::BlobIndex,

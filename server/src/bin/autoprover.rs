@@ -15,7 +15,7 @@ use hyli_modules::{
         contract_listener::{ContractListener, ContractListenerConf},
         prover::{AutoProver, AutoProverCtx},
         rest::{RestApi, RestApiRunContext},
-        BuildApiContextInner, ModulesHandler,
+        BuildApiContextInner, ModulesHandler, ModulesHandlerOptions,
     },
     utils::logger::setup_tracing,
 };
@@ -47,7 +47,11 @@ async fn main() -> Result<()> {
         Arc::new(NodeApiHttpClient::new(config.node_url.clone()).context("build node client")?);
 
     let bus = SharedMessageBus::new();
-    let mut handler = ModulesHandler::new(&bus, config.data_directory.clone())?;
+    let mut handler = ModulesHandler::new(
+        &bus,
+        config.data_directory.clone(),
+        ModulesHandlerOptions::default(),
+    )?;
 
     let api_ctx = Arc::new(BuildApiContextInner {
         router: Mutex::new(Some(Router::new())),

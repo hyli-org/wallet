@@ -6,6 +6,7 @@ use client_sdk::rest_client::NodeApiHttpClient;
 use conf::Conf;
 use history::{HistoryEvent, TokenHistory};
 use hyli_modules::modules::admin::{AdminApi, AdminApiRunContext};
+use hyli_modules::modules::ModulesHandlerOptions;
 use hyli_modules::{
     bus::SharedMessageBus,
     modules::{
@@ -105,7 +106,11 @@ async fn actual_main() -> Result<()> {
 
     std::fs::create_dir_all(&config.data_directory).context("creating data directory")?;
 
-    let mut handler = ModulesHandler::new(&bus, config.data_directory.clone())?;
+    let mut handler = ModulesHandler::new(
+        &bus,
+        config.data_directory.clone(),
+        ModulesHandlerOptions::default(),
+    )?;
 
     let api_ctx = Arc::new(BuildApiContextInner {
         router: Mutex::new(Some(Router::new())),
