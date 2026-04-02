@@ -1,668 +1,590 @@
 #!/usr/bin/env node
 
-import { Buffer } from "buffer";
-import { NodeApiHttpClient, IndexerApiHttpClient, blob_builder, Blob, BlobTransaction } from "hyli";
-import { check_secret } from "hyli-noir";
-import EC from "elliptic";
-import pkg from "js-sha3";
-import {
-    register as registerBlob,
-    addSessionKey as addSessionKeyBlob,
-    verifyIdentity,
-    Wallet,
-    AccountInfo,
-} from "hyli-wallet";
+/**
+ * hyli-wallet-cli — Wallet management for the Hyli blockchain.
+ *
+ * Ported from mpp-hyli's proven account/wallet code.
+ * Uses HyliApp auth (secp256k1) for registration — no password, no Noir proof.
+ * Uses check_secret (Noir ZK proof) only for funding from hyli@wallet faucet.
+ */
+
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { createHash } from "node:crypto";
+import { NodeApiHttpClient, blob_builder } from "hyli";
+import type { BlobTransaction, Blob } from "hyli";
+import elliptic from "elliptic";
 import { BorshSchema, borshSerialize } from "borsher";
 
-const { sha3_256 } = pkg;
+const EC = elliptic.ec;
+const ec = new EC("secp256k1");
 
-// Type definitions
-interface Config {
-    NODE_BASE_URL: string;
-    INDEXER_BASE_URL: string;
-    WALLET_API_BASE_URL: string;
-    WALLET_CONTRACT_NAME: string;
-}
+// ── Config ──
+
+const CONFIG = {
+    NODE_URL: process.env.NODE_BASE_URL || "http://localhost:4321",
+    INDEXER_URL: process.env.INDEXER_BASE_URL || "http://localhost:4322",
+    WALLET_SERVER_URL: process.env.WALLET_API_BASE_URL || "http://localhost:4000",
+    WALLET_CONTRACT: "wallet",
+    DEFAULT_CURRENCY: "oranj",
+    DEFAULT_INVITE_CODE: "vip",
+};
+
+// ── Types ──
 
 interface SessionKey {
     publicKey: string;
     privateKey: string;
     expiration: number;
-    whitelist: string[];
+    whitelist?: string[];
 }
 
-interface RegistrationResult {
-    success: boolean;
-    wallet?: Wallet;
-    error?: string;
+interface Wallet {
+    username: string;
+    address: string;
+    salt: string;
+    sessionKey?: SessionKey;
 }
 
-interface TransferResult {
-    success: boolean;
-    transactionHash?: string;
-    proofTransactionHash?: string;
-    transfer?: {
-        from: string;
-        to: string;
-        amount: number;
-        token: string;
-    };
-    error?: string;
+interface Secp256k1Blob {
+    identity: string;
+    data: number[];
+    public_key: number[];
+    signature: number[];
 }
 
-interface DeleteContractResult {
-    success: boolean;
-    transactionHash?: string;
-    contractName?: string;
-    error?: string;
+// ── Crypto ──
+
+function sha256(data: Uint8Array): Uint8Array {
+    return new Uint8Array(createHash("sha256").update(data).digest());
 }
 
-// Configuration - update these values
-const CONFIG: Config = {
-    NODE_BASE_URL: process.env.NODE_BASE_URL || "http://localhost:4321",
-    INDEXER_BASE_URL: process.env.INDEXER_BASE_URL || "http://localhost:4322",
-    WALLET_API_BASE_URL: process.env.WALLET_API_BASE_URL || "http://localhost:4000",
-    WALLET_CONTRACT_NAME: "wallet",
-};
+function sha3_256(data: Uint8Array): Uint8Array {
+    return new Uint8Array(createHash("sha3-256").update(data).digest());
+}
 
-// Utility functions
-const encodeToHex = (data: Uint8Array): string => {
+function hexToBytes(hex: string): number[] {
+    const bytes: number[] = [];
+    for (let i = 0; i < hex.length; i += 2) {
+        bytes.push(parseInt(hex.substring(i, i + 2), 16));
+    }
+    return bytes;
+}
+
+function bytesToHex(data: Uint8Array | number[]): string {
     return Array.from(data)
-        .map((byte) => byte.toString(16).padStart(2, "0"))
+        .map((b) => b.toString(16).padStart(2, "0"))
         .join("");
-};
-
-async function hashBlob(blob: Blob): Promise<string> {
-    const contractBytes = new TextEncoder().encode(blob.contract_name);
-    const dataBytes = new Uint8Array(blob.data);
-    const input = new Uint8Array(contractBytes.length + dataBytes.length);
-    input.set(contractBytes, 0);
-    input.set(dataBytes, contractBytes.length);
-    return encodeToHex(new Uint8Array(sha3_256.arrayBuffer(input)));
 }
 
-async function hashBlobTransaction(tx: BlobTransaction): Promise<string> {
-    const identityBytes = new TextEncoder().encode(tx.identity);
-    let input = new Uint8Array(identityBytes.length);
-    input.set(identityBytes, 0);
-    for (const blob of tx.blobs) {
-        const blobHashBytes = new TextEncoder().encode(await hashBlob(blob));
-        const newInput = new Uint8Array(input.length + blobHashBytes.length);
-        newInput.set(input, 0);
-        newInput.set(blobHashBytes, input.length);
-        input = newInput;
-    }
-    return encodeToHex(new Uint8Array(sha3_256.arrayBuffer(input)));
-}
-
-// DeleteContractAction serialization
-const deleteContractActionSchema = BorshSchema.Struct({
-    contract_name: BorshSchema.String,
-});
-
-function deleteContractBlob(contractName: string): Blob {
-    return {
-        contract_name: "hyli",
-        data: Array.from(borshSerialize(deleteContractActionSchema, { contract_name: contractName })),
-    };
-}
-
-// Password validation function
-async function validatePassword(username: string, password: string, accountInfo: AccountInfo): Promise<boolean> {
-    const identity = `${username}@${CONFIG.WALLET_CONTRACT_NAME}`;
-
-    if (!("Password" in accountInfo.auth_method)) {
-        throw new Error("Account does not use password authentication");
-    }
-
-    const storedHash = accountInfo.auth_method.Password.hash;
-    const storedSalt = accountInfo.salt;
-
-    const salted_password = `${password}:${storedSalt}`;
-    const computedHashHex = await check_secret.identity_hash(identity, salted_password);
-
-    return computedHashHex === storedHash;
-}
-
-// Session key generation
-function generateSessionKey(expiration: number, whitelist: string[] = []): SessionKey {
-    const ec = new EC.ec("secp256k1");
+function generateSessionKey(expiration: number, whitelist?: string[]): SessionKey {
     const keyPair = ec.genKeyPair();
-
-    const privateKey = keyPair.getPrivate("hex");
-    if (!privateKey) {
-        throw new Error("Failed to generate private key");
-    }
-
-    const publicKey = keyPair.getPublic(true, "hex");
-    if (!publicKey) {
-        throw new Error("Failed to generate public key");
-    }
-
     return {
-        publicKey,
-        privateKey,
+        publicKey: keyPair.getPublic(true, "hex"),
+        privateKey: keyPair.getPrivate("hex"),
         expiration,
         whitelist,
     };
 }
 
-// Main registration function
-async function registerAccount(
-    username: string,
-    password: string,
-    inviteCode: string,
-    salt: string,
-    enableSessionKey: boolean = false
-): Promise<RegistrationResult> {
-    console.log(`Starting registration for username: ${username}`);
+function signMessageRaw(message: string, privateKey: string): [number[], number[]] {
+    const hashBytes = sha256(new TextEncoder().encode(message));
+    const keyPair = ec.keyFromPrivate(privateKey);
+    const sig = keyPair.sign(bytesToHex(hashBytes));
+
+    const n = ec.curve.n!;
+    if (sig.s.gt(n.shrn(1))) {
+        sig.s = n.sub(sig.s);
+    }
+
+    return [
+        Array.from(hashBytes),
+        [...sig.r.toArray("be", 32), ...sig.s.toArray("be", 32)],
+    ];
+}
+
+/** Sign a message with a wallet's session key. */
+function sign(wallet: Wallet, message: string, hash: "sha256" | "sha3-256" = "sha256"): string {
+    if (!wallet.sessionKey) throw new Error("No session key found.");
+    const hashFn = hash === "sha3-256" ? sha3_256 : sha256;
+    const hashBytes = hashFn(new TextEncoder().encode(message));
+    const keyPair = ec.keyFromPrivate(wallet.sessionKey.privateKey);
+    const sig = keyPair.sign(bytesToHex(hashBytes));
+
+    const n = ec.curve.n!;
+    if (sig.s.gt(n.shrn(1))) {
+        sig.s = n.sub(sig.s);
+    }
+
+    return bytesToHex(new Uint8Array([
+        ...sig.r.toArray("be", 32),
+        ...sig.s.toArray("be", 32),
+    ]));
+}
+
+function getPublicKey(wallet: Wallet, format: "compressed" | "uncompressed" = "compressed"): string {
+    if (!wallet.sessionKey) throw new Error("No session key found.");
+    const keyPair = ec.keyFromPrivate(wallet.sessionKey.privateKey);
+    return keyPair.getPublic(format === "compressed", "hex");
+}
+
+// ── Borsh Schemas ──
+
+const secp256k1BlobSchema = BorshSchema.Struct({
+    identity: BorshSchema.String,
+    data: BorshSchema.Array(BorshSchema.u8, 32),
+    public_key: BorshSchema.Array(BorshSchema.u8, 33),
+    signature: BorshSchema.Array(BorshSchema.u8, 64),
+});
+
+const walletActionSchema = BorshSchema.Enum({
+    RegisterIdentity: BorshSchema.Struct({
+        account: BorshSchema.String,
+        nonce: BorshSchema.u128,
+        salt: BorshSchema.String,
+        auth_method: BorshSchema.Enum({
+            Password: BorshSchema.Struct({ hash: BorshSchema.String }),
+            Jwt: BorshSchema.Struct({ hash: BorshSchema.Array(BorshSchema.u8, 32) }),
+            Ethereum: BorshSchema.Struct({ address: BorshSchema.String }),
+            Uninitialized: BorshSchema.Unit,
+            HyliApp: BorshSchema.Struct({ address: BorshSchema.String }),
+        }),
+        invite_code: BorshSchema.String,
+    }),
+    VerifyIdentity: BorshSchema.Struct({
+        account: BorshSchema.String,
+        nonce: BorshSchema.u128,
+    }),
+    AddSessionKey: BorshSchema.Struct({
+        account: BorshSchema.String,
+        key: BorshSchema.String,
+        expiration_date: BorshSchema.u128,
+        whitelist: BorshSchema.Option(BorshSchema.Vec(BorshSchema.String)),
+        lane_id: BorshSchema.Option(BorshSchema.String),
+        nonce: BorshSchema.u128,
+    }),
+    RemoveSessionKey: BorshSchema.Struct({
+        account: BorshSchema.String,
+        key: BorshSchema.String,
+        nonce: BorshSchema.u128,
+    }),
+    UseSessionKey: BorshSchema.Struct({
+        account: BorshSchema.String,
+        nonce: BorshSchema.u128,
+    }),
+});
+
+function serializeSecp256k1Blob(blob: Secp256k1Blob): number[] {
+    return Array.from(borshSerialize(secp256k1BlobSchema, blob));
+}
+
+function serializeWalletAction(action: object): number[] {
+    return Array.from(borshSerialize(walletActionSchema, action));
+}
+
+// ── Blob Builders ──
+
+function getSignedBlobForRegistration(
+    identity: string,
+    nonce: number,
+    privateKey: string,
+): { blob: Blob; publicKey: string } {
+    const message = `${identity}:${nonce}:hyliapp`;
+    const [hashBytes, signatureBytes] = signMessageRaw(message, privateKey);
+    const keyPair = ec.keyFromPrivate(privateKey);
+    const publicKey = keyPair.getPublic(true, "hex");
+
+    return {
+        blob: {
+            contract_name: "secp256k1",
+            data: serializeSecp256k1Blob({
+                identity,
+                data: hashBytes,
+                public_key: hexToBytes(publicKey),
+                signature: signatureBytes,
+            }),
+        },
+        publicKey,
+    };
+}
+
+function registerBlob(
+    account: string, nonce: number, salt: string, authMethod: object, inviteCode: string,
+): Blob {
+    return {
+        contract_name: CONFIG.WALLET_CONTRACT,
+        data: serializeWalletAction({
+            RegisterIdentity: { account, nonce, salt, auth_method: authMethod, invite_code: inviteCode },
+        }),
+    };
+}
+
+function addSessionKeyBlob(
+    account: string, key: string, expirationDate: number, nonce: number, whitelist?: string[],
+): Blob {
+    return {
+        contract_name: CONFIG.WALLET_CONTRACT,
+        data: serializeWalletAction({
+            AddSessionKey: { account, key, expiration_date: expirationDate, whitelist: whitelist ?? null, lane_id: null, nonce },
+        }),
+    };
+}
+
+function verifyIdentityBlob(account: string, nonce: number): Blob {
+    return {
+        contract_name: CONFIG.WALLET_CONTRACT,
+        data: serializeWalletAction({ VerifyIdentity: { account, nonce } }),
+    };
+}
+
+function createIdentityBlobs(wallet: Wallet): [Blob, Blob] {
+    if (!wallet.sessionKey) throw new Error("No session key found.");
+    if (wallet.sessionKey.expiration < Date.now()) throw new Error("Session key expired.");
+
+    const nonce = Date.now();
+    const [hashBytes, signatureBytes] = signMessageRaw(nonce.toString(), wallet.sessionKey.privateKey);
+    const keyPair = ec.keyFromPrivate(wallet.sessionKey.privateKey);
+
+    const blob0: Blob = {
+        contract_name: "secp256k1",
+        data: serializeSecp256k1Blob({
+            identity: wallet.address,
+            data: hashBytes,
+            public_key: hexToBytes(keyPair.getPublic(true, "hex")),
+            signature: signatureBytes,
+        }),
+    };
+
+    const blob1: Blob = {
+        contract_name: CONFIG.WALLET_CONTRACT,
+        data: serializeWalletAction({ UseSessionKey: { account: wallet.username, nonce } }),
+    };
+
+    return [blob0, blob1];
+}
+
+// ── Wallet Storage ──
+
+const CONFIG_DIR = join(homedir(), ".hyli");
+const WALLETS_DIR = join(CONFIG_DIR, "wallets");
+const DEFAULT_FILE = join(CONFIG_DIR, "default");
+
+function ensureWalletsDir(): void {
+    if (!existsSync(WALLETS_DIR)) mkdirSync(WALLETS_DIR, { recursive: true });
+}
+
+function saveWallet(wallet: Wallet, name?: string): void {
+    const walletName = name ?? wallet.username;
+    ensureWalletsDir();
+    writeFileSync(join(WALLETS_DIR, `${walletName}.json`), JSON.stringify(wallet, null, 2));
+    if (getDefaultWalletName() === null) setDefaultWallet(walletName);
+}
+
+function loadWallet(name?: string): Wallet | null {
+    const walletName = name ?? getDefaultWalletName();
+    if (!walletName) return null;
+    const filePath = join(WALLETS_DIR, `${walletName}.json`);
+    if (!existsSync(filePath)) return null;
+    return JSON.parse(readFileSync(filePath, "utf-8")) as Wallet;
+}
+
+function listWallets(): string[] {
+    if (!existsSync(WALLETS_DIR)) return [];
+    return readdirSync(WALLETS_DIR).filter((f) => f.endsWith(".json")).map((f) => f.replace(/\.json$/, ""));
+}
+
+function setDefaultWallet(name: string): void {
+    if (!existsSync(CONFIG_DIR)) mkdirSync(CONFIG_DIR, { recursive: true });
+    writeFileSync(DEFAULT_FILE, name);
+}
+
+function getDefaultWalletName(): string | null {
+    const fromEnv = process.env.HYLI_WALLET?.trim();
+    if (fromEnv) return fromEnv;
+    if (!existsSync(DEFAULT_FILE)) return null;
+    const name = readFileSync(DEFAULT_FILE, "utf-8").trim();
+    return name || null;
+}
+
+function walletPath(name?: string): string {
+    const walletName = name ?? getDefaultWalletName();
+    if (walletName) return join(WALLETS_DIR, `${walletName}.json`);
+    return join(WALLETS_DIR, "default.json");
+}
+
+// ── Ensure check_secret ──
+
+let checkSecretDone = false;
+async function ensureCheckSecretRegistered(): Promise<void> {
+    if (checkSecretDone) return;
+    try {
+        const resp = await fetch(`${CONFIG.INDEXER_URL}/v1/indexer/contracts`);
+        if (resp.ok) {
+            const contracts = (await resp.json()) as Array<{ contract_name: string }>;
+            if (contracts.some((c) => c.contract_name === "check_secret")) {
+                checkSecretDone = true;
+                return;
+            }
+        }
+    } catch { /* proceed */ }
+
+    console.log("  Registering check_secret contract...");
+    const { check_secret } = await import("hyli-noir");
+    const node = new NodeApiHttpClient(CONFIG.NODE_URL);
+    try {
+        await check_secret.register_contract(node);
+    } catch {
+        console.log("  check_secret registration skipped (may already exist).");
+    }
+    checkSecretDone = true;
+}
+
+// ── Commands ──
+
+/** Register account using HyliApp auth (no password, no proof). Copied from mpp-hyli. */
+async function registerAccount(username: string, inviteCode: string, currency: string = CONFIG.DEFAULT_CURRENCY): Promise<Wallet> {
+    const walletContract = CONFIG.WALLET_CONTRACT;
+    const identity = `${username}@${walletContract}`;
+    const nodeClient = new NodeApiHttpClient(CONFIG.NODE_URL);
+
+    console.log(`Creating wallet for ${identity}...`);
+
+    // 1. Generate session key (7-day expiry)
+    const expiration = Date.now() + 7 * 24 * 60 * 60 * 1000;
+    const sessionKey = generateSessionKey(expiration, [currency, walletContract]);
+
+    // 2. Consume invite code
+    console.log("  Consuming invite code...");
+    const inviteResp = await fetch(`${CONFIG.WALLET_SERVER_URL}/api/consume_invite`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: inviteCode, wallet: username }),
+    });
+    if (!inviteResp.ok) throw new Error(`Failed to consume invite code: ${await inviteResp.text()}`);
+    const inviteBlob: Blob = await inviteResp.json();
+
+    // 3. Register identity with HyliApp auth
+    console.log("  Registering identity...");
+    const nonce = Date.now();
+    const salt = Math.random().toString(36).substring(2, 10);
+
+    const { blob: sigBlob, publicKey } = getSignedBlobForRegistration(identity, nonce, sessionKey.privateKey);
+    const address = publicKey.slice(0, 40);
+
+    const regBlob = registerBlob(username, nonce, salt, { HyliApp: { address } }, inviteCode);
+
+    const regBlobTx: BlobTransaction = { identity, blobs: [inviteBlob, sigBlob, regBlob] };
+    const regTxHash = await nodeClient.sendBlobTx(regBlobTx);
+    console.log(`  Registration tx: ${regTxHash}`);
+
+    // 4. Add session key (separate tx)
+    console.log("  Adding session key...");
+    const skBlob = addSessionKeyBlob(username, sessionKey.publicKey, expiration, nonce + 1, [currency, walletContract]);
+    const { blob: skSigBlob } = getSignedBlobForRegistration(identity, nonce + 1, sessionKey.privateKey);
+
+    const skBlobTx: BlobTransaction = { identity, blobs: [skBlob, skSigBlob] };
+    const skTxHash = await nodeClient.sendBlobTx(skBlobTx);
+    console.log(`  Session key tx: ${skTxHash}`);
+
+    // 5. Save wallet
+    const wallet: Wallet = { username, address: identity, salt, sessionKey };
+    saveWallet(wallet, username);
+    console.log(`  Saved to: ${walletPath(username)}`);
+
+    return wallet;
+}
+
+/** Fund wallet from hyli@wallet faucet. Uses check_secret Noir proof. Copied from mpp-hyli. */
+async function fundAccount(walletName?: string, amount: number = 1000, currency: string = CONFIG.DEFAULT_CURRENCY): Promise<void> {
+    const wallet = loadWallet(walletName);
+    if (!wallet) throw new Error(`No wallet found. Run \`hyli-wallet register\` first.`);
+
+    const fromAccount = "hyli";
+    const fromIdentity = `${fromAccount}@wallet`;
+    const fromSaltedPassword = "hylisecure:hyli-random-salt";
+    const node = new NodeApiHttpClient(CONFIG.NODE_URL);
+
+    console.log(`Funding ${wallet.address} with ${amount} ${currency} from ${fromIdentity}...`);
+    await ensureCheckSecretRegistered();
+
+    const { check_secret } = await import("hyli-noir");
+
+    console.log("  Building blobs...");
+    const secretBlob = await check_secret.build_blob(fromIdentity, fromSaltedPassword);
+    const nonce = Date.now();
+    const verifyBlob = verifyIdentityBlob(fromAccount, nonce);
+    const transferBlob = blob_builder.smt_token.transfer(fromIdentity, wallet.address, currency, BigInt(amount), null);
+
+    const blobTx: BlobTransaction = { identity: fromIdentity, blobs: [secretBlob, verifyBlob, transferBlob] };
+
+    console.log("  Submitting blob tx...");
+    const txHash = await node.sendBlobTx(blobTx);
+    console.log(`  Blob tx: ${txHash}`);
+
+    console.log("  Generating ZK proof (this may take 30-60s)...");
+    const proofTx = await check_secret.build_proof_transaction(fromIdentity, fromSaltedPassword, txHash, 0, blobTx.blobs.length);
+    console.log("  Submitting proof...");
+    const proofHash = await node.sendProofTx(proofTx);
+    console.log(`  Proof tx: ${proofHash}`);
+    console.log(`  Funded: ${amount} ${currency}`);
+}
+
+/** Transfer using session key (fast, no proof). */
+async function transferWithSessionKey(wallet: Wallet, amount: string, token: string, destination: string): Promise<void> {
+    const node = new NodeApiHttpClient(CONFIG.NODE_URL);
+    console.log(`  Transferring ${amount} ${token} from ${wallet.address} to ${destination}...`);
+
+    const [signatureBlob, sessionKeyBlob] = createIdentityBlobs(wallet);
+    const transferBlob = blob_builder.smt_token.transfer(wallet.address, destination, token, BigInt(amount), null);
+
+    const blobTx: BlobTransaction = { identity: wallet.address, blobs: [signatureBlob, sessionKeyBlob, transferBlob] };
+    const txHash = await node.sendBlobTx(blobTx);
+    console.log(`  Transaction: ${txHash}`);
+}
+
+async function showInfo(walletName?: string): Promise<void> {
+    const wallet = loadWallet(walletName);
+    if (!wallet) { console.log("No wallet found. Run `hyli-wallet register` first."); return; }
+
+    console.log(`Identity: ${wallet.address}`);
+    console.log(`Wallet file: ${walletPath(walletName)}`);
 
     try {
-        // Initialize services
-        const nodeService = new NodeApiHttpClient(CONFIG.NODE_BASE_URL);
-
-        // Check if account already exists
-        let accountInfo: AccountInfo | undefined;
-        try {
-            const response = await fetch(
-                `${CONFIG.WALLET_API_BASE_URL}/v1/indexer/contract/${CONFIG.WALLET_CONTRACT_NAME}/account/${username}`
-            );
-            if (!response.ok) {
-                throw new Error(`Failed to check account existence: ${response.statusText}`);
-            }
-            accountInfo = await response.json();
-        } catch (error) {
-            // If error, assume account does not exist and continue
-            console.log(`Account ${username} does not exist, proceeding with registration...`);
+        const resp = await fetch(`${CONFIG.INDEXER_URL}/v1/indexer/contract/${CONFIG.DEFAULT_CURRENCY}/state`);
+        if (resp.ok) {
+            const state = await resp.json() as Record<string, { balance?: number }>;
+            const entry = state[wallet.address];
+            console.log(`Balance: ${entry?.balance ?? 0} ${CONFIG.DEFAULT_CURRENCY}`);
+        } else {
+            console.log(`Balance: unknown (indexer returned ${resp.status})`);
         }
+    } catch {
+        console.log("Balance: unknown (could not reach indexer)");
+    }
 
-        if (accountInfo) {
-            console.log(`Account ${username} already exists`);
-            return {
-                success: true,
-                wallet: {
-                    username,
-                    address: `${username}@${CONFIG.WALLET_CONTRACT_NAME}`,
-                    salt: accountInfo.salt,
-                },
-            };
-        }
-
-        // Validate password
-        if (!password || password.length < 8) {
-            throw new Error("Password must be at least 8 characters long");
-        }
-
-        // Claim invite code
-        console.log("Claiming invite code...");
-        let inviteCodeBlob: Blob;
-        try {
-            const response = await fetch(`${CONFIG.WALLET_API_BASE_URL}/api/consume_invite`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    code: inviteCode,
-                    wallet: username,
-                }),
-            });
-
-            if (!response.ok) {
-                throw new Error(`Failed to claim invite code: ${response.statusText}`);
-            }
-
-            inviteCodeBlob = await response.json();
-            console.log("Invite code claimed successfully");
-        } catch (error: any) {
-            throw new Error(`Failed to claim invite code: ${error.message}`);
-        }
-
-        const identity = `${username}@${CONFIG.WALLET_CONTRACT_NAME}`;
-        const salted_password = `${password}:${salt}`;
-
-        // Create blobs
-        console.log("Creating blobs...");
-        const blob0 = await check_secret.build_blob(identity, salted_password);
-        const hash = Buffer.from(blob0.data).toString("hex");
-        const blob1 = registerBlob(username, Date.now(), salt, { Password: { hash: hash } }, inviteCode);
-
-        const blobTx: BlobTransaction = {
-            identity,
-            blobs: [blob0, blob1, inviteCodeBlob],
-        };
-
-        // Generate session key if requested
-        let newSessionKey: SessionKey | undefined;
-        if (enableSessionKey) {
-            console.log("Generating session key...");
-            const { duration = 24 * 60 * 60 * 1000, whitelist = [] } = {}; // 24 hours default
-            const expiration = Date.now() + duration;
-            newSessionKey = generateSessionKey(expiration, whitelist);
-            const sessionKeyNonce = Date.now();
-            blobTx.blobs.push(addSessionKeyBlob(username, newSessionKey.publicKey, expiration, sessionKeyNonce, whitelist));
-        }
-
-        // Register contract
-        console.log("Registering contract...");
-        await check_secret.register_contract(nodeService);
-
-        // Send blob transaction
-        console.log("Sending blob transaction...");
-        const txHash = await hashBlobTransaction(blobTx);
-        console.log(`Blob transaction hash: ${txHash}`);
-
-        // Send the actual blob transaction
-        console.log("Sending blob transaction...");
-        await nodeService.sendBlobTx(blobTx);
-        console.log("Blob transaction sent successfully");
-
-        // Generate and send proof transaction
-        console.log("Generating proof transaction...");
-        const proofTx = await check_secret.build_proof_transaction(
-            identity,
-            salted_password,
-            txHash,
-            0,
-            blobTx.blobs.length
-        );
-
-        console.log("Sending proof transaction...");
-        const proofTxHash = await nodeService.sendProofTx(proofTx);
-        console.log(`Proof transaction hash: ${proofTxHash}`);
-
-        // Create wallet object
-        const wallet: Wallet = {
-            username,
-            address: identity,
-            salt,
-        };
-
-        if (newSessionKey) {
-            wallet.sessionKey = newSessionKey;
-        }
-
-        console.log("Account registration completed successfully!");
-        console.log("Wallet:", JSON.stringify(wallet, null, 2));
-
-        return { success: true, wallet };
-    } catch (error: any) {
-        console.error("Registration failed:", error);
-        return { success: false, error: error.message };
+    if (wallet.sessionKey) {
+        const expiry = new Date(wallet.sessionKey.expiration);
+        const isExpired = expiry.getTime() < Date.now();
+        console.log(`Session key: ${isExpired ? "EXPIRED" : "active"} (expires ${expiry.toISOString()})`);
+        if (wallet.sessionKey.whitelist?.length) console.log(`  Whitelisted: ${wallet.sessionKey.whitelist.join(", ")}`);
+    } else {
+        console.log("Session key: none");
     }
 }
 
-// Transfer function
-async function transferFunds(
-    username: string,
-    password: string,
-    amount: string,
-    token: string,
-    destination: string
-): Promise<TransferResult> {
-    console.log(`Starting transfer from ${username} to ${destination}`);
-    console.log(`Amount: ${amount} ${token}`);
+// ── CLI ──
 
-    try {
-        // Initialize services
-        const nodeService = new NodeApiHttpClient(CONFIG.NODE_BASE_URL);
-        const indexerService = new IndexerApiHttpClient(CONFIG.INDEXER_BASE_URL);
+function showUsage(): void {
+    console.log(`Usage: hyli-wallet <command> [options]
 
-        // Validate inputs
-        const parsedAmount = parseFloat(amount);
-        if (isNaN(parsedAmount) || parsedAmount <= 0) {
-            throw new Error("Amount must be a positive number");
-        }
+Account commands:
+  register <username> <inviteCode> [currency]    Create account with session key
+  fund [amount] [currency] [walletName]           Fund wallet from hyli@wallet faucet
+  info [walletName]                               Show wallet info and balance
+  list                                            List all wallets
+  default <name>                                  Set the default wallet
 
-        if (!token || !destination) {
-            throw new Error("Token and destination are required");
-        }
+Transfer:
+  send <amount> <token> <destination> [wallet]    Transfer using session key (fast)
 
-        // Check if account exists and get account info
-        console.log("Checking account information...");
-        let accountInfo: AccountInfo;
-        try {
-            const response = await fetch(
-                `${CONFIG.WALLET_API_BASE_URL}/v1/indexer/contract/${CONFIG.WALLET_CONTRACT_NAME}/account/${username}`
-            );
-            if (!response.ok) {
-                throw new Error(`Failed to get account info: ${response.statusText}`);
-            }
+Signing:
+  sign <message> [walletName] [--sha3]            Sign a message with session key
+  pubkey [walletName] [--uncompressed]             Show public key
 
-            accountInfo = await response.json();
-            if (!accountInfo) {
-                throw new Error(`Account with username "${username}" does not exist.`);
-            }
-        } catch (error: any) {
-            throw new Error(`Failed to get account info: ${error.message}`);
-        }
+Environment variables:
+  NODE_BASE_URL        Node URL (default: http://localhost:4321)
+  INDEXER_BASE_URL     Indexer URL (default: http://localhost:4322)
+  WALLET_API_BASE_URL  Wallet API URL (default: http://localhost:4000)
+  HYLI_WALLET          Default wallet name override
 
-        // Validate password
-        console.log("Validating password...");
-        const isPasswordValid = await validatePassword(username, password, accountInfo);
-        if (!isPasswordValid) {
-            throw new Error("Invalid password");
-        }
-
-        const identity = `${username}@${CONFIG.WALLET_CONTRACT_NAME}`;
-        const salted_password = `${password}:${accountInfo.salt}`;
-
-        // Check that account has enough balance
-        console.log("Checking balance...");
-        let balance: number;
-        try {
-            const result = (await indexerService.get(
-                `v1/indexer/contract/${token}/balance/${identity}`,
-                "Checking balance"
-            )) as { balance: number };
-            balance = result.balance;
-        } catch (error: any) {
-            throw new Error(`Failed to get balance: ${error.message}. User might have no balance for this token.`);
-        }
-        console.log(`Balance for ${username} is`, balance);
-
-        if (balance < parsedAmount) {
-            throw new Error(`Account "${username}" does not have enough balance to transfer ${amount} ${token}`);
-        }
-
-        // Create blobs for transfer
-        console.log("Creating transfer blobs...");
-        const blob0 = await check_secret.build_blob(identity, salted_password);
-        const blob1 = verifyIdentity(username, Date.now());
-        const blob2 = blob_builder.smt_token.transfer(identity, destination, token, BigInt(parsedAmount), null);
-
-        const blobTx: BlobTransaction = {
-            identity,
-            blobs: [blob0, blob1, blob2],
-        };
-
-        // Send blob transaction
-        console.log("Sending blob transaction...");
-        const txHash = await hashBlobTransaction(blobTx);
-        console.log(`Blob transaction hash: ${txHash}`);
-
-        // Send the actual blob transaction
-        console.log("Sending blob transaction...");
-        await nodeService.sendBlobTx(blobTx);
-        console.log("Blob transaction sent successfully");
-
-        // Generate and send proof transaction
-        console.log("Generating proof transaction...");
-        const proofTx = await check_secret.build_proof_transaction(
-            identity,
-            salted_password,
-            txHash,
-            0,
-            blobTx.blobs.length
-        );
-
-        console.log("Sending proof transaction...");
-        const proofTxHash = await nodeService.sendProofTx(proofTx);
-        console.log(`Proof transaction hash: ${proofTxHash}`);
-
-        console.log("Transfer completed successfully!");
-        console.log(`Transferred ${amount} ${token} from ${username} to ${destination}`);
-
-        return {
-            success: true,
-            transactionHash: txHash,
-            proofTransactionHash: proofTxHash,
-            transfer: {
-                from: username,
-                to: destination,
-                amount: parsedAmount,
-                token: token,
-            },
-        };
-    } catch (error: any) {
-        console.error("Transfer failed:", error);
-        return { success: false, error: error.message };
-    }
+Wallets are stored at ~/.hyli/wallets/<name>.json`);
 }
 
-// Delete contract function
-async function deleteContract(password: string, contractName: string): Promise<DeleteContractResult> {
-    console.log(`Starting contract deletion for: ${contractName}`);
-
-    try {
-        // Initialize services
-        const nodeService = new NodeApiHttpClient(CONFIG.NODE_BASE_URL);
-
-        let accountInfo: AccountInfo;
-        try {
-            const response = await fetch(
-                `${CONFIG.WALLET_API_BASE_URL}/v1/indexer/contract/${CONFIG.WALLET_CONTRACT_NAME}/account/hyli`
-            );
-            accountInfo = await response.json();
-        } catch (error: any) {
-            throw new Error(`Failed to get account info for hyli@wallet: ${error.message}`);
-        }
-        if (!accountInfo) {
-            throw new Error("hyli@wallet account does not exist");
-        }
-
-        // Use hyli@wallet as the admin account
-        const username = "hyli";
-        const identity = `${username}@${CONFIG.WALLET_CONTRACT_NAME}`;
-        const salted_password = `${password}:${accountInfo.salt}`;
-
-        // Create blobs
-        console.log("Creating blobs...");
-        const blob0 = await check_secret.build_blob(identity, salted_password);
-        const blob1 = verifyIdentity(username, Date.now());
-
-        // Create DeleteContractAction blob
-        const actionBlob = deleteContractBlob(contractName);
-
-        const emptyBlob: Blob = {
-            contract_name: contractName,
-            data: [],
-        };
-
-        const blobTx: BlobTransaction = {
-            identity,
-            blobs: [blob0, blob1, actionBlob, emptyBlob],
-        };
-
-        // Send blob transaction
-        console.log("Sending blob transaction...");
-        const txHash = await hashBlobTransaction(blobTx);
-        console.log(`Blob transaction hash: ${txHash}`);
-
-        console.log("Registering contract check_secret...");
-        await check_secret.register_contract(nodeService);
-
-        // Send the actual blob transaction
-        await nodeService.sendBlobTx(blobTx);
-        console.log("Blob transaction sent successfully");
-
-        // Generate and send proof transaction
-        console.log("Generating proof transaction...");
-        const proofTx = await check_secret.build_proof_transaction(
-            identity,
-            salted_password,
-            txHash,
-            0,
-            blobTx.blobs.length
-        );
-
-        console.log("Sending proof transaction...");
-        const proofTxHash = await nodeService.sendProofTx(proofTx);
-        console.log(`Proof transaction hash: ${proofTxHash}`);
-
-        console.log(`Contract deletion request for "${contractName}" completed successfully!`);
-
-        return {
-            success: true,
-            transactionHash: txHash,
-            contractName: contractName,
-        };
-    } catch (error: any) {
-        console.error("Contract deletion failed:", error);
-        return { success: false, error: error.message };
-    }
-}
-
-// CLI interface
 async function main(): Promise<void> {
     const args = process.argv.slice(2);
-
-    if (args.length < 1) {
-        showUsage();
-        process.exit(1);
-    }
+    if (args.length < 1) { showUsage(); process.exit(1); }
 
     const command = args[0];
 
-    if (command === "register") {
-        await handleRegisterCommand(args.slice(1));
-    } else if (command === "transfer") {
-        await handleTransferCommand(args.slice(1));
-    } else if (command === "delete_contract") {
-        await handleDeleteContractCommand(args.slice(1));
-    } else {
-        console.log(`Unknown command: ${command}`);
-        showUsage();
+    try {
+        switch (command) {
+            case "register": {
+                if (args.length < 3) { console.log("Usage: hyli-wallet register <username> <inviteCode> [currency]"); process.exit(1); }
+                const [, username, inviteCode, currency] = args;
+                await registerAccount(username, inviteCode, currency);
+                console.log("Done.");
+                break;
+            }
+            case "fund": {
+                const [, amount = "1000", currency = CONFIG.DEFAULT_CURRENCY, walletName] = args;
+                await fundAccount(walletName, parseInt(amount), currency);
+                console.log("Done.");
+                break;
+            }
+            case "info": {
+                await showInfo(args[1]);
+                break;
+            }
+            case "list": {
+                const wallets = listWallets();
+                if (wallets.length === 0) { console.log("No wallets found."); break; }
+                const def = getDefaultWalletName();
+                for (const name of wallets) console.log(`  ${name}${name === def ? " (default)" : ""}`);
+                break;
+            }
+            case "default": {
+                if (args.length < 2) { console.log("Usage: hyli-wallet default <name>"); process.exit(1); }
+                const wallets = listWallets();
+                if (!wallets.includes(args[1])) { console.error(`Wallet "${args[1]}" not found.`); process.exit(1); }
+                setDefaultWallet(args[1]);
+                console.log(`Default wallet set to: ${args[1]}`);
+                break;
+            }
+            case "send": {
+                if (args.length < 4) { console.log("Usage: hyli-wallet send <amount> <token> <destination> [walletName]"); process.exit(1); }
+                const [, amount, token, destination, walletName] = args;
+                const wallet = loadWallet(walletName);
+                if (!wallet?.sessionKey) { console.error("No wallet with session key found."); process.exit(1); }
+                await transferWithSessionKey(wallet, amount, token, destination);
+                console.log("Done.");
+                break;
+            }
+            case "sign": {
+                if (args.length < 2) { console.log("Usage: hyli-wallet sign <message> [walletName] [--sha3]"); process.exit(1); }
+                const useSha3 = args.includes("--sha3");
+                const walletName = args.find((a, i) => i > 1 && !a.startsWith("--"));
+                const wallet = loadWallet(walletName);
+                if (!wallet) { console.error("No wallet found."); process.exit(1); }
+                console.log(sign(wallet, args[1], useSha3 ? "sha3-256" : "sha256"));
+                break;
+            }
+            case "pubkey": {
+                const walletName = args.find((a, i) => i > 0 && !a.startsWith("--"));
+                const wallet = loadWallet(walletName);
+                if (!wallet) { console.error("No wallet found."); process.exit(1); }
+                console.log(getPublicKey(wallet, args.includes("--uncompressed") ? "uncompressed" : "compressed"));
+                break;
+            }
+            default:
+                console.log(`Unknown command: ${command}`);
+                showUsage();
+                process.exit(1);
+        }
+    } catch (error: any) {
+        console.error("Error:", error.message);
         process.exit(1);
     }
+
+    setTimeout(() => process.exit(0), 100);
 }
 
-function showUsage(): void {
-    console.log("Usage: hyli-wallet <command> [options]");
-    console.log("");
-    console.log("Commands:");
-    console.log("  register <username> <password> <inviteCode> [salt] [enableSessionKey]");
-    console.log("  transfer <username> <password> <amount> <token> <destination>");
-    console.log("  delete_contract <password> <contractName>");
-    console.log("");
-    console.log("Register command:");
-    console.log("  username        - The username for the account");
-    console.log("  password        - The password (must be at least 8 characters)");
-    console.log("  inviteCode      - The invite code to use");
-    console.log("  salt            - Optional salt (defaults to random string)");
-    console.log("  enableSessionKey - Optional: 'true' to enable session key (default: false)");
-    console.log("");
-    console.log("Transfer command:");
-    console.log("  username        - The username of the sender account");
-    console.log("  password        - The password for the sender account");
-    console.log("  amount          - The amount to transfer (positive number)");
-    console.log("  token           - The token/currency to transfer (e.g., 'oranj')");
-    console.log("  destination     - The destination address or username");
-    console.log("");
-    console.log("Delete Contract command (admin only):");
-    console.log("  contractName    - The name of the contract to delete");
-    console.log("  password        - The password for hyli@wallet account");
-    console.log("");
-    console.log("Environment variables:");
-    console.log("  NODE_BASE_URL   - Node service URL (default: http://localhost:4321)");
-    console.log("  INDEXER_BASE_URL - Indexer service URL (default: http://localhost:4322)");
-    console.log("  WALLET_API_BASE_URL - Wallet API URL (default: http://localhost:4000)");
-    console.log("");
-    console.log("Examples:");
-    console.log("  hyli-wallet register myuser mypassword123 INVITE123");
-    console.log("  hyli-wallet transfer myuser mypassword123 100 oranj otheruser@wallet");
-    console.log("  hyli-wallet delete_contract adminpassword mycontract");
-    console.log("  NODE_BASE_URL=http://localhost:4321 hyli-wallet register myuser mypassword123 INVITE123");
-}
-
-async function handleRegisterCommand(args: string[]): Promise<void> {
-    if (args.length < 3) {
-        console.log("Register command requires at least 3 arguments: username, password, inviteCode");
-        console.log("Usage: hyli-wallet register <username> <password> <inviteCode> [salt] [enableSessionKey]");
-        process.exit(1);
-    }
-
-    const [username, password, inviteCode, salt = Math.random().toString(36).substring(2), enableSessionKey = "false"] =
-        args;
-
-    console.log("Configuration:");
-    console.log(`  Node URL: ${CONFIG.NODE_BASE_URL}`);
-    console.log(`  Indexer URL: ${CONFIG.INDEXER_BASE_URL}`);
-    console.log(`  Wallet API URL: ${CONFIG.WALLET_API_BASE_URL}`);
-    console.log(`  Username: ${username}`);
-    console.log(`  Salt: ${salt}`);
-    console.log(`  Enable Session Key: ${enableSessionKey}`);
-    console.log("");
-
-    const result = await registerAccount(username, password, inviteCode, salt, enableSessionKey === "true");
-
-    if (result.success) {
-        console.log("✅ Registration successful!");
-        process.exit(0);
-    } else {
-        console.log("❌ Registration failed!");
-        process.exit(1);
-    }
-}
-
-async function handleTransferCommand(args: string[]): Promise<void> {
-    if (args.length < 5) {
-        console.log("Transfer command requires 5 arguments: username, password, amount, token, destination");
-        console.log("Usage: hyli-wallet transfer <username> <password> <amount> <token> <destination>");
-        process.exit(1);
-    }
-
-    const [username, password, amount, token, destination] = args;
-
-    console.log("Configuration:");
-    console.log(`  Node URL: ${CONFIG.NODE_BASE_URL}`);
-    console.log(`  Indexer URL: ${CONFIG.INDEXER_BASE_URL}`);
-    console.log(`  Wallet API URL: ${CONFIG.WALLET_API_BASE_URL}`);
-    console.log(`  From: ${username}`);
-    console.log(`  To: ${destination}`);
-    console.log(`  Amount: ${amount} ${token}`);
-    console.log("");
-
-    const result = await transferFunds(username, password, amount, token, destination);
-
-    if (result.success) {
-        console.log("✅ Transfer successful!");
-        console.log(`Transaction Hash: ${result.transactionHash}`);
-        console.log(`Proof Transaction Hash: ${result.proofTransactionHash}`);
-        process.exit(0);
-    } else {
-        console.log("❌ Transfer failed!");
-        process.exit(1);
-    }
-}
-
-async function handleDeleteContractCommand(args: string[]): Promise<void> {
-    if (args.length < 2) {
-        console.log("Delete contract command requires 2 arguments: password, contractName");
-        console.log("Usage: hyli-wallet delete_contract <contractName> <password>");
-        process.exit(1);
-    }
-
-    const [contractName, password] = args;
-
-    console.log("Configuration:");
-    console.log(`  Node URL: ${CONFIG.NODE_BASE_URL}`);
-    console.log(`  Indexer URL: ${CONFIG.INDEXER_BASE_URL}`);
-    console.log(`  Wallet API URL: ${CONFIG.WALLET_API_BASE_URL}`);
-    console.log(`  Contract to delete: ${contractName}`);
-    console.log(`  Admin account: hyli@wallet`);
-    console.log("");
-
-    const result = await deleteContract(password, contractName);
-
-    if (result.success) {
-        console.log("✅ Contract deletion request successful!");
-        console.log(`Transaction Hash: ${result.transactionHash}`);
-        console.log(`Contract: ${result.contractName}`);
-        process.exit(0);
-    } else {
-        console.log("❌ Contract deletion failed!");
-        process.exit(1);
-    }
-}
-
-// Run the script
-// Check if this is the main module being executed
 if (import.meta.url.endsWith("hyli-wallet.js") || process.argv[1].includes("hyli-wallet")) {
-    main().catch((error) => {
-        console.error("Script execution failed:", error);
-        process.exit(1);
-    });
+    main().catch((error) => { console.error("Error:", error.message); process.exit(1); });
 }
 
-export { registerAccount, transferFunds, deleteContract };
+export {
+    registerAccount, fundAccount, transferWithSessionKey,
+    sign, getPublicKey, createIdentityBlobs, generateSessionKey,
+    saveWallet, loadWallet, listWallets, setDefaultWallet, getDefaultWalletName,
+};
