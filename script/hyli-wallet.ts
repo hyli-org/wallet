@@ -343,7 +343,7 @@ async function ensureCheckSecretRegistered(): Promise<void> {
 // ── Commands ──
 
 /** Register account using HyliApp auth (no password, no proof). Copied from mpp-hyli. */
-async function registerAccount(username: string, inviteCode: string, currency: string = CONFIG.DEFAULT_CURRENCY): Promise<Wallet> {
+async function registerAccount(username: string, inviteCode: string, contracts: string[] = []): Promise<Wallet> {
     const walletContract = CONFIG.WALLET_CONTRACT;
     const identity = `${username}@${walletContract}`;
     const nodeClient = new NodeApiHttpClient(CONFIG.NODE_URL);
@@ -351,8 +351,11 @@ async function registerAccount(username: string, inviteCode: string, currency: s
     console.log(`Creating wallet for ${identity}...`);
 
     // 1. Generate session key (7-day expiry)
+    // Default whitelist: oranj + wallet. User can add more via --contracts.
+    const defaultContracts = [CONFIG.DEFAULT_CURRENCY, walletContract];
+    const whitelist = [...new Set([...defaultContracts, ...contracts])];
     const expiration = Date.now() + 7 * 24 * 60 * 60 * 1000;
-    const sessionKey = generateSessionKey(expiration, [currency, walletContract]);
+    const sessionKey = generateSessionKey(expiration, whitelist);
 
     // 2. Consume invite code
     console.log("  Consuming invite code...");
@@ -380,7 +383,7 @@ async function registerAccount(username: string, inviteCode: string, currency: s
 
     // 4. Add session key (separate tx)
     console.log("  Adding session key...");
-    const skBlob = addSessionKeyBlob(username, sessionKey.publicKey, expiration, nonce + 1, [currency, walletContract]);
+    const skBlob = addSessionKeyBlob(username, sessionKey.publicKey, expiration, nonce + 1, whitelist);
     const { blob: skSigBlob } = getSignedBlobForRegistration(identity, nonce + 1, sessionKey.privateKey);
 
     const skBlobTx: BlobTransaction = { identity, blobs: [skBlob, skSigBlob] };
@@ -479,7 +482,7 @@ function showUsage(): void {
     console.log(`Usage: hyli-wallet <command> [options]
 
 Account commands:
-  register <username> <inviteCode> [currency]    Create account with session key
+  register <username> <inviteCode> [--contracts <c1,c2,...>]  Create account
   fund [amount] [currency] [walletName]           Fund wallet from hyli@wallet faucet
   info [walletName]                               Show wallet info and balance
   list                                            List all wallets
@@ -510,9 +513,12 @@ async function main(): Promise<void> {
     try {
         switch (command) {
             case "register": {
-                if (args.length < 3) { console.log("Usage: hyli-wallet register <username> <inviteCode> [currency]"); process.exit(1); }
-                const [, username, inviteCode, currency] = args;
-                await registerAccount(username, inviteCode, currency);
+                if (args.length < 3) { console.log("Usage: hyli-wallet register <username> <inviteCode> [--contracts <c1,c2,...>]"); process.exit(1); }
+                const username = args[1];
+                const inviteCode = args[2];
+                const contractsIdx = args.indexOf("--contracts");
+                const contracts = contractsIdx !== -1 ? args[contractsIdx + 1].split(",") : [];
+                await registerAccount(username, inviteCode, contracts);
                 console.log("Done.");
                 break;
             }

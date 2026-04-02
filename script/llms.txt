@@ -1,0 +1,55 @@
+# hyli-wallet-cli
+
+> Wallet management for the Hyli blockchain. Create accounts, fund them, transfer tokens, and sign messages.
+
+## Quick start
+
+```bash
+npm install -g hyli-wallet-cli
+
+# Create a wallet
+hyli-wallet register alice vip
+
+# Fund it
+hyli-wallet fund 1000 oranj alice
+
+# Transfer tokens
+hyli-wallet send 200 oranj bob@wallet alice
+
+# Check balance
+hyli-wallet info alice
+```
+
+## Commands
+
+```
+hyli-wallet register <username> <inviteCode> [--contracts <c1,c2,...>]
+hyli-wallet fund [amount] [currency] [walletName]
+hyli-wallet send <amount> <token> <destination> [walletName]
+hyli-wallet info [walletName]
+hyli-wallet list
+hyli-wallet default <name>
+hyli-wallet sign <message> [walletName] [--sha3]
+hyli-wallet pubkey [walletName] [--uncompressed]
+```
+
+## Signing for external services (e.g. hyliquid)
+
+```bash
+# Get public key (uncompressed for hyliquid)
+hyli-wallet pubkey alice --uncompressed
+
+# Sign with sha3-256 (hyliquid format)
+hyli-wallet sign "alice@wallet:0:create_order:order123" alice --sha3
+```
+
+## Environment variables
+
+- `NODE_BASE_URL` — Node URL (default: http://localhost:4321)
+- `INDEXER_BASE_URL` — Indexer URL (default: http://localhost:4322)
+- `WALLET_API_BASE_URL` — Wallet API URL (default: http://localhost:4000)
+- `HYLI_WALLET` — Default wallet name override
+
+Wallets stored at `~/.hyli/wallets/<name>.json`.
+
+For full documentation, see llms-full.txt.

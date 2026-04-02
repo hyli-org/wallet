@@ -1,0 +1,260 @@
+# hyli-wallet-cli — Wallet Management for Hyli
+
+hyli-wallet-cli creates and manages wallets for the Hyli blockchain. It handles account registration, token transfers, and message signing — everything an agent or app needs to interact with hyli-based services.
+
+## Who is hyli-wallet-cli for?
+
+* **Agent developers** who need wallets for their agents to hold tokens and sign transactions.
+* **Service operators** who need to create and fund test accounts on a local devnet.
+* **App developers** who need to sign messages for hyli-based services like hyliquid.
+
+## Installation
+
+```bash
+npm install -g hyli-wallet-cli
+```
+
+## Quick start
+
+```bash
+# Create a wallet (instant, no proof needed)
+hyli-wallet register alice vip
+
+# Fund it from the devnet faucet
+hyli-wallet fund 1000 oranj alice
+
+# Check balance
+hyli-wallet info alice
+
+# Transfer tokens to another wallet
+hyli-wallet send 200 oranj bob@wallet alice
+```
+
+# Wallets [Create and manage wallets]
+
+hyli-wallet-cli stores wallets as JSON files at `~/.hyli/wallets/`. Each wallet has an identity, salt, and a secp256k1 session key for signing transactions.
+
+## Creating wallets
+
+```bash
+hyli-wallet register alice vip
+```
+
+This creates an account on the hyli blockchain using HyliApp auth (secp256k1 signature). No password needed, no proof generation — registration is instant.
+
+The session key is valid for 7 days and whitelisted for `oranj` and `wallet` contracts by default.
+
+### Whitelisting extra contracts
+
+To interact with other contracts (e.g. hyliquid's orderbook), add them at registration:
+
+```bash
+hyli-wallet register alice vip --contracts orderbook
+hyli-wallet register alice vip --contracts orderbook,hyllar,custom_contract
+```
+
+`oranj` and `wallet` are always included. `--contracts` adds on top.
+
+### Options
+
+| Argument | Description | Required |
+|----------|-------------|----------|
+| `username` | Account name | Yes |
+| `inviteCode` | Invite code | Yes |
+| `--contracts` | Comma-separated extra contracts to whitelist | No |
+
+## Funding wallets
+
+```bash
+hyli-wallet fund 1000 oranj alice
+```
+
+Transfers tokens from the `hyli@wallet` faucet account. Uses a Noir ZK proof for password authentication of the faucet — this step takes 30-60 seconds.
+
+| Argument | Description | Default |
+|----------|-------------|---------|
+| `amount` | Amount to transfer | `1000` |
+| `currency` | Token contract name | `oranj` |
+| `walletName` | Wallet to fund | Default wallet |
+
+## Transferring tokens
+
+```bash
+hyli-wallet send 200 oranj bob@wallet alice
+```
+
+Transfers tokens using the wallet's session key. No proof needed — instant.
+
+| Argument | Description | Required |
+|----------|-------------|----------|
+| `amount` | Amount to transfer | Yes |
+| `token` | Token contract name | Yes |
+| `destination` | Recipient identity (e.g. `bob@wallet`) | Yes |
+| `walletName` | Wallet to send from | No (uses default) |
+
+## Wallet info
+
+```bash
+hyli-wallet info alice
+```
+
+Shows identity, balance, and session key status.
+
+## Managing multiple wallets
+
+```bash
+# List all wallets
+hyli-wallet list
+
+# Set default wallet
+hyli-wallet default bob
+```
+
+## Choosing which wallet to use
+
+Default wallet is resolved in this order:
+
+1. **Wallet name argument** — passed directly to the command
+2. **`HYLI_WALLET` env var** — per terminal session
+3. **`~/.hyli/default` file** — persistent global default
+
+```bash
+# Different wallets in different terminals
+export HYLI_WALLET=alice   # Terminal 1
+export HYLI_WALLET=bob     # Terminal 2
+```
+
+# Signing [Sign messages for external services]
+
+hyli-wallet-cli can sign messages for any service that uses secp256k1 signatures. Two hash algorithms are supported:
+
+- **sha256** (default) — used by hyli wallet contracts
+- **sha3-256** (`--sha3` flag) — used by hyliquid orderbook
+
+## Sign a message
+
+```bash
+# Default (sha256)
+hyli-wallet sign "some message" alice
+
+# For hyliquid (sha3-256)
+hyli-wallet sign "alice@wallet:0:create_order:order123" alice --sha3
+```
+
+Outputs the hex-encoded 64-byte signature to stdout.
+
+## Get public key
+
+```bash
+# Compressed (33 bytes, default)
+hyli-wallet pubkey alice
+
+# Uncompressed (65 bytes, for hyliquid)
+hyli-wallet pubkey alice --uncompressed
+```
+
+## Example: signing a hyliquid order
+
+```bash
+IDENTITY="alice@wallet"
+NONCE=0
+ORDER_ID="order123"
+MESSAGE="${IDENTITY}:${NONCE}:create_order:${ORDER_ID}"
+
+PUBKEY=$(hyli-wallet pubkey alice --uncompressed)
+SIG=$(hyli-wallet sign "$MESSAGE" alice --sha3)
+
+curl -X POST http://localhost:3001/create_order \
+  -H "x-identity: $IDENTITY" \
+  -H "x-public-key: $PUBKEY" \
+  -H "x-signature: $SIG" \
+  -H "Content-Type: application/json" \
+  -d '{"order_id":"order123","order_type":"Limit","order_side":"Bid","price":50000,"pair":["BTC","USDC"],"quantity":100}'
+```
+
+# Library usage [Use hyli-wallet-cli as a module]
+
+All functions are exported for programmatic use:
+
+```typescript
+import {
+  registerAccount,
+  fundAccount,
+  transferWithSessionKey,
+  sign,
+  getPublicKey,
+  createIdentityBlobs,
+  generateSessionKey,
+  saveWallet,
+  loadWallet,
+  listWallets,
+  setDefaultWallet,
+  getDefaultWalletName,
+} from 'hyli-wallet-cli'
+```
+
+### Register and fund
+
+```typescript
+const wallet = await registerAccount('alice', 'vip', ['orderbook'])
+await fundAccount('alice', 1000, 'oranj')
+```
+
+### Transfer
+
+```typescript
+const wallet = loadWallet('alice')
+await transferWithSessionKey(wallet, '200', 'oranj', 'bob@wallet')
+```
+
+### Sign for hyliquid
+
+```typescript
+const wallet = loadWallet('alice')
+const sig = sign(wallet, 'alice@wallet:0:create_order:abc', 'sha3-256')
+const pubkey = getPublicKey(wallet, 'uncompressed')
+```
+
+# Configuration [Environment and defaults]
+
+## Environment variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `NODE_BASE_URL` | Hyli node URL | `http://localhost:4321` |
+| `INDEXER_BASE_URL` | Indexer URL | `http://localhost:4322` |
+| `WALLET_API_BASE_URL` | Wallet server URL | `http://localhost:4000` |
+| `HYLI_WALLET` | Default wallet name override | — |
+
+## Wallet storage
+
+```
+~/.hyli/
+  wallets/
+    alice.json
+    bob.json
+  default              # text file with default wallet name
+```
+
+## How registration works
+
+1. Generates a secp256k1 session key (7-day expiry)
+2. Consumes an invite code via the wallet server
+3. Registers identity on-chain with HyliApp auth (secp256k1 signature)
+4. Adds the session key to the wallet contract (separate transaction)
+5. Saves the wallet locally
+
+No password, no ZK proof — registration is instant. The wallet server's autoprover handles on-chain settlement.
+
+## How funding works
+
+Funding transfers tokens from `hyli@wallet` (the faucet). This account uses password authentication, which requires a Noir ZK proof (`check_secret` contract). The proof takes 30-60 seconds to generate.
+
+## How session key transfers work
+
+The `send` command uses the wallet's session key to sign a transfer. It builds a BlobTransaction with:
+- secp256k1 signature blob (proves session key ownership)
+- UseSessionKey action (authorizes the key for this transaction)
+- SMT token transfer (moves the tokens)
+
+No proof generation needed — the autoprover handles settlement.
